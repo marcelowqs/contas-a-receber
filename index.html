@@ -149,6 +149,13 @@ td .s{display:block;font-size:12px;color:var(--muted)}
 .row.compact .t{font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .row.compact .v{font-size:14px}
 .row.compact .sm{font-size:12px;font-weight:500}
+.rowpg{cursor:default;grid-template-columns:minmax(0,1fr) auto;padding-right:8px}
+.rowpg:hover{background:none}
+.rowpg-main{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;cursor:pointer;min-width:0;border-radius:6px}
+.rowpg-main:hover .t{color:var(--accent)}
+.rowpg-main:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rowpg-acts{display:flex;gap:2px}
+.rowpg-acts .btn{padding:5px 7px}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
 .dot.crit{background:var(--crit)}
 .row:hover{background:var(--sunk)}
@@ -458,6 +465,8 @@ const IC = {
   relatorios: I('<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 15.5h7M9 9h3"/>'),
   config: I('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>'),
   refresh: I('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>'),
+  edit: I('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
+  trash: I('<path d="M4 7h16M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
   mais: I('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'),
   back: I('<path d="M15 5l-7 7 7 7"/>'),
   x: I('<path d="M6 6l12 12M18 6 6 18"/>'),
@@ -1980,9 +1989,13 @@ const ST_PAGAR = { aberta: ['A pagar', 'acc'], parcial: ['Paga em parte', 'warn'
 const pillPagar = st => `<span class="pill ${ST_PAGAR[st][1]}">${ST_PAGAR[st][0]}</span>`;
 
 function rowPagar({ cp, p }, pfs) {
-  return `<button class="row compact ${p.st === 'vencida' ? 'stripe-crit' : p.st === 'paga' ? 'stripe-ok' : p.st === 'parcial' ? 'stripe-warn' : 'stripe-acc'}" data-act="verPagar" data-id="${cp.id}">
-    <div class="t"><span class="num sm ${p.st === 'vencida' ? 'crit' : 'muted'}">${ddmm(cp.vencimento)}</span>${esc(cp.favorecido || cp.descricao)}${cp.favorecido && cp.descricao ? `<span class="muted sm">${esc(cp.descricao)}</span>` : ''}${cp.parcela ? `<span class="muted sm">${esc(cp.parcela)}</span>` : ''}${pfs.length > 1 ? `<span class="tag">${esc(credNome(X.cred[cp.credorId]))}</span>` : ''}${p.st !== 'aberta' ? pillPagar(p.st) : ''}</div>
-    <div class="v">${brl(p.st === 'paga' ? cp.valor : p.saldo)}</div></button>`;
+  const stripe = p.st === 'vencida' ? 'stripe-crit' : p.st === 'paga' ? 'stripe-ok' : p.st === 'parcial' ? 'stripe-warn' : 'stripe-acc';
+  return `<div class="row compact rowpg ${stripe}">
+    <button type="button" class="rowpg-main" data-act="verPagar" data-id="${cp.id}">
+      <span class="t"><span class="num sm ${p.st === 'vencida' ? 'crit' : 'muted'}">${ddmm(cp.vencimento)}</span>${esc(cp.favorecido || cp.descricao)}${cp.favorecido && cp.descricao ? `<span class="muted sm">${esc(cp.descricao)}</span>` : ''}${cp.parcela ? `<span class="muted sm">${esc(cp.parcela)}</span>` : ''}${pfs.length > 1 ? `<span class="tag">${esc(credNome(X.cred[cp.credorId]))}</span>` : ''}${p.st !== 'aberta' ? pillPagar(p.st) : ''}</span>
+      <span class="v">${brl(p.st === 'paga' ? cp.valor : p.saldo)}</span></button>
+    ${S.canWrite ? `<span class="rowpg-acts"><button type="button" class="btn ghost sm" data-act="editarPagar" data-id="${cp.id}" aria-label="Editar">${IC.edit}</button><button type="button" class="btn ghost sm" style="color:var(--crit)" data-act="cancelarPagar" data-id="${cp.id}" aria-label="Apagar">${IC.trash}</button></span>` : ''}
+  </div>`;
 }
 function resumoPagarDash() {
   const pfs = pfCarteiras();
@@ -2093,7 +2106,7 @@ ACT.verPagar = el => {
     <dl class="kv"><dt>Descrição</dt><dd>${esc(cp.descricao || '—')}</dd><dt>Vencimento</dt><dd class="num">${fd(cp.vencimento)}</dd><dt>Valor</dt><dd class="num">${brl(cp.valor)}</dd><dt>Pago</dt><dd class="num ok">${brl(p.pago)}</dd><dt>Falta pagar</dt><dd class="num"><b>${brl(p.saldo)}</b></dd>${cp.obs ? `<dt>Observações</dt><dd style="white-space:pre-wrap">${esc(cp.obs)}</dd>` : ''}</dl>
     ${pags.length ? `<div><div class="eyebrow" style="margin-bottom:6px">Pagamentos</div><div class="timeline">${pags.map((pg, i) => `<div class="tl"><div class="d">${fd(pg.data)}</div><div><div class="flex"><b class="num" ${pg.estornado ? 'style="text-decoration:line-through"' : ''}>${brl(pg.valor)}</b>${pg.forma ? `<span class="muted">${esc(pg.forma)}</span>` : ''}${pg.estornado ? '<span class="pill">Estornado</span>' : S.canWrite ? `<button type="button" class="btn ghost sm right" data-act="estornarPagar" data-id="${cp.id}" data-i="${i}">Estornar</button>` : ''}</div>${fileList(pg.anexos)}</div></div>`).join('')}</div></div>` : ''}
     ${cp.anexos && cp.anexos.length ? `<div><div class="eyebrow" style="margin-bottom:6px">Documentos</div>${fileList(cp.anexos)}</div>` : ''}
-    ${S.canWrite ? `<div class="flex" style="justify-content:flex-end;border-top:1px solid var(--line);padding-top:14px">${!cp.cancelada ? `<button type="button" class="btn danger" data-act="cancelarPagar" data-id="${cp.id}">Excluir</button>` : ''}<button type="button" class="btn" data-act="editarPagar" data-id="${cp.id}">Editar</button>${p.saldo > 0 && !cp.cancelada ? `<button type="button" class="btn pri" data-act="pagarConta" data-id="${cp.id}">Registrar pagamento</button>` : ''}</div>` : ''}`
+    ${S.canWrite ? `<div class="flex" style="justify-content:flex-end;border-top:1px solid var(--line);padding-top:14px">${!cp.cancelada ? `<button type="button" class="btn danger" data-act="cancelarPagar" data-id="${cp.id}">Apagar</button>` : ''}<button type="button" class="btn" data-act="editarPagar" data-id="${cp.id}">Editar</button>${p.saldo > 0 && !cp.cancelada ? `<button type="button" class="btn pri" data-act="pagarConta" data-id="${cp.id}">Registrar pagamento</button>` : ''}</div>` : ''}`
   });
 };
 ACT.pagarConta = el => {
@@ -2158,14 +2171,14 @@ ACT.cancelarPagar = async el => {
   if (!needWrite()) return;
   const cp = S.contas_pagar.find(x => x.id === el.dataset.id);
   const futuras = cp.grupo ? S.contas_pagar.filter(x => x.grupo === cp.grupo && !x.cancelada && x.vencimento > cp.vencimento && !posPagar(x).pago) : [];
-  const ok = await confirmBox('Excluir conta', `Excluir <b>${esc(cp.favorecido)}</b> de ${fd(cp.vencimento)} (${brl(cp.valor)})? Ela fica no histórico como cancelada.${futuras.length ? `<br><br><label class="flex" style="font-weight:500"><input type="checkbox" id="cp-fut"> Excluir também as ${futuras.length} seguintes ainda não pagas${cp.recorrente && cp.recorrente.fim === 'sem' ? ' e encerrar a recorrência' : ''}</label>` : ''}`, 'Excluir', true);
+  const ok = await confirmBox('Apagar conta', `Apagar <b>${esc(cp.favorecido)}</b> de ${fd(cp.vencimento)} (${brl(cp.valor)})? Ela fica no histórico como cancelada.${futuras.length ? `<br><br><label class="flex" style="font-weight:500"><input type="checkbox" id="cp-fut"> Apagar também as ${futuras.length} seguintes ainda não pagas${cp.recorrente && cp.recorrente.fim === 'sem' ? ' e encerrar a recorrência' : ''}</label>` : ''}`, 'Apagar', true);
   if (!ok) return;
   const alvo = [cp, ...((document.getElementById('cp-fut') || {}).checked ? futuras : [])];
   try {
     const encerra = alvo.length > 1 || (cp.grupo && !futuras.length);
     for (const x of alvo) await upd('contas_pagar', x.id, { cancelada: true, canceladaEm: nowIso(), ...(encerra && cp.grupo ? { encerra: true } : {}) });
     await audit('cancelamento', 'conta a pagar', cp.id, `${cp.favorecido}: ${alvo.length} conta(s) excluída(s)`, { credorId: cp.credorId });
-    toast('Conta excluída.');
+    toast('Conta apagada.');
   } catch (e) { toast(errMsg(e), true); }
 };
 
