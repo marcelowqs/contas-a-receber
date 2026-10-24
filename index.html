@@ -1,0 +1,2110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Contas a Receber">
+<meta name="theme-color" content="#1E3E70">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Gestão de Contas a Receber</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: livro-razão — barra lateral fixa (desktop) / barra inferior (celular), conteúdo em folhas sobre papel acinzentado */
+:root{
+  --bg:#F1F3EF; --surface:#FFFFFF; --sunk:#E8EBE5; --ink:#17201C; --muted:#5D6A63; --line:#D9DED7;
+  --accent:#1E3E70; --accent-ink:#FFFFFF; --accent-soft:#E3E9F4;
+  --ok:#1B7448; --ok-soft:#E1F1E7; --warn:#A5620A; --warn-soft:#F7ECDA; --crit:#AE3328; --crit-soft:#F6E2DF;
+  --legal:#653A93; --legal-soft:#ECE4F5; --shadow:0 1px 2px rgba(20,30,25,.06),0 4px 16px rgba(20,30,25,.05);
+  --f-ui:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1312; --surface:#161B1A; --sunk:#1D2321; --ink:#E5EAE6; --muted:#97A39C; --line:#2A3230;
+  --accent:#93B2EE; --accent-ink:#0F1A2E; --accent-soft:#1E2A40;
+  --ok:#5BC38B; --ok-soft:#173226; --warn:#E2A74E; --warn-soft:#382A14; --crit:#F0796C; --crit-soft:#3B1D1A;
+  --legal:#B99CE8; --legal-soft:#2C2240; --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1312; --surface:#161B1A; --sunk:#1D2321; --ink:#E5EAE6; --muted:#97A39C; --line:#2A3230;
+  --accent:#93B2EE; --accent-ink:#0F1A2E; --accent-soft:#1E2A40;
+  --ok:#5BC38B; --ok-soft:#173226; --warn:#E2A74E; --warn-soft:#382A14; --crit:#F0796C; --crit-soft:#3B1D1A;
+  --legal:#B99CE8; --legal-soft:#2C2240; --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-ui);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+.num,td.m,.money{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+/* ---- casca ---- */
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100%}
+.side{position:sticky;top:0;height:100vh;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 12px;gap:4px;overflow:auto}
+.brand{padding:4px 10px 18px;display:flex;flex-direction:column;gap:2px}
+.brand b{font-weight:800;font-size:17px;letter-spacing:-.01em;line-height:1.2}
+.brand span{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--muted);font-weight:500;text-align:left}
+.nav-btn svg{width:18px;height:18px;flex:none}
+.nav-btn:hover{background:var(--sunk);color:var(--ink)}
+.nav-btn.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.nav-btn .ct{margin-left:auto;font:600 11px var(--f-num);background:var(--crit-soft);color:var(--crit);padding:1px 6px;border-radius:99px}
+.side .foot{margin-top:auto;font-size:12px;color:var(--muted);padding:10px}
+.main{min-width:0;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.tabbar{display:none}
+
+@media (min-width:861px){.main{padding-left:32px;padding-right:max(32px,env(safe-area-inset-right,0px))}}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .side{display:none}
+  .main{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px));padding-top:16px}
+  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+  .tabbar button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);padding:4px 0;cursor:pointer}
+  .tabbar button svg{width:22px;height:22px}
+  .tabbar button.on{color:var(--accent);font-weight:700}
+  .tabbar .plus span.ic{background:var(--accent);color:var(--accent-ink);border-radius:12px;width:44px;height:30px;display:grid;place-items:center}
+}
+
+/* ---- cabeçalho de página ---- */
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ph h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.15;text-wrap:balance}
+.ph .sub{color:var(--muted);font-size:14px;margin-top:4px}
+.ph .acts{display:flex;gap:8px;flex-wrap:wrap}
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* ---- carteiras ---- */
+.carteiras{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:5px 12px;font-size:13px;cursor:pointer;color:var(--muted);font-weight:500}
+.chip:hover{color:var(--ink)}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+
+/* ---- botões ---- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap;text-decoration:none;color:var(--ink)}
+.btn:hover{border-color:var(--muted)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 40%,var(--line))}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn.ghost{border-color:transparent;background:none}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn svg{width:16px;height:16px}
+
+/* ---- indicadores ---- */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.kpi{background:var(--surface);padding:16px 18px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.kpi .l{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.kpi .v{font:600 21px/1.2 var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.02em;overflow-wrap:anywhere}
+.kpi .h{font-size:12px;color:var(--muted)}
+.kpi.lead{background:var(--accent);color:var(--accent-ink)}
+.kpi.lead .l,.kpi.lead .h{color:inherit;opacity:.8}
+.kpi .v.crit{color:var(--crit)} .kpi .v.ok{color:var(--ok)} .kpi .v.legal{color:var(--legal)}
+@media (max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi .v{font-size:17px}}
+
+/* ---- folhas ---- */
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);min-width:0}
+.sheet>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.sheet>header h2{margin:0;font-size:15px;font-weight:700}
+.sheet>header .meta{font-size:13px;color:var(--muted)}
+.sheet .body{padding:16px 18px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+@media (max-width:860px){.grid2,.grid3{grid-template-columns:minmax(0,1fr)}}
+
+/* ---- tabelas ---- */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--sunk)}
+td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th.r,td.r,td.m{text-align:right;white-space:nowrap}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover td{background:var(--sunk)}
+tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:0}
+td .s{display:block;font-size:12px;color:var(--muted)}
+.ledger td.m.deb{color:var(--ink)} .ledger td.m.cred{color:var(--ok)}
+.ledger td.m.sal{font-weight:600}
+.ledger tr.t-juros td,.ledger tr.t-multa td,.ledger tr.t-ajuste td{color:var(--muted)}
+.ledger tr.t-juros td.sal,.ledger tr.t-multa td.sal{color:var(--ink)}
+.dc{font:600 10px var(--f-num);padding:1px 4px;border-radius:3px;margin-left:4px;vertical-align:1px}
+.dc.d{background:var(--sunk);color:var(--muted)} .dc.c{background:var(--ok-soft);color:var(--ok)}
+
+/* ---- pílulas ---- */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:99px;white-space:nowrap;background:var(--sunk);color:var(--muted)}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.crit{background:var(--crit-soft);color:var(--crit)} .pill.legal{background:var(--legal-soft);color:var(--legal)}
+.pill.acc{background:var(--accent-soft);color:var(--accent)}
+.tag{font-size:11px;font-weight:700;letter-spacing:.06em;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.tag.pf{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+.tag.pj{color:var(--ink)}
+.stamp{display:inline-block;font:700 11px var(--f-num);letter-spacing:.14em;color:var(--legal);border:1.5px solid var(--legal);padding:2px 6px;border-radius:3px;transform:rotate(-2deg)}
+
+/* ---- listas ---- */
+.list{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);align-items:center;cursor:pointer;text-align:left;background:none;border-left:0;border-right:0;border-top:0;width:100%}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--sunk)}
+.row .t{font-weight:600;overflow-wrap:anywhere}
+.row .s{font-size:13px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row .v{text-align:right;font-family:var(--f-num);font-weight:600;white-space:nowrap}
+.row .v small{display:block;font:500 12px var(--f-ui);color:var(--muted)}
+.row.stripe-crit{box-shadow:inset 3px 0 0 var(--crit)} .row.stripe-warn{box-shadow:inset 3px 0 0 var(--warn)}
+.row.stripe-ok{box-shadow:inset 3px 0 0 var(--ok)} .row.stripe-legal{box-shadow:inset 3px 0 0 var(--legal)} .row.stripe-acc{box-shadow:inset 3px 0 0 var(--accent)}
+.empty{padding:28px 18px;color:var(--muted);text-align:center;font-size:14px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.empty b{color:var(--ink);font-size:15px}
+
+/* ---- formulários ---- */
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+.form .full{grid-column:1/-1}
+.f{display:flex;flex-direction:column;gap:5px;min-width:0}
+.f>label,.f>.lb{font-size:13px;font-weight:600}
+.f>label .req{color:var(--crit)}
+.f .hint{font-size:12px;color:var(--muted)}
+input[type=text],input[type=date],input[type=email],input[type=tel],input[type=number],input[type=search],select,textarea{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 11px;min-width:0}
+input.money-in{font-family:var(--f-num);text-align:right}
+textarea{min-height:76px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;width:max-content;max-width:100%}
+.seg button{border:0;background:var(--surface);padding:7px 16px;cursor:pointer;font-weight:600;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.box{border:1px dashed var(--line);border-radius:var(--r);padding:14px;background:var(--sunk)}
+fieldset{border:0;padding:0;margin:0}
+.section-title{grid-column:1/-1;margin:8px 0 -4px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;border-top:1px solid var(--line);padding-top:16px}
+@media (max-width:640px){.form{grid-template-columns:minmax(0,1fr)}}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.filters .f{width:auto;flex:1 1 150px}
+
+/* ---- composição do saldo ---- */
+.breakdown{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.breakdown>div{padding:12px 14px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+.breakdown .l{font-size:12px;color:var(--muted);font-weight:600}
+.breakdown .v{font:600 16px var(--f-num);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.breakdown .total{background:var(--accent-soft)}
+.breakdown .total .v{color:var(--accent);font-size:19px}
+@media (max-width:640px){.breakdown{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 16px;font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;padding:0 10px}
+.tabs button{border:0;background:none;padding:11px 12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+.notice{padding:12px 14px;border-radius:8px;background:var(--warn-soft);color:var(--ink);font-size:14px;border:1px solid color-mix(in srgb,var(--warn) 35%,transparent)}
+.notice.info{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.notice.crit{background:var(--crit-soft);border-color:color-mix(in srgb,var(--crit) 35%,transparent)}
+.files{display:flex;flex-direction:column;gap:6px}
+.file{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);min-width:0}
+.file a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.timeline{display:flex;flex-direction:column}
+.tl{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.tl:last-child{border-bottom:0}
+.tl .d{font:500 13px var(--f-num);color:var(--muted)}
+.bar{height:6px;border-radius:99px;background:var(--sunk);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--ok);border-radius:99px}
+
+/* ---- modal ---- */
+.scrim{position:fixed;inset:0;background:rgba(10,15,12,.45);z-index:50;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.modal{background:var(--surface);border-radius:14px;width:min(640px,100%);max-height:100%;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);border:1px solid var(--line)}
+.modal header{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.modal header h3{margin:0;font-size:17px}
+.modal .mb{padding:18px 20px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.modal footer{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+@media (max-width:640px){.scrim{align-items:flex-end;padding:0;padding-top:max(16px,env(safe-area-inset-top,0px))}.modal{border-radius:16px 16px 0 0;width:100%}.modal footer{padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}}
+.toasts{position:fixed;z-index:60;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:max-content;max-width:calc(100% - 32px)}
+@media (min-width:861px){.toasts{bottom:24px}}
+.toast{background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;font-weight:500;box-shadow:var(--shadow);animation:tin .2s ease-out}
+.toast.err{background:var(--crit);color:#fff}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}}
+@media (prefers-reduced-motion:reduce){.toast{animation:none}}
+.sheetmenu{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sheetmenu button{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:14px;font-weight:600;cursor:pointer;text-align:left}
+.sheetmenu svg{width:20px;height:20px;color:var(--accent)}
+.muted{color:var(--muted)} .crit{color:var(--crit)} .ok{color:var(--ok)}
+.flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.right{margin-left:auto}
+#login{min-height:100%;display:grid;place-items:center;padding-block:32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.login-card{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 24px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)}
+.loading{padding:60px 0;text-align:center;color:var(--muted)}
+</style>
+
+</head>
+<body>
+<div id="login" hidden></div>
+<div class="app">
+  <aside class="side" id="side"></aside>
+  <main class="main"><div class="wrap" id="main"><div class="loading">Carregando seus dados…</div></div></main>
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+<div id="modal-root"></div>
+<div class="toasts" id="toasts"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.9/dist/umd/supabase.js"></script>
+<script>if(!window.supabase)document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"><\/script>')</script>
+<script>
+/* ===== CONFIGURAÇÃO: cole aqui os dados do seu projeto Supabase (Project Settings → API) ===== */
+const SUPABASE_URL = 'https://xnuvodkkivtksrbadqdq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_GyEB9bLql-NkkL_0o45tTw_22X6jkY4';
+</script>
+<script>
+/* ===== MOTOR FINANCEIRO — todos os valores em centavos (inteiros) ===== */
+const Eng = (() => {
+  const DAY = 86400000;
+  const dn = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) / DAY; };
+  const fromDn = n => new Date(n * DAY).toISOString().slice(0, 10);
+  const addDays = (s, k) => fromDn(dn(s) + k);
+  const addMonths = (s, k) => {
+    const [y, m, d] = s.split('-').map(Number);
+    const t = new Date(Date.UTC(y, m - 1 + k, 1));
+    const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate();
+    t.setUTCDate(Math.min(d, last));
+    return t.toISOString().slice(0, 10);
+  };
+  const diff = (a, b) => dn(b) - dn(a);
+
+  /** Gera o cronograma de parcelas: valor dividido em centavos exatos, resto nas primeiras. */
+  function gerarCronograma(valor, n, primeiroVenc) {
+    n = Math.max(1, Math.floor(n || 1));
+    const base = Math.floor(valor / n), resto = valor - base * n;
+    return Array.from({ length: n }, (_, i) => ({ n: i + 1, venc: addMonths(primeiroVenc, i), valor: base + (i < resto ? 1 : 0) }));
+  }
+
+  /**
+   * Calcula a posição de uma dívida em uma data.
+   * pags: [{id,data,valor,tipo:'recebimento'|'renegociacao'|'abatimento',criadoEm}]
+   * ajs:  [{id,data,valor(+/-),tipo:'juros'|'multa',justificativa}]
+   */
+  function calcular(d, pags = [], ajs = [], asOf) {
+    const V = d.valor;
+    const cron = (d.cronograma && d.cronograma.length) ? d.cronograma : gerarCronograma(V, d.parcelas || 1, d.vencimento);
+    const parcelas = cron.map(p => ({ n: p.n, venc: p.venc, valor: p.valor, pago: 0, quitadaEm: null }));
+    let P = V, J = 0, M = 0;
+    let jurosTot = 0, multaTot = 0, ajJuros = 0, ajMulta = 0, recebido = 0, outrasBaixas = 0, excedente = 0;
+    const amort = d.amortizacao === 'principal_primeiro' ? 'principal_primeiro' : 'juros_primeiro';
+    const j = d.juros && d.juros.ativo && d.juros.taxa > 0 ? d.juros : null;
+    const multaPct = d.multa && d.multa.ativo ? (+d.multa.pct || 0) : 0;
+    const jIni = j ? (j.inicio || d.dataOperacao) : null;
+    let last = jIni;
+    const ledger = [{ data: d.dataOperacao, tipo: 'principal', desc: d.descricao || 'Dívida', debito: V, credito: 0 }];
+
+    const accrue = to => {
+      if (!j || to < jIni) return;
+      if (last < jIni) last = jIni;
+      const days = diff(last, to);
+      if (days <= 0) return;
+      const per = j.periodo === 'ano' ? 365 : 30, i = j.taxa / 100;
+      const comp = j.tipo === 'composto';
+      const base = comp ? P + J : P;
+      const raw = comp ? base * (Math.pow(1 + i, days / per) - 1) : base * i * days / per;
+      const a = Math.round(raw);
+      if (a > 0) {
+        J += a; jurosTot += a;
+        ledger.push({ data: to, tipo: 'juros', desc: `Juros ${comp ? 'compostos' : 'simples'} · ${days} dia${days > 1 ? 's' : ''}`, debito: a, credito: 0 });
+      }
+      last = to;
+    };
+    const payPrincipal = v => {
+      const use = Math.min(v, P);
+      let rest = use;
+      for (const p of parcelas) {
+        if (rest <= 0) break;
+        const open = p.valor - p.pago;
+        if (open <= 0) continue;
+        const t = Math.min(open, rest);
+        p.pago += t; rest -= t;
+      }
+      P -= use;
+      return use;
+    };
+
+    const ev = [];
+    for (const p of parcelas) if (multaPct > 0) ev.push({ data: addDays(p.venc, 1), ord: 0, k: 'multa', p });
+    for (const a of ajs) ev.push({ data: a.data, ord: 1, k: 'ajuste', a, c: a.criadoEm || '' });
+    for (const g of pags) ev.push({ data: g.data, ord: 2, k: 'pag', g, c: g.criadoEm || '' });
+    ev.sort((x, y) => x.data < y.data ? -1 : x.data > y.data ? 1 : x.ord - y.ord || (x.c < y.c ? -1 : x.c > y.c ? 1 : 0));
+
+    for (const e of ev) {
+      if (e.data > asOf) continue;
+      accrue(e.data);
+      if (e.k === 'multa') {
+        const unpaid = e.p.valor - e.p.pago;
+        if (unpaid > 0) {
+          const m = Math.round(unpaid * multaPct / 100);
+          if (m > 0) { M += m; multaTot += m; ledger.push({ data: e.data, tipo: 'multa', desc: `Multa ${fmtPct(multaPct)} · parcela ${e.p.n} em atraso`, debito: m, credito: 0 }); }
+        }
+      } else if (e.k === 'ajuste') {
+        const a = e.a;
+        if (a.tipo === 'multa') {
+          const v = Math.max(a.valor, -M); M += v; ajMulta += v; multaTot += v;
+          ledger.push({ data: a.data, tipo: 'ajuste', desc: `Ajuste de multa · ${a.justificativa || ''}`, debito: v > 0 ? v : 0, credito: v < 0 ? -v : 0 });
+        } else {
+          const v = Math.max(a.valor, -J); J += v; ajJuros += v; jurosTot += v;
+          ledger.push({ data: a.data, tipo: 'ajuste', desc: `Ajuste de juros · ${a.justificativa || ''}`, debito: v > 0 ? v : 0, credito: v < 0 ? -v : 0 });
+        }
+      } else {
+        const g = e.g; let v = g.valor; const parts = { multa: 0, juros: 0, principal: 0 };
+        const takeM = () => { const t = Math.min(v, M); M -= t; v -= t; parts.multa += t; };
+        const takeJ = () => { const t = Math.min(v, J); J -= t; v -= t; parts.juros += t; };
+        const takeP = () => { const t = payPrincipal(v); v -= t; parts.principal += t; };
+        if (amort === 'principal_primeiro') { takeP(); takeM(); takeJ(); } else { takeM(); takeJ(); takeP(); }
+        excedente += v;
+        for (const p of parcelas) if (!p.quitadaEm && p.pago >= p.valor) p.quitadaEm = g.data;
+        if (g.tipo === 'recebimento') recebido += g.valor; else outrasBaixas += g.valor;
+        const rot = g.tipo === 'renegociacao' ? 'Baixa por renegociação' : g.tipo === 'abatimento' ? 'Abatimento / desconto concedido' : 'Pagamento recebido';
+        ledger.push({ data: g.data, tipo: g.tipo, desc: rot + (g.forma ? ` · ${g.forma}` : ''), debito: 0, credito: g.valor, parts, pagId: g.id });
+      }
+    }
+    if (asOf >= d.dataOperacao) accrue(asOf);
+
+    const saldo = P + J + M;
+    const vencidas = parcelas.filter(p => p.venc < asOf && p.pago < p.valor);
+    const principalVencido = vencidas.reduce((s, p) => s + (p.valor - p.pago), 0);
+    const vencido = vencidas.length ? principalVencido + J + M : 0;
+    const proxima = parcelas.find(p => p.pago < p.valor) || null;
+    const temReneg = pags.some(g => g.tipo === 'renegociacao' && g.data <= asOf);
+    let situacao;
+    if (d.cancelada) situacao = 'cancelada';
+    else if (saldo <= 0 && temReneg) situacao = 'renegociada';
+    else if (saldo <= 0) situacao = 'quitada';
+    else if (vencidas.length) situacao = 'vencida';
+    else if (recebido > 0 || outrasBaixas > 0) situacao = 'parcial';
+    else situacao = 'emdia';
+    for (const p of parcelas) p.status = p.pago >= p.valor ? 'paga' : p.venc < asOf ? 'vencida' : p.pago > 0 ? 'parcial' : 'aberta';
+
+    return {
+      principalOriginal: V, principalAberto: P, jurosAcumulados: jurosTot, jurosAberto: J,
+      multas: multaTot, multaAberta: M, ajustesJuros: ajJuros, ajustesMulta: ajMulta,
+      totalAtualizado: V + jurosTot + multaTot, recebido, outrasBaixas, excedente, saldo,
+      vencido, aVencer: saldo - vencido, parcelas, proxima, situacao, ledger,
+      diasAtraso: vencidas.length ? diff(vencidas[0].venc, asOf) : 0
+    };
+  }
+  function fmtPct(p) { return String(p).replace('.', ',') + '%'; }
+
+  return { calcular, gerarCronograma, addDays, addMonths, diff, dn };
+})();
+
+
+</script>
+<script>
+'use strict';
+/* ================= ESTADO ================= */
+const S = {
+  credores: [], devedores: [], dividas: [], pagamentos: [], ajustes: [], contatos: [], auditoria: [], config: {},
+  loaded: {}, view: 'painel', p: {}, cart: 'all', canWrite: true, meId: null, offline: false,
+  dirty: false, pending: false, names: {}
+};
+let db = null, U = null, AS = null, DL = null, X = null;
+const COLS = ['credores', 'devedores', 'dividas', 'pagamentos', 'ajustes', 'contatos', 'auditoria'];
+
+/* ================= UTILITÁRIOS ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const brl = c => BRL.format((c || 0) / 100).replace(/ /g, ' ');
+const fd = s => s ? s.slice(0, 10).split('-').reverse().join('/') : '—';
+const fdt = iso => { if (!iso) return '—'; const d = new Date(iso); return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' ' + d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }); };
+const hoje = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const digits = s => String(s || '').replace(/\D/g, '');
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const mesNome = ym => { const [y, m] = ym.split('-'); return MESES[+m - 1] + '/' + y; };
+function parseBRL(s) {
+  s = String(s ?? '').trim().replace(/[^\d,.-]/g, '');
+  if (!s) return NaN;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if ((s.match(/\./g) || []).length > 1) s = s.replace(/\./g, '');
+  else if (/\.\d{3}$/.test(s)) s = s.replace('.', '');
+  const n = Number(s);
+  return isFinite(n) ? Math.round(n * 100) : NaN;
+}
+const toInput = c => c == null || isNaN(c) ? '' : (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmtDoc(s) {
+  const d = digits(s);
+  if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  return s || '';
+}
+function fmtTel(s) {
+  const d = digits(s);
+  if (d.length === 11) return d.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  if (d.length === 10) return d.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+  return s || '';
+}
+function monthBounds(t) { const ym = t.slice(0, 7); const [y, m] = ym.split('-').map(Number); const last = new Date(Date.UTC(y, m, 0)).getUTCDate(); return [ym + '-01', ym + '-' + String(last).padStart(2, '0')]; }
+
+/* ================= ÍCONES ================= */
+const I = (p, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${p}</svg>`;
+const IC = {
+  painel: I('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
+  devedores: I('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/>'),
+  nova: I('<path d="M12 5v14M5 12h14"/>'),
+  recebimentos: I('<rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19M7 15h3"/>'),
+  vencimentos: I('<rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M8 14h2M14 14h2M8 17.5h2"/>'),
+  cobrancas: I('<path d="M5 4h14v12H8l-3 3z"/><path d="M9 9h6M9 12h4"/>'),
+  juridico: I('<path d="M12 3v18M7 21h10M4 7h16"/><path d="M6.5 7 3.5 13.5a3 3 0 0 0 6 0zM17.5 7l-3 6.5a3 3 0 0 0 6 0z"/>'),
+  relatorios: I('<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 15.5h7M9 9h3"/>'),
+  config: I('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>'),
+  mais: I('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'),
+  back: I('<path d="M15 5l-7 7 7 7"/>'),
+  x: I('<path d="M6 6l12 12M18 6 6 18"/>'),
+  pdf: I('<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 14h6M12 11v6"/>'),
+  xls: I('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>'),
+  clip: I('<path d="M20 11.5 12 19.5a5 5 0 0 1-7-7l8-8a3.4 3.4 0 0 1 4.8 4.8l-8 8a1.7 1.7 0 0 1-2.4-2.4l7.2-7.2"/>'),
+  copy: I('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>')
+};
+const NAV = [
+  ['painel', 'Dashboard'], ['devedores', 'Devedores'], ['nova', 'Nova Dívida'], ['recebimentos', 'Recebimentos'],
+  ['vencimentos', 'Vencimentos'], ['cobrancas', 'Cobranças'], ['juridico', 'Jurídico'], ['relatorios', 'Relatórios'], ['config', 'Configurações']
+];
+
+/* ================= DOMÍNIO ================= */
+const SIT = {
+  emdia: ['Em dia', 'ok'], vencida: ['Vencida', 'crit'], parcial: ['Parcialmente paga', 'warn'],
+  quitada: ['Quitada', ''], renegociada: ['Renegociada', ''], cancelada: ['Cancelada', '']
+};
+const COBS = [
+  ['aberto', 'Em aberto', 'acc'], ['negociacao', 'Em negociação', 'warn'], ['prometido', 'Pagamento prometido', 'warn'],
+  ['parcial', 'Parcialmente pago', 'warn'], ['vencido', 'Vencido', 'crit'], ['extrajudicial', 'Em cobrança extrajudicial', 'legal'],
+  ['judicial', 'Em cobrança judicial', 'legal'], ['quitado', 'Quitado', 'ok']
+];
+const COB = Object.fromEntries(COBS.map(c => [c[0], c]));
+const COB_MANUAL = [['aberto', 'Em aberto'], ['negociacao', 'Em negociação'], ['prometido', 'Pagamento prometido'], ['extrajudicial', 'Em cobrança extrajudicial'], ['judicial', 'Em cobrança judicial']];
+const FORMAS = ['Pix', 'Transferência', 'Dinheiro', 'Boleto', 'Cheque', 'Outra'];
+const CATS_PADRAO = ['Empréstimo pessoal', 'Empréstimo empresarial', 'Venda a prazo', 'Prestação de serviço', 'Aluguel', 'Royalties', 'Adiantamento', 'Outros'];
+const FASES = ['Notificação extrajudicial', 'Protesto', 'Petição inicial / ajuizamento', 'Citação', 'Audiência de conciliação', 'Penhora / execução', 'Sentença', 'Recurso', 'Acordo homologado', 'Arquivado'];
+const cats = () => (S.config.categorias && S.config.categorias.length) ? S.config.categorias : CATS_PADRAO;
+
+function build() {
+  const t = hoje();
+  const pagsBy = {}, ajsBy = {};
+  for (const g of S.pagamentos) if (!g.cancelado) (pagsBy[g.dividaId] ||= []).push(g);
+  for (const a of S.ajustes) if (!a.cancelado) (ajsBy[a.dividaId] ||= []).push(a);
+  const C = {};
+  for (const d of S.dividas) {
+    try { C[d.id] = Eng.calcular(d, pagsBy[d.id] || [], ajsBy[d.id] || [], t); }
+    catch (e) { console.error('cálculo', d.id, e); C[d.id] = Eng.calcular({ ...d, juros: null, multa: null }, [], [], t); }
+  }
+  X = {
+    t, pagsBy, ajsBy, C,
+    cred: Object.fromEntries(S.credores.map(c => [c.id, c])),
+    dev: Object.fromEntries(S.devedores.map(v => [v.id, v])),
+    div: Object.fromEntries(S.dividas.map(d => [d.id, d]))
+  };
+}
+const credOf = d => X.cred[d.credorId] || { nome: '(credor removido)', tipo: '?' };
+const devOf = d => X.dev[d.devedorId] || { nome: '(devedor removido)' };
+const credNome = c => c ? (c.tipo === 'PF' ? c.nome : (c.nome || c.razao)) : '—';
+const credTag = c => c ? (c.tipo === 'PF' ? '<span class="tag pf">PF</span>' : '<span class="tag pj">PJ</span>') : '';
+const divNum = d => d.numero || ('#' + d.id.slice(-5).toUpperCase());
+function inCart(d, cart = S.cart) {
+  if (cart === 'all') return true;
+  const c = X.cred[d.credorId];
+  if (cart === 'PF') return c && c.tipo === 'PF';
+  if (cart === 'PJ') return c && c.tipo === 'PJ';
+  return d.credorId === cart;
+}
+const ativa = d => !d.cancelada && X.C[d.id] && X.C[d.id].saldo > 0;
+function statusCob(d) {
+  const c = X.C[d.id];
+  if (d.cancelada) return 'cancelada';
+  if (c.situacao === 'quitada' || c.situacao === 'renegociada') return 'quitado';
+  if ((d.juridico && d.juridico.ativo) || d.statusCobranca === 'judicial') return 'judicial';
+  if (['negociacao', 'prometido', 'extrajudicial'].includes(d.statusCobranca)) return d.statusCobranca;
+  if (c.situacao === 'vencida') return 'vencido';
+  if (c.situacao === 'parcial') return 'parcial';
+  return 'aberto';
+}
+const sitPill = d => { const s = SIT[X.C[d.id].situacao]; return `<span class="pill ${s[1]}">${s[0]}</span>`; };
+const cobPill = k => { const c = COB[k]; return c ? `<span class="pill ${c[2]}">${c[1]}</span>` : `<span class="pill">Cancelada</span>`; };
+const nomeUser = id => !id ? 'Sistema' : (S.names[id] || (id === S.meId ? 'Você' : 'Usuário'));
+async function resolveNames(ids) {
+  if (!U) return;
+  const need = [...new Set(ids.filter(i => i && !S.names[i]))];
+  if (!need.length) return;
+  try { const ps = await U.profiles(need); let ch = false; for (const i of need) { const n = ps[i] && ps[i].name; if (n) { S.names[i] = n; ch = true; } } if (ch) requestRender(); } catch { }
+}
+
+/* ================= BANCO ================= */
+function errMsg(e) {
+  switch (e && e.code) {
+    case 'invalid_argument': return 'Seu acesso é somente leitura: não foi possível salvar.';
+    case 'quota_exceeded': return 'O banco de dados atingiu o limite de armazenamento. Faça um backup e libere espaço.';
+    case 'resource_exhausted': return 'Muitas operações em sequência. Aguarde alguns segundos e tente de novo.';
+    case 'revoked': case 'not_granted': return 'O acesso ao banco foi encerrado. Recarregue a página.';
+    default: return 'Não foi possível salvar. Verifique a conexão e tente de novo.';
+  }
+}
+async function withRetry(fn) {
+  for (let i = 0; i < 2; i++) {
+    try { return await fn(); }
+    catch (e) { if (e && e.code === 'unavailable' && i === 0) { await sleep(400 + Math.random() * 700); continue; } throw e; }
+  }
+}
+const newId = col => db.collection(col).doc().id;
+const put = (col, id, data) => withRetry(() => db.doc(col + '/' + id).set(data));
+const upd = (col, id, data) => withRetry(() => db.doc(col + '/' + id).update(data));
+const nowIso = () => new Date().toISOString();
+const clean = o => { const r = {}; for (const [k, v] of Object.entries(o)) if (k !== 'id' && v !== undefined) r[k] = v; return r; };
+async function audit(acao, entidade, entidadeId, resumo, extra) {
+  try { await put('auditoria', newId('auditoria'), { em: nowIso(), por: S.meId || null, acao, entidade, entidadeId, resumo, ...(extra || {}) }); }
+  catch (e) { console.warn('auditoria', e); }
+}
+function stamp(o, novo) { const t = nowIso(); return novo ? { ...o, criadoEm: t, criadoPor: S.meId || null, atualizadoEm: t } : { ...o, atualizadoEm: t, atualizadoPor: S.meId || null }; }
+function needWrite() { if (!S.canWrite) { toast('Seu acesso é somente leitura.', true); return false; } if (!db) { toast('Banco de dados indisponível nesta visualização.', true); return false; } return true; }
+
+/* ================= UI BÁSICA ================= */
+function toast(msg, err) {
+  const el = document.createElement('div'); el.className = 'toast' + (err ? ' err' : ''); el.textContent = msg;
+  $('#toasts').appendChild(el); setTimeout(() => el.remove(), err ? 5200 : 2800);
+}
+let renderQueued = false;
+function requestRender() {
+  if (S.dirty) { S.pending = true; return; }
+  if (renderQueued) return; renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; render(); });
+}
+function go(view, p = {}) {
+  S.view = view; S.p = p; S.dirty = false; S.pending = false;
+  try { history.replaceState(null, '', '#' + view); } catch { }
+  closeModal(); render(); window.scrollTo(0, 0);
+}
+const ACT = {};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const f = ACT[el.dataset.act]; if (f) { e.preventDefault(); f(el, e); }
+});
+document.addEventListener('input', e => { if (e.target.closest('form[data-guard]')) S.dirty = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#modal-root').firstChild) closeModal(); });
+ACT.go = el => go(el.dataset.v, el.dataset.id ? { id: el.dataset.id } : {});
+ACT.cart = el => { S.cart = el.dataset.c; try { localStorage.setItem('gcr.cart', S.cart); } catch { } render(); };
+
+/* modal genérico */
+let modalCtx = null;
+function openModal({ title, body, ok = 'Salvar', okClass = 'pri', onSubmit, cancel = 'Cancelar', noFoot }) {
+  const root = $('#modal-root');
+  root.innerHTML = `<div class="scrim" data-scrim><form class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}" novalidate>
+    <header><h3>${esc(title)}</h3><button type="button" class="btn ghost sm" data-close aria-label="Fechar">${IC.x}</button></header>
+    <div class="mb">${body}</div>
+    ${noFoot ? '' : `<footer><button type="button" class="btn" data-close>${esc(cancel)}</button>${onSubmit ? `<button type="submit" class="btn ${okClass}">${esc(ok)}</button>` : ''}</footer>`}
+  </form></div>`;
+  const form = root.querySelector('form');
+  modalCtx = { form };
+  root.querySelector('[data-scrim]').addEventListener('mousedown', e => { if (e.target.hasAttribute('data-scrim')) closeModal(); });
+  root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
+  form.addEventListener('submit', async e => {
+    e.preventDefault(); if (!onSubmit) return;
+    const btn = form.querySelector('button[type=submit]');
+    if (btn.disabled) return; btn.disabled = true;
+    try { const r = await onSubmit(form); if (r !== false) closeModal(); }
+    catch (err) { console.error(err); toast(errMsg(err), true); }
+    finally { if (btn.isConnected) btn.disabled = false; }
+  });
+  const first = form.querySelector('.mb input:not([type=hidden]),.mb select,.mb textarea'); if (first) setTimeout(() => first.focus(), 30);
+  return form;
+}
+function closeModal() { $('#modal-root').innerHTML = ''; modalCtx = null; if (S.pending && !S.dirty) { S.pending = false; requestRender(); } }
+function confirmBox(title, msg, ok = 'Confirmar', danger = false, extraField) {
+  return new Promise(res => {
+    let done = false;
+    openModal({
+      title, ok, okClass: danger ? 'danger-solid' : 'pri',
+      body: `<p style="margin:0">${msg}</p>${extraField || ''}`,
+      onSubmit: f => { const v = f.querySelector('[name=just]'); if (v && !v.value.trim()) { toast('Informe a justificativa.', true); return false; } done = true; res(v ? v.value.trim() : true); }
+    });
+    const root = $('#modal-root');
+    const obs = new MutationObserver(() => { if (!root.firstChild) { obs.disconnect(); if (!done) res(false); } });
+    obs.observe(root, { childList: true });
+  });
+}
+const justField = (lbl = 'Justificativa') => `<div class="f"><label for="cj">${lbl} <span class="req">*</span></label><textarea id="cj" name="just" required></textarea></div>`;
+const fv = (f, n) => { const el = f.elements[n]; return el ? (el.type === 'checkbox' ? el.checked : String(el.value).trim()) : ''; };
+async function copyText(t) { try { await navigator.clipboard.writeText(t); toast('Copiado.'); } catch { toast('Não foi possível copiar: selecione o texto manualmente.', true); } }
+ACT.copy = el => copyText(el.dataset.t);
+
+/* ================= CASCA ================= */
+function renderShell() {
+  const venc = S.dividas.filter(d => X.C[d.id] && X.C[d.id].situacao === 'vencida' && !d.cancelada).length;
+  $('#side').innerHTML = `<div class="brand"><span>Livro de recebíveis</span><b>Gestão de Contas a Receber</b></div>
+    ${NAV.map(([k, l]) => `<button class="nav-btn ${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}<span>${l}</span>${k === 'vencimentos' && venc ? `<span class="ct">${venc}</span>` : ''}</button>`).join('')}
+    <div class="foot">${S.canWrite ? '' : '<div class="pill warn" style="margin-bottom:8px">Somente leitura</div>'}Valores em R$ · ${fd(X.t)}<div style="margin-top:8px"><button class="btn sm" data-act="sair">Sair</button></div></div>`;
+  const tb = [['painel', 'Painel'], ['devedores', 'Devedores'], ['nova', 'Nova'], ['recebimentos', 'Receber'], ['mais', 'Mais']];
+  $('#tabbar').innerHTML = tb.map(([k, l]) => k === 'nova'
+    ? `<button class="plus ${navOn(k) ? 'on' : ''}" data-act="go" data-v="nova"><span class="ic">${IC.nova}</span>${l}</button>`
+    : k === 'mais' ? `<button class="${['vencimentos', 'cobrancas', 'juridico', 'relatorios', 'config'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
+      : `<button class="${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('');
+}
+const navOn = k => S.view === k || (k === 'devedores' && S.view === 'devedor') || (k === 'painel' && S.view === 'divida' && false);
+ACT.maisMenu = () => openModal({
+  title: 'Menu', noFoot: true,
+  body: `<div class="sheetmenu">${NAV.filter(n => !['painel', 'devedores', 'nova', 'recebimentos'].includes(n[0])).map(([k, l]) => `<button type="button" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('')}</div>`
+});
+
+function carteiraChips() {
+  const pj = S.credores.filter(c => c.tipo === 'PJ' && c.ativo !== false);
+  const opts = [['all', 'Consolidado'], ['PF', 'Pessoa Física'], ['PJ', 'Todas as empresas'], ...pj.map(c => [c.id, c.nome])];
+  return `<div class="carteiras" role="group" aria-label="Carteira">${opts.map(([k, l]) => `<button class="chip ${S.cart === k ? 'on' : ''}" data-act="cart" data-c="${esc(k)}">${esc(l)}</button>`).join('')}</div>`;
+}
+const cartLabel = () => S.cart === 'all' ? 'Visão consolidada' : S.cart === 'PF' ? 'Carteira pessoa física' : S.cart === 'PJ' ? 'Todas as empresas' : credNome(X.cred[S.cart]);
+
+function render() {
+  build();
+  renderShell();
+  const V = VIEWS[S.view] || VIEWS.painel;
+  let html;
+  try { html = V(); } catch (e) { console.error(e); html = `<div class="notice crit">Erro ao montar a tela: ${esc(e.message)}</div>`; }
+  $('#main').innerHTML = (S.offline ? `<div class="notice crit">O banco de dados não está disponível nesta visualização. Verifique a conexão com a internet e recarregue a página.</div>` : '') + html;
+  const after = AFTER[S.view]; if (after) after();
+  resolveNames(S.auditoria.slice(0, 60).map(a => a.por).concat(S.pagamentos.map(p => p.criadoPor)));
+}
+const VIEWS = {}, AFTER = {};
+
+/* ================= DASHBOARD ================= */
+VIEWS.painel = () => {
+  const f = S.p.f || (S.p.f = { dev: '', de: '', ate: '', sit: '' });
+  const t = X.t;
+  const base = S.dividas.filter(d => !d.cancelada && inCart(d) && (!f.dev || d.devedorId === f.dev) && (!f.de || d.dataOperacao >= f.de) && (!f.ate || d.dataOperacao <= f.ate) && (!f.sit || statusCob(d) === f.sit));
+  const ab = base.filter(ativa);
+  const sum = (arr, fn) => arr.reduce((s, x) => s + fn(x), 0);
+  const isPF = d => credOf(d).tipo === 'PF';
+  const total = sum(ab, d => X.C[d.id].saldo);
+  const pf = sum(ab.filter(isPF), d => X.C[d.id].saldo);
+  const pj = sum(ab.filter(d => !isPF(d)), d => X.C[d.id].saldo);
+  const venc = sum(ab, d => X.C[d.id].vencido);
+  const aVenc = sum(ab, d => X.C[d.id].aVencer);
+  const jur = sum(ab.filter(d => d.juridico && d.juridico.ativo), d => X.C[d.id].saldo);
+  const [m0, m1] = monthBounds(t);
+  const ids = new Set(base.map(d => d.id));
+  const recMes = sum(S.pagamentos.filter(g => !g.cancelado && g.tipo === 'recebimento' && g.data >= m0 && g.data <= m1 && ids.has(g.dividaId)), g => g.valor);
+  let prevMes = 0;
+  for (const d of ab) for (const p of X.C[d.id].parcelas) if (p.venc >= m0 && p.venc <= m1 && p.pago < p.valor) prevMes += p.valor - p.pago;
+  const nVenc = ab.filter(d => X.C[d.id].situacao === 'vencida').length;
+
+  const atrasadas = ab.filter(d => X.C[d.id].situacao === 'vencida').sort((a, b) => X.C[b.id].diasAtraso - X.C[a.id].diasAtraso);
+  const prox = [];
+  const lim = Eng.addDays(t, 30);
+  for (const d of ab) for (const p of X.C[d.id].parcelas) if (p.pago < p.valor && p.venc >= t && p.venc <= lim) prox.push({ d, p });
+  prox.sort((a, b) => a.p.venc < b.p.venc ? -1 : 1);
+
+  const kp = (l, v, h, cls = '', lead) => `<div class="kpi ${lead ? 'lead' : ''}"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
+  const vazio = !S.dividas.length;
+
+  let porCarteira = '';
+  if (S.cart === 'all' && !vazio) {
+    const grupos = {};
+    for (const d of ab) { const k = d.credorId; (grupos[k] ||= { saldo: 0, venc: 0, n: 0 }); grupos[k].saldo += X.C[d.id].saldo; grupos[k].venc += X.C[d.id].vencido; grupos[k].n++; }
+    const keys = Object.keys(grupos).sort((a, b) => (X.cred[a]?.tipo === 'PF' ? -1 : 1) - (X.cred[b]?.tipo === 'PF' ? -1 : 1) || grupos[b].saldo - grupos[a].saldo);
+    porCarteira = `<section class="sheet"><header><h2>Saldo por carteira</h2><span class="meta">Cada credor com seus próprios saldos</span></header>
+      <div class="tw"><table><thead><tr><th>Credor</th><th class="r">Dívidas em aberto</th><th class="r">Vencido</th><th class="r">Saldo a receber</th></tr></thead><tbody>
+      ${keys.length ? keys.map(k => `<tr class="click" data-act="cart" data-c="${esc(X.cred[k]?.tipo === 'PF' ? 'PF' : k)}"><td>${credTag(X.cred[k])} ${esc(credNome(X.cred[k]))}</td><td class="m">${grupos[k].n}</td><td class="m ${grupos[k].venc ? 'crit' : ''}">${brl(grupos[k].venc)}</td><td class="m"><b>${brl(grupos[k].saldo)}</b></td></tr>`).join('') : `<tr><td colspan="4" class="muted">Nenhum saldo em aberto.</td></tr>`}
+      </tbody></table></div></section>`;
+  }
+
+  return `
+  <div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Quem me deve, e quanto</h1><div class="sub">Posição atualizada em ${fd(t)}, com juros e multas calculados até hoje.</div></div>
+    <div class="acts"><button class="btn" data-act="go" data-v="recebimentos">Registrar recebimento</button><button class="btn pri" data-act="go" data-v="nova">${IC.nova} Nova dívida</button></div></div>
+  ${carteiraChips()}
+  ${vazio ? onboarding() : `
+  <div class="kpis">
+    ${kp('Total a receber', brl(total), `${ab.length} dívida${ab.length !== 1 ? 's' : ''} em aberto`, '', true)}
+    ${kp('Pessoa física', brl(pf), 'Carteira PF')}
+    ${kp('Pessoa jurídica', brl(pj), 'Todas as empresas')}
+    ${kp('Em cobrança jurídica', brl(jur), '', jur ? 'legal' : '')}
+    ${kp('Vencido', brl(venc), nVenc ? `${nVenc} dívida${nVenc > 1 ? 's' : ''} em atraso` : 'Nada em atraso', venc ? 'crit' : '')}
+    ${kp('A vencer', brl(aVenc), 'Saldo ainda no prazo')}
+    ${kp('Recebido no mês', brl(recMes), MESES[+t.slice(5, 7) - 1], recMes ? 'ok' : '')}
+    ${kp('Previsto no mês', brl(prevMes), 'Parcelas com vencimento no mês')}
+  </div>
+  <form class="sheet" data-filters="painel"><div class="body filters">
+    <div class="f"><label for="pf-dev">Devedor</label><select id="pf-dev" name="dev"><option value="">Todos</option>${devOptions(f.dev)}</select></div>
+    <div class="f"><label for="pf-de">Operação de</label><input type="date" id="pf-de" name="de" value="${f.de}"></div>
+    <div class="f"><label for="pf-ate">até</label><input type="date" id="pf-ate" name="ate" value="${f.ate}"></div>
+    <div class="f"><label for="pf-sit">Situação</label><select id="pf-sit" name="sit"><option value="">Todas</option>${COBS.map(c => `<option value="${c[0]}" ${f.sit === c[0] ? 'selected' : ''}>${c[1]}</option>`).join('')}</select></div>
+    ${(f.dev || f.de || f.ate || f.sit) ? `<button type="button" class="btn ghost" data-act="clearF">Limpar filtros</button>` : ''}
+  </div></form>
+  <div class="grid2">
+    <section class="sheet"><header><h2>Dívidas em atraso</h2><span class="meta">${atrasadas.length ? brl(venc) : ''}</span></header>
+      <div class="list">${atrasadas.length ? atrasadas.slice(0, 8).map(d => divRow(d, 'atraso')).join('') : `<div class="empty">Nenhuma dívida vencida nesta seleção.</div>`}
+      ${atrasadas.length > 8 ? `<button class="row" data-act="go" data-v="vencimentos"><span class="t">Ver todas as ${atrasadas.length} em atraso</span><span></span></button>` : ''}</div></section>
+    <section class="sheet"><header><h2>Próximos vencimentos</h2><span class="meta">próximos 30 dias</span></header>
+      <div class="list">${prox.length ? prox.slice(0, 8).map(x => parcRow(x.d, x.p)).join('') : `<div class="empty">Nenhum vencimento nos próximos 30 dias.</div>`}
+      ${prox.length > 8 ? `<button class="row" data-act="go" data-v="vencimentos"><span class="t">Ver agenda completa</span><span></span></button>` : ''}</div></section>
+  </div>
+  ${porCarteira}`}`;
+};
+AFTER.painel = () => {
+  const fm = document.querySelector('form[data-filters=painel]'); if (!fm) return;
+  fm.addEventListener('change', () => { S.p.f = { dev: fv(fm, 'dev'), de: fv(fm, 'de'), ate: fv(fm, 'ate'), sit: fv(fm, 'sit') }; render(); });
+};
+ACT.clearF = () => { S.p.f = null; render(); };
+function onboarding() {
+  const temPJ = S.credores.some(c => c.tipo === 'PJ');
+  const temPF = S.credores.some(c => c.tipo === 'PF');
+  const step = (ok, t, d, btn) => `<div class="row" style="cursor:default"><div><div class="t">${ok ? '<span class="ok">✓</span> ' : ''}${t}</div><div class="s">${d}</div></div><div>${btn}</div></div>`;
+  return `<section class="sheet"><header><h2>Comece por aqui</h2><span class="meta">Nenhuma dívida cadastrada ainda</span></header><div class="list">
+    ${step(temPF, 'Confira o credor pessoa física', temPF ? 'Sua carteira pessoal já está criada.' : 'Cadastre você como credor pessoa física.', `<button class="btn sm" data-act="go" data-v="config">Credores</button>`)}
+    ${step(temPJ, 'Cadastre suas empresas credoras', 'Cada empresa terá sua própria carteira, separada da pessoa física.', `<button class="btn sm" data-act="novoCredor">Nova empresa</button>`)}
+    ${step(S.devedores.length > 0, 'Cadastre quem deve', 'Pessoas físicas ou jurídicas, com CPF/CNPJ e contatos.', `<button class="btn sm" data-act="novoDevedor">Novo devedor</button>`)}
+    ${step(false, 'Lance a primeira dívida ou empréstimo', 'Com juros opcionais, parcelas e documentos.', `<button class="btn sm pri" data-act="go" data-v="nova">Nova dívida</button>`)}
+  </div></section>`;
+}
+function devOptions(sel, filterFn) {
+  return [...S.devedores].filter(v => !filterFn || filterFn(v)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(v => `<option value="${v.id}" ${sel === v.id ? 'selected' : ''}>${esc(v.nome)}</option>`).join('');
+}
+function credOptions(sel, onlyActive = true) {
+  const pf = S.credores.filter(c => c.tipo === 'PF' && (!onlyActive || c.ativo !== false || c.id === sel));
+  const pj = S.credores.filter(c => c.tipo === 'PJ' && (!onlyActive || c.ativo !== false || c.id === sel)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  const o = c => `<option value="${c.id}" ${sel === c.id ? 'selected' : ''}>${esc(credNome(c))}</option>`;
+  return (pf.length ? `<optgroup label="Pessoa física">${pf.map(o).join('')}</optgroup>` : '') + (pj.length ? `<optgroup label="Empresas">${pj.map(o).join('')}</optgroup>` : '');
+}
+function divRow(d, mode) {
+  const c = X.C[d.id], cr = credOf(d), dv = devOf(d);
+  const stripe = d.juridico && d.juridico.ativo ? 'legal' : c.situacao === 'vencida' ? 'crit' : c.situacao === 'parcial' ? 'warn' : c.situacao === 'emdia' ? 'ok' : '';
+  const sub = mode === 'atraso'
+    ? `<span class="crit">${c.diasAtraso} dia${c.diasAtraso !== 1 ? 's' : ''} de atraso</span> · ${credTag(cr)} ${esc(credNome(cr))}`
+    : `${credTag(cr)} ${esc(credNome(cr))} · ${esc(d.descricao || '')}`;
+  return `<button class="row ${stripe ? 'stripe-' + stripe : ''}" data-act="go" data-v="divida" data-id="${d.id}">
+    <div><div class="t">${esc(dv.nome)} <span class="muted" style="font-weight:400">· ${esc(divNum(d))}</span></div><div class="s">${sub}${d.juridico && d.juridico.ativo ? ' <span class="stamp">JURÍDICO</span>' : ''}</div></div>
+    <div class="v">${brl(mode === 'atraso' ? c.vencido : c.saldo)}<small>${mode === 'atraso' ? 'vencido' : 'saldo'}</small></div></button>`;
+}
+function parcRow(d, p) {
+  const cr = credOf(d), dv = devOf(d), c = X.C[d.id];
+  const dias = Eng.diff(X.t, p.venc);
+  const quando = dias === 0 ? 'hoje' : dias === 1 ? 'amanhã' : dias < 0 ? `${-dias} dias atrás` : `em ${dias} dias`;
+  const prom = d.promessa && d.promessa.data && !d.promessa.cumprida ? ` · <span class="pill warn">Promessa ${fd(d.promessa.data)}</span>` : '';
+  return `<button class="row ${p.venc < X.t ? 'stripe-crit' : dias <= 7 ? 'stripe-warn' : 'stripe-acc'}" data-act="go" data-v="divida" data-id="${d.id}">
+    <div><div class="t">${esc(dv.nome)}</div><div class="s"><span class="num">${fd(p.venc)}</span> · ${quando} · ${credTag(cr)} ${esc(credNome(cr))}${c.parcelas.length > 1 ? ` · parcela ${p.n}/${c.parcelas.length}` : ''}${prom}</div></div>
+    <div class="v">${brl(p.valor - p.pago)}<small>${p.pago > 0 ? 'restante da parcela' : 'parcela'}</small></div></button>`;
+}
+
+/* ================= DEVEDORES ================= */
+VIEWS.devedores = () => {
+  const q = (S.p.q || '').toLowerCase();
+  const qd = digits(q);
+  const rows = S.devedores.map(v => {
+    const ds = S.dividas.filter(d => d.devedorId === v.id && inCart(d) && !d.cancelada);
+    const ab = ds.filter(ativa);
+    return { v, ds, saldo: ab.reduce((s, d) => s + X.C[d.id].saldo, 0), venc: ab.reduce((s, d) => s + X.C[d.id].vencido, 0), creds: [...new Set(ab.map(d => d.credorId))], jur: ab.some(d => d.juridico && d.juridico.ativo) };
+  }).filter(r => (!q || r.v.nome.toLowerCase().includes(q) || (qd && digits(r.v.doc).includes(qd))) && (S.cart === 'all' || r.ds.length))
+    .sort((a, b) => b.saldo - a.saldo || a.v.nome.localeCompare(b.v.nome, 'pt-BR'));
+  return `<div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Devedores</h1><div class="sub">${S.devedores.length} cadastrado${S.devedores.length !== 1 ? 's' : ''}. Toque em um nome para abrir a conta corrente.</div></div>
+    <div class="acts"><button class="btn pri" data-act="novoDevedor">${IC.nova} Novo devedor</button></div></div>
+    ${carteiraChips()}
+    <div class="f"><label for="q-dev" class="muted" style="font-weight:500">Buscar por nome, CPF ou CNPJ</label><input type="search" id="q-dev" value="${esc(S.p.q || '')}" placeholder="Digite para filtrar…"></div>
+    <section class="sheet"><div class="list">
+    ${rows.length ? rows.map(r => `<button class="row ${r.jur ? 'stripe-legal' : r.venc ? 'stripe-crit' : r.saldo ? 'stripe-acc' : ''}" data-act="go" data-v="devedor" data-id="${r.v.id}">
+      <div><div class="t">${esc(r.v.nome)}</div><div class="s">${r.v.doc ? `<span class="num">${esc(fmtDoc(r.v.doc))}</span>` : `<span>${r.v.tipo === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física'}</span>`}
+        ${r.creds.map(c => `${credTag(X.cred[c])} ${esc(credNome(X.cred[c]))}`).join(' · ')}${r.venc ? ` · <span class="crit">vencido ${brl(r.venc)}</span>` : ''}${r.jur ? ' <span class="stamp">JURÍDICO</span>' : ''}</div></div>
+      <div class="v">${brl(r.saldo)}<small>${r.saldo ? 'a receber' : 'sem saldo'}</small></div></button>`).join('')
+      : `<div class="empty"><b>${S.devedores.length ? 'Nenhum devedor encontrado' : 'Nenhum devedor cadastrado'}</b>${S.devedores.length ? 'Ajuste a busca ou a carteira selecionada.' : 'Cadastre a primeira pessoa ou empresa que lhe deve.'}${S.devedores.length ? '' : '<button class="btn pri" data-act="novoDevedor">Novo devedor</button>'}</div>`}
+    </div></section>`;
+};
+AFTER.devedores = () => {
+  const i = $('#q-dev'); if (!i) return;
+  i.addEventListener('input', () => { S.p.q = i.value; const pos = i.selectionStart; render(); const j = $('#q-dev'); j.focus(); try { j.setSelectionRange(pos, pos); } catch { } });
+};
+
+function devedorForm(v = {}) {
+  return `<div class="form">
+    <div class="f full"><span class="lb">Tipo</span><div class="seg" data-seg="tipo"><button type="button" class="${v.tipo !== 'PJ' ? 'on' : ''}" data-val="PF">Pessoa física</button><button type="button" class="${v.tipo === 'PJ' ? 'on' : ''}" data-val="PJ">Pessoa jurídica</button></div><input type="hidden" name="tipo" value="${v.tipo || 'PF'}"></div>
+    <div class="f full"><label for="dv-nome">Nome completo ou razão social <span class="req">*</span></label><input type="text" id="dv-nome" name="nome" value="${esc(v.nome)}" required></div>
+    <div class="f"><label for="dv-doc">CPF ou CNPJ</label><input type="text" id="dv-doc" name="doc" inputmode="numeric" value="${esc(fmtDoc(v.doc))}"></div>
+    <div class="f"><label for="dv-email">E-mail</label><input type="email" id="dv-email" name="email" value="${esc(v.email)}"></div>
+    <div class="f"><label for="dv-tel">Telefone</label><input type="tel" id="dv-tel" name="telefone" value="${esc(fmtTel(v.telefone))}"></div>
+    <div class="f"><label for="dv-wa">WhatsApp</label><input type="tel" id="dv-wa" name="whatsapp" value="${esc(fmtTel(v.whatsapp))}"></div>
+    <div class="f full"><label for="dv-end">Endereço</label><input type="text" id="dv-end" name="endereco" value="${esc(v.endereco)}"></div>
+    <div class="f full"><label for="dv-obs">Observações</label><textarea id="dv-obs" name="obs">${esc(v.obs)}</textarea></div>
+  </div>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-seg] button'); if (!b) return;
+  const seg = b.closest('[data-seg]');
+  seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  const h = seg.parentElement.querySelector(`input[name="${seg.dataset.seg}"]`);
+  if (h) { h.value = b.dataset.val; h.dispatchEvent(new Event('change', { bubbles: true })); h.dispatchEvent(new Event('input', { bubbles: true })); }
+});
+function validDoc(doc) {
+  const d = digits(doc); if (!d) return true;
+  return d.length === 11 || d.length === 14;
+}
+function openDevedorModal(v, onDone) {
+  if (!needWrite()) return;
+  openModal({
+    title: v ? 'Editar devedor' : 'Novo devedor', body: devedorForm(v || {}), ok: v ? 'Salvar alterações' : 'Cadastrar devedor',
+    onSubmit: async f => {
+      const data = { tipo: fv(f, 'tipo'), nome: fv(f, 'nome'), doc: digits(fv(f, 'doc')), email: fv(f, 'email'), telefone: digits(fv(f, 'telefone')), whatsapp: digits(fv(f, 'whatsapp')), endereco: fv(f, 'endereco'), obs: fv(f, 'obs') };
+      if (!data.nome) { toast('Informe o nome ou a razão social.', true); return false; }
+      if (!validDoc(data.doc)) { toast('CPF deve ter 11 dígitos e CNPJ 14.', true); return false; }
+      if (data.doc && S.devedores.some(x => x.doc === data.doc && (!v || x.id !== v.id))) { toast('Já existe um devedor com este CPF/CNPJ.', true); return false; }
+      if (v) {
+        await put('devedores', v.id, stamp(clean({ ...v, ...data }), false));
+        await audit('edição', 'devedor', v.id, `Cadastro de ${data.nome} alterado`);
+        toast('Devedor atualizado.');
+      } else {
+        const id = newId('devedores');
+        await put('devedores', id, stamp(data, true));
+        await audit('criação', 'devedor', id, `Devedor ${data.nome} cadastrado`);
+        toast('Devedor cadastrado.');
+        if (onDone) onDone(id);
+      }
+    }
+  });
+}
+ACT.novoDevedor = () => openDevedorModal(null, id => { if (S.view === 'devedores' || S.view === 'painel') go('devedor', { id }); });
+ACT.editDevedor = el => openDevedorModal(X.dev[el.dataset.id]);
+ACT.delDevedor = async el => {
+  if (!needWrite()) return;
+  const v = X.dev[el.dataset.id];
+  if (S.dividas.some(d => d.devedorId === v.id)) { toast('Este devedor tem dívidas registradas e não pode ser excluído. O histórico é preservado.', true); return; }
+  const ok = await confirmBox('Excluir devedor', `Excluir o cadastro de <b>${esc(v.nome)}</b>? Ele não tem nenhuma dívida registrada.`, 'Excluir', true);
+  if (!ok) return;
+  try { await withRetry(() => db.doc('devedores/' + v.id).delete()); await audit('exclusão', 'devedor', v.id, `Devedor ${v.nome} excluído (sem dívidas)`); toast('Devedor excluído.'); go('devedores'); }
+  catch (e) { toast(errMsg(e), true); }
+};
+
+/* conta corrente de um devedor com um credor */
+function contaCorrente(devId, credId, ate) {
+  const ds = S.dividas.filter(d => d.devedorId === devId && d.credorId === credId && !d.cancelada);
+  const ORD = { principal: 0, juros: 1, multa: 2, ajuste: 3 };
+  const rows = [];
+  let seq = 0;
+  for (const d of ds) for (const l of X.C[d.id].ledger) rows.push({ ...l, d, ord: ORD[l.tipo] ?? 4, seq: seq++ });
+  rows.sort((a, b) => a.data < b.data ? -1 : a.data > b.data ? 1 : a.ord - b.ord || a.seq - b.seq);
+  let s = 0;
+  const out = [];
+  for (const r of rows) { s += r.debito - r.credito; r.saldo = s; if (!ate || r.data <= ate) out.push(r); }
+  return out;
+}
+function ledgerTable(rows, opts = {}) {
+  if (!rows.length) return `<div class="empty">Nenhuma movimentação.</div>`;
+  const deb = rows.reduce((s, r) => s + r.debito, 0), cred = rows.reduce((s, r) => s + r.credito, 0);
+  return `<div class="tw"><table class="ledger"><thead><tr><th>Data</th><th>Descrição</th><th class="r">Débito</th><th class="r">Crédito</th><th class="r">Saldo</th></tr></thead><tbody>
+  ${rows.map(r => `<tr class="t-${r.tipo}${opts.click !== false ? ' click' : ''}" ${opts.click !== false ? `data-act="go" data-v="divida" data-id="${r.d.id}"` : ''}><td class="num" style="white-space:nowrap">${fd(r.data)}</td>
+    <td>${esc(r.tipo === 'principal' ? (r.d.origemRenegociacao ? 'Renegociação · nova dívida' : 'Dívida / empréstimo') : r.desc)}<span class="s">${esc(divNum(r.d))}${r.tipo === 'principal' ? ' · ' + esc(r.d.descricao || '') : ''}${r.parts && (r.parts.juros || r.parts.multa) ? ` · amortizou ${brl(r.parts.principal)} principal, ${brl(r.parts.juros)} juros${r.parts.multa ? ', ' + brl(r.parts.multa) + ' multa' : ''}` : ''}</span></td>
+    <td class="m deb">${r.debito ? brl(r.debito) : '—'}</td><td class="m cred">${r.credito ? brl(r.credito) : '—'}</td>
+    <td class="m sal">${brl(Math.abs(r.saldo))}<span class="dc ${r.saldo >= 0 ? 'd' : 'c'}">${r.saldo >= 0 ? 'D' : 'C'}</span></td></tr>`).join('')}
+  </tbody><tfoot><tr><td></td><td>Totais</td><td class="m">${brl(deb)}</td><td class="m">${brl(cred)}</td><td class="m">${brl(deb - cred)}</td></tr></tfoot></table></div>`;
+}
+
+VIEWS.devedor = () => {
+  const v = X.dev[S.p.id];
+  if (!v) return S.loaded.devedores ? `<div class="notice">Devedor não encontrado.</div><button class="btn" data-act="go" data-v="devedores">Voltar</button>` : `<div class="loading">Carregando…</div>`;
+  const ds = S.dividas.filter(d => d.devedorId === v.id);
+  const credIds = [...new Set(ds.filter(d => !d.cancelada).map(d => d.credorId))].sort((a, b) => (X.cred[a]?.tipo === 'PF' ? -1 : 1) - (X.cred[b]?.tipo === 'PF' ? -1 : 1));
+  if (!S.p.cred || !credIds.includes(S.p.cred)) S.p.cred = credIds[0];
+  const porCred = credIds.map(cid => {
+    const ab = ds.filter(d => d.credorId === cid && ativa(d));
+    return { cid, saldo: ab.reduce((s, d) => s + X.C[d.id].saldo, 0), venc: ab.reduce((s, d) => s + X.C[d.id].vencido, 0), n: ab.length };
+  });
+  const totalGeral = porCred.reduce((s, x) => s + x.saldo, 0);
+  const cc = S.p.cred ? contaCorrente(v.id, S.p.cred) : [];
+  const listaDiv = [...ds].sort((a, b) => (ativa(b) - ativa(a)) || (a.dataOperacao < b.dataOperacao ? 1 : -1));
+  const contato = (lbl, val, fmt) => val ? `<dt>${lbl}</dt><dd><span class="num">${esc(fmt ? fmt(val) : val)}</span> <button class="btn ghost sm" data-act="copy" data-t="${esc(fmt ? fmt(val) : val)}" aria-label="Copiar ${lbl}">${IC.copy}</button></dd>` : '';
+  return `<div><button class="btn ghost sm" data-act="go" data-v="devedores">${IC.back} Devedores</button></div>
+  <div class="ph"><div><div class="eyebrow">${v.tipo === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física'}${v.doc ? ' · ' + esc(fmtDoc(v.doc)) : ''}</div><h1>${esc(v.nome)}</h1>
+    <div class="sub">Saldo consolidado: <b class="num">${brl(totalGeral)}</b>${porCred.length > 1 ? ` em ${porCred.length} credores, controlados separadamente` : ''}</div></div>
+    <div class="acts"><button class="btn" data-act="extratoPdf" data-id="${v.id}">${IC.pdf} Extrato PDF</button><button class="btn" data-act="receberDe" data-id="${v.id}">Registrar pagamento</button><button class="btn pri" data-act="novaPara" data-id="${v.id}">${IC.nova} Novo empréstimo</button></div></div>
+  ${porCred.length ? `<div class="kpis" style="grid-template-columns:repeat(${Math.min(4, porCred.length)},minmax(0,1fr))">${porCred.map(x => `<button class="kpi" style="border:0;text-align:left;cursor:pointer;${S.p.cred === x.cid ? 'box-shadow:inset 0 -3px 0 var(--accent)' : ''}" data-act="ccCred" data-c="${x.cid}"><div class="l">${credTag(X.cred[x.cid])} ${esc(credNome(X.cred[x.cid]))}</div><div class="v">${brl(x.saldo)}</div><div class="h">${x.n} em aberto${x.venc ? ` · <span class="crit">vencido ${brl(x.venc)}</span>` : ''}</div></button>`).join('')}</div>` : ''}
+  <section class="sheet"><header><h2>Conta corrente${S.p.cred ? ' · ' + esc(credNome(X.cred[S.p.cred])) : ''}</h2><span class="meta">Juros e multas lançados até ${fd(X.t)}</span></header>
+    ${credIds.length > 1 ? `<div class="tabs">${credIds.map(c => `<button class="${S.p.cred === c ? 'on' : ''}" data-act="ccCred" data-c="${c}">${esc(credNome(X.cred[c]))}</button>`).join('')}</div>` : ''}
+    ${credIds.length ? ledgerTable(cc) : `<div class="empty"><b>Sem movimentações</b>Lance o primeiro empréstimo ou dívida deste devedor.<button class="btn pri" data-act="novaPara" data-id="${v.id}">Novo empréstimo</button></div>`}
+  </section>
+  <div class="grid2">
+  <section class="sheet"><header><h2>Dívidas</h2><span class="meta">${ds.length} registrada${ds.length !== 1 ? 's' : ''}</span></header><div class="list">
+    ${listaDiv.length ? listaDiv.map(d => { const c = X.C[d.id]; return `<button class="row" data-act="go" data-v="divida" data-id="${d.id}"><div><div class="t">${esc(d.descricao || 'Dívida')} <span class="muted" style="font-weight:400">· ${esc(divNum(d))}</span></div><div class="s">${credTag(credOf(d))} ${esc(credNome(credOf(d)))} · ${fd(d.dataOperacao)} · ${d.cancelada ? '<span class="pill">Cancelada</span>' : sitPill(d)}</div></div><div class="v">${brl(d.cancelada ? 0 : c.saldo)}<small>de ${brl(d.valor)}</small></div></button>`; }).join('') : `<div class="empty">Nenhuma dívida.</div>`}
+  </div></section>
+  <section class="sheet"><header><h2>Cadastro</h2><div class="flex"><button class="btn sm" data-act="editDevedor" data-id="${v.id}">Editar</button>${ds.length ? '' : `<button class="btn sm danger" data-act="delDevedor" data-id="${v.id}">Excluir</button>`}</div></header><div class="body">
+    <dl class="kv">${v.doc ? `<dt>${digits(v.doc).length === 14 ? 'CNPJ' : 'CPF'}</dt><dd class="num">${esc(fmtDoc(v.doc))}</dd>` : ''}${contato('Telefone', v.telefone, fmtTel)}${contato('WhatsApp', v.whatsapp, fmtTel)}${contato('E-mail', v.email)}${v.endereco ? `<dt>Endereço</dt><dd>${esc(v.endereco)}</dd>` : ''}${v.obs ? `<dt>Observações</dt><dd style="white-space:pre-wrap">${esc(v.obs)}</dd>` : ''}
+    ${!v.doc && !v.telefone && !v.whatsapp && !v.email && !v.endereco ? '<dt>Contato</dt><dd class="muted">Sem dados de contato.</dd>' : ''}</dl>
+    ${v.whatsapp ? `<div style="margin-top:12px"><a class="btn sm" href="https://wa.me/55${digits(v.whatsapp).replace(/^55/, '')}" target="_blank" rel="noopener">Abrir conversa no WhatsApp</a></div>` : ''}
+  </div></section></div>`;
+};
+ACT.ccCred = el => { S.p.cred = el.dataset.c; render(); };
+ACT.novaPara = el => go('nova', { devedorId: el.dataset.id });
+ACT.receberDe = el => go('recebimentos', { devedorId: el.dataset.id });
+
+/* ================= ANEXOS ================= */
+const blobUrl = id => '/_blob/' + id;
+async function uploadFiles(files) {
+  const list = [...(files || [])];
+  if (!list.length) return [];
+  if (!AS) { toast('Envio de documentos indisponível para o seu acesso.', true); return []; }
+  const out = [];
+  for (const f of list) {
+    if (f.size > 20 * 1024 * 1024) { toast(`${f.name}: arquivo acima de 20 MB.`, true); continue; }
+    try {
+      const r = await AS.upload(f);
+      out.push({ id: r.id, nome: f.name, tipo: r.contentType || f.type, tam: f.size, em: nowIso(), por: S.meId || null });
+    } catch (e) { console.error(e); toast(`${f.name}: tipo de arquivo não aceito ou falha no envio. Use PDF ou imagem.`, true); }
+  }
+  return out;
+}
+const fileList = (arr, extra = '') => (arr && arr.length) ? `<div class="files">${arr.map(a => `<div class="file">${IC.clip}<a href="#" data-act="abrirAnexo" data-path="${esc(a.id)}">${esc(a.nome)}</a><span class="muted">${(a.tam / 1024 / 1024).toFixed(1).replace('.', ',')} MB</span>${extra}</div>`).join('')}</div>` : '';
+const fileInput = (id, lbl = 'Documentos e comprovantes') => `<div class="f full"><label for="${id}">${lbl}</label><input type="file" id="${id}" name="files" multiple accept="application/pdf,image/*"><span class="hint">PDF ou imagens, até 20 MB cada.</span></div>`;
+
+/* ================= NOVA / EDITAR DÍVIDA ================= */
+function proxNumero() {
+  const y = X.t.slice(0, 4);
+  const n = S.dividas.filter(d => (d.numero || '').startsWith('OP-' + y)).length + 1;
+  return `OP-${y}-${String(n).padStart(3, '0')}`;
+}
+VIEWS.nova = () => {
+  const ed = S.p.editId ? X.div[S.p.editId] : null;
+  const d = ed || { dataOperacao: X.t, parcelas: 1, amortizacao: 'juros_primeiro', devedorId: S.p.devedorId || '', credorId: (S.cart !== 'all' && S.cart !== 'PF' && S.cart !== 'PJ') ? S.cart : (S.credores.find(c => c.tipo === 'PF') || {}).id };
+  const temPag = ed && (X.pagsBy[ed.id] || []).length > 0;
+  const j = d.juros || {}, m = d.multa || {};
+  if (!S.credores.length) return `<div class="ph"><h1>Nova dívida</h1></div><div class="notice">Cadastre primeiro um credor (você como pessoa física ou uma empresa) em Configurações.</div><div><button class="btn pri" data-act="go" data-v="config">Ir para Configurações</button></div>`;
+  return `${ed ? `<div><button class="btn ghost sm" data-act="go" data-v="divida" data-id="${ed.id}">${IC.back} Voltar à dívida</button></div>` : ''}
+  <div class="ph"><div><div class="eyebrow">${ed ? esc(divNum(ed)) : 'Cadastro de operação'}</div><h1>${ed ? 'Editar dívida' : 'Nova dívida ou empréstimo'}</h1><div class="sub">${ed ? 'As alterações ficam registradas no histórico da dívida.' : 'Campos com * são obrigatórios.'}</div></div></div>
+  ${temPag ? `<div class="notice">Esta dívida já tem pagamentos. Alterar valor, parcelas, juros ou datas recalcula o saldo a partir das novas condições; os pagamentos registrados são mantidos.</div>` : ''}
+  <form class="sheet" id="f-div" data-guard novalidate><div class="body"><div class="form">
+    <div class="f"><label for="nd-cred">Credor <span class="req">*</span></label><select id="nd-cred" name="credorId" ${temPag ? 'disabled' : ''}><option value="">Selecione…</option>${credOptions(d.credorId)}</select>${temPag ? '<span class="hint">O credor não muda depois de haver pagamentos, para não misturar carteiras.</span>' : ''}</div>
+    <div class="f"><label for="nd-dev">Devedor <span class="req">*</span></label><div class="flex" style="flex-wrap:nowrap"><select id="nd-dev" name="devedorId" ${temPag ? 'disabled' : ''}><option value="">Selecione…</option>${devOptions(d.devedorId)}</select>${temPag ? '' : `<button type="button" class="btn" data-act="novoDevInline" aria-label="Cadastrar novo devedor">${IC.nova}</button>`}</div></div>
+    <div class="f"><label for="nd-valor">Valor original (R$) <span class="req">*</span></label><input type="text" class="money-in" inputmode="decimal" id="nd-valor" name="valor" value="${toInput(d.valor)}" placeholder="0,00"></div>
+    <div class="f"><label for="nd-data">Data da operação <span class="req">*</span></label><input type="date" id="nd-data" name="dataOperacao" value="${d.dataOperacao || X.t}"></div>
+    <div class="f full"><label for="nd-desc">Motivo ou descrição <span class="req">*</span></label><input type="text" id="nd-desc" name="descricao" value="${esc(d.descricao)}" placeholder="Ex.: Empréstimo para capital de giro"></div>
+    <div class="f"><label for="nd-venc">Data prevista para pagamento <span class="req">*</span></label><input type="date" id="nd-venc" name="vencimento" value="${d.vencimento || ''}"><span class="hint">Com parcelas, é o vencimento da 1ª parcela.</span></div>
+    <div class="f"><label for="nd-parc">Quantidade de parcelas</label><input type="number" min="1" max="360" id="nd-parc" name="parcelas" value="${d.parcelas || 1}"></div>
+    <div class="section-title">Identificação</div>
+    <div class="f"><label for="nd-num">Número da operação</label><input type="text" id="nd-num" name="numero" value="${esc(d.numero || '')}" placeholder="${ed ? '' : proxNumero()}"><span class="hint">${ed ? '' : 'Em branco, usa ' + proxNumero()}</span></div>
+    <div class="f"><label for="nd-cat">Categoria</label><select id="nd-cat" name="categoria"><option value="">—</option>${cats().map(c => `<option ${d.categoria === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
+    <div class="f"><label for="nd-forma">Forma de pagamento combinada</label><select id="nd-forma" name="formaPagamento"><option value="">—</option>${FORMAS.map(c => `<option ${d.formaPagamento === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+    <div class="f"><label for="nd-amort">Regra de amortização</label><select id="nd-amort" name="amortizacao"><option value="juros_primeiro" ${d.amortizacao !== 'principal_primeiro' ? 'selected' : ''}>Pagamento quita multa e juros, depois o principal</option><option value="principal_primeiro" ${d.amortizacao === 'principal_primeiro' ? 'selected' : ''}>Pagamento quita o principal primeiro</option></select></div>
+    <div class="section-title">Encargos</div>
+    <div class="f"><span class="lb">Aplicar juros?</span><div class="seg" data-seg="jAtivo"><button type="button" class="${!j.ativo ? 'on' : ''}" data-val="0">Não</button><button type="button" class="${j.ativo ? 'on' : ''}" data-val="1">Sim</button></div><input type="hidden" name="jAtivo" value="${j.ativo ? 1 : 0}"></div>
+    <div class="f"><span class="lb">Multa por atraso?</span><div class="seg" data-seg="mAtivo"><button type="button" class="${!m.ativo ? 'on' : ''}" data-val="0">Não</button><button type="button" class="${m.ativo ? 'on' : ''}" data-val="1">Sim</button></div><input type="hidden" name="mAtivo" value="${m.ativo ? 1 : 0}"></div>
+    <div class="box full" id="box-juros" ${j.ativo ? '' : 'hidden'}><div class="form">
+      <div class="f"><label for="nd-taxa">Taxa (%)</label><input type="text" inputmode="decimal" id="nd-taxa" name="taxa" value="${j.taxa != null ? String(j.taxa).replace('.', ',') : ''}" placeholder="Ex.: 2"></div>
+      <div class="f"><label for="nd-per">Periodicidade</label><select id="nd-per" name="periodo"><option value="mes" ${j.periodo !== 'ano' ? 'selected' : ''}>Ao mês</option><option value="ano" ${j.periodo === 'ano' ? 'selected' : ''}>Ao ano</option></select></div>
+      <div class="f"><label for="nd-tipo">Tipo de juros</label><select id="nd-tipo" name="jtipo"><option value="simples" ${j.tipo !== 'composto' ? 'selected' : ''}>Simples</option><option value="composto" ${j.tipo === 'composto' ? 'selected' : ''}>Compostos</option></select></div>
+      <div class="f"><label for="nd-ini">Início da incidência</label><input type="date" id="nd-ini" name="inicio" value="${j.inicio || ''}"><span class="hint">Em branco: desde a data da operação. Para juros só de mora, use o dia seguinte ao vencimento.</span></div>
+    </div></div>
+    <div class="box full" id="box-multa" ${m.ativo ? '' : 'hidden'}><div class="form">
+      <div class="f"><label for="nd-mpct">Multa por atraso (%)</label><input type="text" inputmode="decimal" id="nd-mpct" name="mpct" value="${m.pct != null ? String(m.pct).replace('.', ',') : ''}" placeholder="Ex.: 2"><span class="hint">Aplicada uma vez sobre o principal de cada parcela não paga no vencimento.</span></div>
+    </div></div>
+    <div class="section-title">Complemento</div>
+    <div class="f full"><label for="nd-obs">Observações</label><textarea id="nd-obs" name="obs">${esc(d.obs)}</textarea></div>
+    ${fileInput('nd-files')}
+    ${ed && ed.anexos && ed.anexos.length ? `<div class="f full"><span class="lb">Já anexados</span>${fileList(ed.anexos)}</div>` : ''}
+    <div class="f full" id="nd-prev"></div>
+  </div></div>
+  <div class="body" style="border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+    <button type="button" class="btn" data-act="${ed ? 'go' : 'go'}" data-v="${ed ? 'divida' : 'painel'}" ${ed ? `data-id="${ed.id}"` : ''}>Cancelar</button>
+    <button type="submit" class="btn pri">${ed ? 'Salvar alterações' : 'Cadastrar dívida'}</button></div>
+  </form>`;
+};
+function readDividaForm(f) {
+  const valor = parseBRL(fv(f, 'valor'));
+  const parcelas = Math.max(1, Math.min(360, parseInt(fv(f, 'parcelas')) || 1));
+  const jAtivo = fv(f, 'jAtivo') === '1', mAtivo = fv(f, 'mAtivo') === '1';
+  const taxa = Number(fv(f, 'taxa').replace(',', '.'));
+  const mpct = Number(fv(f, 'mpct').replace(',', '.'));
+  return {
+    credorId: f.elements.credorId.value, devedorId: f.elements.devedorId.value, valor, dataOperacao: fv(f, 'dataOperacao'),
+    descricao: fv(f, 'descricao'), vencimento: fv(f, 'vencimento'), parcelas, numero: fv(f, 'numero'), categoria: fv(f, 'categoria'),
+    formaPagamento: fv(f, 'formaPagamento'), amortizacao: fv(f, 'amortizacao'), obs: fv(f, 'obs'),
+    juros: jAtivo ? { ativo: true, taxa, periodo: fv(f, 'periodo'), tipo: fv(f, 'jtipo'), inicio: fv(f, 'inicio') || '' } : { ativo: false },
+    multa: mAtivo ? { ativo: true, pct: mpct } : { ativo: false }
+  };
+}
+function validaDivida(x) {
+  if (!x.credorId) return 'Selecione o credor.';
+  if (!x.devedorId) return 'Selecione o devedor.';
+  if (!(x.valor > 0)) return 'Informe um valor original maior que zero.';
+  if (!x.dataOperacao) return 'Informe a data da operação.';
+  if (!x.descricao) return 'Informe o motivo ou a descrição.';
+  if (!x.vencimento) return 'Informe a data prevista para pagamento.';
+  if (x.vencimento < x.dataOperacao) return 'O vencimento não pode ser anterior à data da operação.';
+  if (x.juros.ativo && !(x.juros.taxa > 0 && x.juros.taxa < 100)) return 'Informe uma taxa de juros válida (ex.: 2 para 2%).';
+  if (x.juros.ativo && x.juros.inicio && x.juros.inicio < x.dataOperacao) return 'O início dos juros não pode ser anterior à operação.';
+  if (x.multa.ativo && !(x.multa.pct > 0 && x.multa.pct <= 100)) return 'Informe um percentual de multa válido.';
+  return null;
+}
+AFTER.nova = () => {
+  const f = $('#f-div'); if (!f) return;
+  const prev = () => {
+    const x = readDividaForm(f);
+    $('#box-juros').hidden = !x.juros.ativo; $('#box-multa').hidden = !x.multa.ativo;
+    const el = $('#nd-prev');
+    if (!(x.valor > 0) || !x.vencimento) { el.innerHTML = ''; return; }
+    const cr = Eng.gerarCronograma(x.valor, x.parcelas, x.vencimento);
+    const show = cr.length > 6 ? [...cr.slice(0, 3), null, ...cr.slice(-2)] : cr;
+    let simul = '';
+    if (x.juros.ativo && x.juros.taxa > 0 && x.dataOperacao && x.vencimento >= x.dataOperacao) {
+      const r = Eng.calcular({ ...x, cronograma: cr }, [], [], cr[cr.length - 1].venc);
+      simul = `<div class="hint" style="margin-top:6px">Sem pagamentos, os juros até o último vencimento (${fd(cr[cr.length - 1].venc)}) somariam <b class="num">${brl(r.jurosAcumulados)}</b>.</div>`;
+    }
+    el.innerHTML = `<span class="lb">Cronograma</span><div class="tw"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th class="r">Valor</th></tr></thead><tbody>${show.map(p => p ? `<tr><td>${p.n}/${cr.length}</td><td class="num">${fd(p.venc)}</td><td class="m">${brl(p.valor)}</td></tr>` : `<tr><td colspan="3" class="muted">…</td></tr>`).join('')}</tbody></table></div>${simul}`;
+  };
+  f.addEventListener('input', prev); f.addEventListener('change', prev); prev();
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!needWrite()) return;
+    const btn = f.querySelector('button[type=submit]'); if (btn.disabled) return;
+    const ed = S.p.editId ? X.div[S.p.editId] : null;
+    const x = readDividaForm(f);
+    if (ed && (X.pagsBy[ed.id] || []).length) { x.credorId = ed.credorId; x.devedorId = ed.devedorId; }
+    const err = validaDivida(x); if (err) { toast(err, true); return; }
+    btn.disabled = true;
+    try {
+      const novos = await uploadFiles(f.elements.files.files);
+      if (ed) {
+        const mudouCron = ed.valor !== x.valor || (ed.parcelas || 1) !== x.parcelas || ed.vencimento !== x.vencimento;
+        const doc = clean({ ...ed, ...x, numero: x.numero || ed.numero, cronograma: mudouCron ? Eng.gerarCronograma(x.valor, x.parcelas, x.vencimento) : ed.cronograma, anexos: [...(ed.anexos || []), ...novos] });
+        const campos = ['credorId', 'devedorId', 'valor', 'dataOperacao', 'descricao', 'vencimento', 'parcelas', 'numero', 'categoria', 'formaPagamento', 'amortizacao', 'obs'];
+        const diffs = campos.filter(k => String(ed[k] ?? '') !== String(doc[k] ?? '')).map(k => `${k}: ${k === 'valor' ? brl(ed[k]) : (ed[k] ?? '—')} → ${k === 'valor' ? brl(doc[k]) : (doc[k] ?? '—')}`);
+        if (JSON.stringify(ed.juros || {}) !== JSON.stringify(x.juros)) diffs.push('condições de juros alteradas');
+        if (JSON.stringify(ed.multa || {}) !== JSON.stringify(x.multa)) diffs.push('condições de multa alteradas');
+        if (novos.length) diffs.push(`${novos.length} documento(s) anexado(s)`);
+        await put('dividas', ed.id, stamp(doc, false));
+        await audit('edição', 'divida', ed.id, diffs.length ? diffs.join('; ') : 'Dívida salva sem alterações', { antes: JSON.stringify(clean(ed)).slice(0, 6000) });
+        S.dirty = false; toast('Dívida atualizada.'); go('divida', { id: ed.id });
+      } else {
+        const id = newId('dividas');
+        const doc = { ...x, numero: x.numero || proxNumero(), cronograma: Eng.gerarCronograma(x.valor, x.parcelas, x.vencimento), anexos: novos, statusCobranca: 'aberto', cancelada: false };
+        await put('dividas', id, stamp(doc, true));
+        await audit('criação', 'divida', id, `${doc.numero}: ${brl(x.valor)} de ${X.dev[x.devedorId]?.nome} a ${credNome(X.cred[x.credorId])}`);
+        S.dirty = false; toast('Dívida cadastrada.'); go('divida', { id });
+      }
+    } catch (er) { console.error(er); toast(errMsg(er), true); }
+    finally { if (btn.isConnected) btn.disabled = false; }
+  });
+};
+ACT.novoDevInline = () => openDevedorModal(null, id => {
+  const sel = $('#nd-dev'); if (!sel) return;
+  setTimeout(() => { const s = $('#nd-dev'); if (!s) return; if (!s.querySelector(`option[value="${id}"]`)) { const o = document.createElement('option'); o.value = id; o.textContent = 'Novo devedor'; s.appendChild(o); } s.value = id; }, 50);
+});
+
+/* ================= DETALHE DA DÍVIDA ================= */
+VIEWS.divida = () => {
+  const d = X.div[S.p.id];
+  if (!d) return S.loaded.dividas ? `<div class="notice">Dívida não encontrada.</div>` : `<div class="loading">Carregando…</div>`;
+  const c = X.C[d.id], cr = credOf(d), dv = devOf(d);
+  const tab = S.p.tab || 'mov';
+  const cob = statusCob(d);
+  const pags = S.pagamentos.filter(g => g.dividaId === d.id).sort((a, b) => a.data < b.data ? 1 : -1);
+  const ajs = S.ajustes.filter(a => a.dividaId === d.id).sort((a, b) => a.data < b.data ? 1 : -1);
+  const conts = S.contatos.filter(x => x.dividaId === d.id).sort((a, b) => (b.data + (b.criadoEm || '')).localeCompare(a.data + (a.criadoEm || '')));
+  const pctPago = c.totalAtualizado ? Math.min(100, Math.round((c.recebido + c.outrasBaixas) / c.totalAtualizado * 100)) : 0;
+  let s = 0;
+  const led = c.ledger.map(l => { s += l.debito - l.credito; return { ...l, saldo: s, d }; });
+  const nova = d.renegociadaPara && X.div[d.renegociadaPara];
+  const orig = d.origemRenegociacao && X.div[d.origemRenegociacao];
+  const cell = (l, v, cls = '') => `<div class="${cls}"><div class="l">${l}</div><div class="v">${v}</div></div>`;
+  const histVenc = (d.historicoVencimentos || []);
+  const audits = S.auditoria.filter(a => a.entidadeId === d.id || a.dividaId === d.id);
+  const docsPag = pags.filter(g => g.anexos && g.anexos.length);
+  const jur = d.juridico || {};
+  const recJur = jur.dataEnc ? S.pagamentos.filter(g => g.dividaId === d.id && !g.cancelado && g.tipo === 'recebimento' && g.data >= jur.dataEnc).reduce((t, g) => t + g.valor, 0) : 0;
+  const ro = d.cancelada || ['quitada', 'renegociada'].includes(c.situacao);
+
+  const tabs = [['mov', 'Movimentação'], ['parc', `Parcelas (${c.parcelas.length})`], ['cob', `Cobrança (${conts.length})`], ['docs', 'Documentos'], ['hist', 'Histórico']];
+  let body = '';
+  if (tab === 'mov') body = `${ledgerTable(led, { click: false })}
+    <div class="body" style="border-top:1px solid var(--line)"><div class="grid2">
+      <div><div class="eyebrow" style="margin-bottom:8px">Pagamentos e baixas</div>${pags.length ? `<div class="timeline">${pags.map(g => `<div class="tl"><div class="d">${fd(g.data)}</div><div><div class="flex"><b class="num" ${g.cancelado ? 'style="text-decoration:line-through"' : ''}>${brl(g.valor)}</b><span class="pill ${g.cancelado ? '' : g.tipo === 'recebimento' ? 'ok' : 'acc'}">${g.cancelado ? 'Estornado' : g.tipo === 'recebimento' ? 'Recebido' : g.tipo === 'renegociacao' ? 'Renegociação' : 'Abatimento'}</span>${!g.cancelado && S.canWrite ? `<button class="btn ghost sm right" data-act="estornar" data-id="${g.id}">Estornar</button>` : ''}</div>
+        <div class="muted" style="font-size:13px">${[g.forma, g.conta, g.obs].filter(Boolean).map(esc).join(' · ')}${g.cancelado ? ` · Estorno: ${esc(g.motivoCancelamento || '')}` : ''}</div>${fileList(g.anexos)}</div></div>`).join('')}</div>` : '<div class="muted">Nenhum pagamento registrado.</div>'}</div>
+      <div><div class="eyebrow" style="margin-bottom:8px">Ajustes manuais de juros e multa</div>${ajs.length ? `<div class="timeline">${ajs.map(a => `<div class="tl"><div class="d">${fd(a.data)}</div><div><div class="flex"><b class="num" ${a.cancelado ? 'style="text-decoration:line-through"' : ''}>${a.valor > 0 ? '+' : '−'}${brl(Math.abs(a.valor))}</b><span class="pill">${a.tipo === 'multa' ? 'Multa' : 'Juros'}</span>${!a.cancelado && S.canWrite ? `<button class="btn ghost sm right" data-act="cancAjuste" data-id="${a.id}">Cancelar</button>` : ''}</div><div class="muted" style="font-size:13px">${esc(a.justificativa)}${a.cancelado ? ' · cancelado' : ''}</div></div></div>`).join('')}</div>` : '<div class="muted">Nenhum ajuste.</div>'}</div>
+    </div></div>`;
+  if (tab === 'parc') body = `<div class="tw"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th class="r">Valor</th><th class="r">Pago</th><th class="r">Restante</th><th>Situação</th><th></th></tr></thead><tbody>
+    ${c.parcelas.map(p => { const st = { paga: ['Paga', 'ok'], vencida: ['Vencida', 'crit'], parcial: ['Parcial', 'warn'], aberta: ['A vencer', 'acc'] }[p.status]; return `<tr><td>${p.n}/${c.parcelas.length}</td><td class="num">${fd(p.venc)}</td><td class="m">${brl(p.valor)}</td><td class="m">${brl(p.pago)}</td><td class="m">${brl(p.valor - p.pago)}</td><td><span class="pill ${st[1]}">${st[0]}</span></td><td class="r">${p.status !== 'paga' && !ro && S.canWrite ? `<button class="btn ghost sm" data-act="novoVenc" data-id="${d.id}" data-n="${p.n}">Alterar vencimento</button>` : ''}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    ${histVenc.length ? `<div class="body" style="border-top:1px solid var(--line)"><div class="eyebrow" style="margin-bottom:8px">Vencimentos alterados</div><div class="timeline">${histVenc.map(h => `<div class="tl"><div class="d">${fd(h.em)}</div><div>Parcela ${h.parcela}: ${fd(h.de)} → <b>${fd(h.para)}</b><div class="muted" style="font-size:13px">${esc(h.motivo)}</div></div></div>`).join('')}</div></div>` : ''}
+    ${d.promessa && d.promessa.data ? `<div class="body" style="border-top:1px solid var(--line)"><div class="notice info">Promessa de pagamento para <b>${fd(d.promessa.data)}</b>${d.promessa.valor ? ` de <b class="num">${brl(d.promessa.valor)}</b>` : ''}. O vencimento contratual não foi alterado.${d.promessa.cumprida ? ' Promessa cumprida.' : ''}</div></div>` : ''}`;
+  if (tab === 'cob') body = `<div class="body"><div class="flex" style="margin-bottom:12px"><span>Situação da cobrança:</span>${cobPill(cob)}
+      ${!ro && S.canWrite ? `<select id="sel-cob" aria-label="Alterar situação manual" style="width:auto">${COB_MANUAL.map(([k, l]) => `<option value="${k}" ${(d.statusCobranca || 'aberto') === k ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}
+      ${S.canWrite ? `<button class="btn sm pri right" data-act="contato" data-id="${d.id}">Registrar contato</button>` : ''}</div>
+      <p class="hint muted" style="margin:0 0 12px;font-size:12px">"Vencido", "Parcialmente pago" e "Quitado" são definidos automaticamente pelos pagamentos e vencimentos.</p>
+      ${conts.length ? `<div class="timeline">${conts.map(x => `<div class="tl"><div class="d">${fd(x.data)}</div><div><div><b>${esc(x.canal || 'Contato')}</b> · ${esc(x.responsavel || '')}</div><div style="white-space:pre-wrap">${esc(x.descricao)}</div>${x.proximo ? `<div class="muted" style="font-size:13px">Próximo acompanhamento: <b>${fd(x.proximo)}</b></div>` : ''}</div></div>`).join('')}</div>` : '<div class="empty">Nenhum contato registrado.</div>'}</div>`;
+  if (tab === 'docs') body = `<div class="body" style="display:flex;flex-direction:column;gap:16px">
+    <div><div class="flex" style="margin-bottom:8px"><span class="eyebrow">Documentos da dívida</span>${S.canWrite && AS ? `<button class="btn sm right" data-act="anexar" data-id="${d.id}">${IC.clip} Anexar</button>` : ''}</div>${fileList(d.anexos) || '<div class="muted">Nenhum documento.</div>'}</div>
+    ${jur.anexos && jur.anexos.length ? `<div><div class="eyebrow" style="margin-bottom:8px">Documentos jurídicos</div>${fileList(jur.anexos)}</div>` : ''}
+    ${docsPag.length ? `<div><div class="eyebrow" style="margin-bottom:8px">Comprovantes de pagamento</div>${docsPag.map(g => `<div class="muted" style="font-size:13px;margin:6px 0 4px">${fd(g.data)} · ${brl(g.valor)}</div>${fileList(g.anexos)}`).join('')}</div>` : ''}</div>`;
+  if (tab === 'hist') body = audits.length ? `<div class="body"><div class="timeline">${audits.map(a => `<div class="tl"><div class="d">${fdt(a.em).split(' ')[0]}<br>${fdt(a.em).split(' ')[1] || ''}</div><div><b style="text-transform:capitalize">${esc(a.acao)}</b> · ${esc(nomeUser(a.por))}<div style="font-size:13px" class="muted">${esc(a.resumo)}</div></div></div>`).join('')}</div></div>` : '<div class="empty">Sem registros.</div>';
+
+  return `<div class="flex"><button class="btn ghost sm" data-act="go" data-v="devedor" data-id="${d.devedorId}">${IC.back} ${esc(dv.nome)}</button></div>
+  <div class="ph"><div><div class="eyebrow">${credTag(cr)} ${esc(credNome(cr))} · ${esc(divNum(d))}${d.categoria ? ' · ' + esc(d.categoria) : ''}</div>
+    <h1>${esc(d.descricao || 'Dívida')}</h1>
+    <div class="sub flex" style="margin-top:6px">${d.cancelada ? '<span class="pill">Cancelada</span>' : sitPill(d)} ${d.cancelada ? '' : cobPill(cob)} ${jur.ativo ? '<span class="stamp">JURÍDICO</span>' : ''}<span>Operação em ${fd(d.dataOperacao)} · devedor <a href="#devedor" data-act="go" data-v="devedor" data-id="${d.devedorId}">${esc(dv.nome)}</a></span></div></div>
+    ${S.canWrite && !d.cancelada ? `<div class="acts">${c.saldo > 0 ? `<button class="btn pri" data-act="pagar" data-id="${d.id}">Registrar pagamento</button>` : ''}<button class="btn" data-act="acoes" data-id="${d.id}">Mais ações</button></div>` : ''}${d.cancelada && S.canWrite ? `<div class="acts"><button class="btn" data-act="reativar" data-id="${d.id}">Reativar dívida</button></div>` : ''}</div>
+  ${d.cancelada ? `<div class="notice crit">Dívida cancelada em ${fd(d.canceladaEm)}: ${esc(d.motivoCancelamento || '')}. Ela não entra nos saldos, mas o histórico foi preservado.</div>` : ''}
+  ${nova ? `<div class="notice info">Esta dívida foi renegociada. O saldo passou para <a href="#divida" data-act="go" data-v="divida" data-id="${nova.id}">${esc(divNum(nova))}</a>.</div>` : ''}
+  ${orig ? `<div class="notice info">Originada da renegociação de <a href="#divida" data-act="go" data-v="divida" data-id="${orig.id}">${esc(divNum(orig))}</a>, cujo histórico permanece intacto.</div>` : ''}
+  <div class="breakdown">
+    ${cell('Principal original', brl(c.principalOriginal))}${cell('Principal em aberto', brl(c.principalAberto))}${cell('Juros acumulados', brl(c.jurosAcumulados))}${cell('Multas', brl(c.multas))}
+    ${cell('Valor total atualizado', brl(c.totalAtualizado))}${cell('Pagamentos realizados', `<span class="ok">${brl(c.recebido)}</span>`)}${cell(c.outrasBaixas ? 'Outras baixas' : 'Próximo vencimento', c.outrasBaixas ? brl(c.outrasBaixas) : (c.proxima ? fd(c.proxima.venc) : '—'))}${cell('Saldo final', brl(d.cancelada ? 0 : c.saldo), 'total')}
+  </div>
+  <div><div class="flex muted" style="font-size:13px"><span>${pctPago}% do total atualizado já foi baixado</span>${d.juros && d.juros.ativo ? `<span class="right">Juros ${String(d.juros.taxa).replace('.', ',')}% ${d.juros.periodo === 'ano' ? 'a.a.' : 'a.m.'} ${d.juros.tipo === 'composto' ? 'compostos' : 'simples'} desde ${fd(d.juros.inicio || d.dataOperacao)}</span>` : '<span class="right">Sem juros</span>'}${d.multa && d.multa.ativo ? `<span>· multa ${String(d.multa.pct).replace('.', ',')}%</span>` : ''}</div><div class="bar"><i style="width:${pctPago}%"></i></div></div>
+  ${jur.ativo ? `<section class="sheet" style="border-color:color-mix(in srgb,var(--legal) 40%,var(--line))"><header><h2>Cobrança jurídica</h2>${S.canWrite ? `<button class="btn sm" data-act="juridico" data-id="${d.id}">Atualizar</button>` : ''}</header><div class="body"><dl class="kv">
+    <dt>Advogado</dt><dd>${esc(jur.advogado || '—')}</dd><dt>Encaminhada em</dt><dd>${fd(jur.dataEnc)}</dd><dt>Processo</dt><dd class="num">${esc(jur.processo || '—')}</dd><dt>Fase</dt><dd>${esc(jur.fase || '—')}</dd>
+    <dt>Próxima providência</dt><dd>${esc(jur.proxima || '—')}${jur.prazo ? ` · até <b>${fd(jur.prazo)}</b>` : ''}</dd><dt>Valor atualizado</dt><dd class="num">${brl(c.saldo)}</dd><dt>Recuperado desde o envio</dt><dd class="num ok">${brl(recJur)}</dd>
+    ${jur.acordos ? `<dt>Acordos</dt><dd style="white-space:pre-wrap">${esc(jur.acordos)}</dd>` : ''}${jur.obs ? `<dt>Observações</dt><dd style="white-space:pre-wrap">${esc(jur.obs)}</dd>` : ''}</dl></div></section>` : ''}
+  <section class="sheet"><div class="tabs">${tabs.map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" data-act="dtab" data-t="${k}">${l}</button>`).join('')}</div>${body}</section>
+  ${d.obs ? `<section class="sheet"><header><h2>Observações</h2></header><div class="body" style="white-space:pre-wrap">${esc(d.obs)}</div></section>` : ''}`;
+};
+AFTER.divida = () => {
+  const sel = $('#sel-cob'); if (!sel) return;
+  sel.addEventListener('change', async () => {
+    const d = X.div[S.p.id]; if (!needWrite()) return;
+    try { await upd('dividas', d.id, { statusCobranca: sel.value, atualizadoEm: nowIso() }); await audit('cobrança', 'divida', d.id, `Situação de cobrança: ${COB[d.statusCobranca || 'aberto']?.[1] || '—'} → ${COB[sel.value][1]}`); toast('Situação atualizada.'); }
+    catch (e) { toast(errMsg(e), true); }
+  });
+};
+ACT.dtab = el => { S.p.tab = el.dataset.t; render(); };
+ACT.acoes = el => {
+  const d = X.div[el.dataset.id], c = X.C[d.id];
+  const item = (act, l, h, danger) => `<button type="button" data-act="${act}" data-id="${d.id}"${danger ? ' style="color:var(--crit)"' : ''}><div><div>${l}</div><div class="muted" style="font-size:12px;font-weight:400">${h}</div></div></button>`;
+  const temRec = (X.pagsBy[d.id] || []).some(g => g.tipo === 'recebimento');
+  openModal({
+    title: 'Ações da dívida', noFoot: true, body: `<div class="sheetmenu">
+    ${c.saldo > 0 ? item('contato', 'Registrar contato', 'Ligação, mensagem, reunião') : ''}
+    ${c.saldo > 0 ? item('promessa', 'Promessa de pagamento', 'Sem alterar o vencimento') : ''}
+    ${c.saldo > 0 ? item('novoVenc', 'Novo vencimento', 'Reprogramar uma parcela') : ''}
+    ${c.saldo > 0 ? item('ajuste', 'Ajuste de juros/multa', 'Com justificativa') : ''}
+    ${c.saldo > 0 ? item('renegociar', 'Renegociar', 'Gera nova dívida, preserva a original') : ''}
+    ${c.saldo > 0 ? item('abater', 'Conceder desconto', 'Baixa sem ser recebimento') : ''}
+    ${item('juridico', d.juridico && d.juridico.ativo ? 'Dados jurídicos' : 'Encaminhar ao jurídico', 'Advogado, processo, fase')}
+    ${item('anexar', 'Anexar documentos', 'Contratos, notas, prints')}
+    ${item('editarDiv', 'Editar dados', 'Alterações vão ao histórico')}
+    ${temRec ? '' : item('cancelarDiv', 'Cancelar dívida', 'Lançamento indevido', true)}
+    </div>`
+  });
+};
+ACT.editarDiv = el => go('nova', { editId: el.dataset.id });
+
+/* ---- pagamento ---- */
+function previewPag(d, data, valor) {
+  const pags = [...(X.pagsBy[d.id] || []), { data, valor, tipo: 'recebimento', criadoEm: '9' }];
+  const asOf = data > X.t ? data : X.t;
+  const r = Eng.calcular(d, pags, X.ajsBy[d.id] || [], asOf);
+  const l = r.ledger.filter(x => x.credito && x.data === data).pop();
+  return { r, parts: l ? l.parts : null };
+}
+function openPagamento(d, tipo = 'recebimento') {
+  if (!needWrite()) return;
+  const cr = credOf(d), c = X.C[d.id];
+  const contas = (cr.contas || []).filter(Boolean);
+  const isAb = tipo === 'abatimento';
+  const sugest = c.proxima ? Math.min(c.proxima.valor - c.proxima.pago + (c.vencido ? c.jurosAberto + c.multaAberta : 0), c.saldo) : c.saldo;
+  const form = openModal({
+    title: isAb ? 'Conceder desconto / abatimento' : 'Registrar pagamento', ok: isAb ? 'Registrar abatimento' : 'Registrar pagamento',
+    body: `<div class="notice info" style="font-size:13px"><b>${esc(devOf(d).nome)}</b> → ${credTag(cr)} ${esc(credNome(cr))}<br>${esc(divNum(d))} · ${esc(d.descricao)} · saldo hoje <b class="num">${brl(c.saldo)}</b></div>
+    ${isAb ? '<div class="hint muted">O abatimento reduz o saldo, mas não conta como valor recebido.</div>' : ''}
+    <div class="form">
+      <div class="f"><label for="pg-data">Data do pagamento <span class="req">*</span></label><input type="date" id="pg-data" name="data" value="${X.t}" max="${X.t}"></div>
+      <div class="f"><label for="pg-valor">Valor ${isAb ? 'do abatimento' : 'recebido'} (R$) <span class="req">*</span></label><input type="text" class="money-in" inputmode="decimal" id="pg-valor" name="valor" placeholder="0,00"><div class="flex"><button type="button" class="btn ghost sm" data-fill="${sugest}">${c.parcelas.length > 1 ? 'Próxima parcela' : 'Sugerido'} ${brl(sugest)}</button><button type="button" class="btn ghost sm" data-fill="quitar">Quitar saldo</button></div></div>
+      ${isAb ? '' : `<div class="f"><label for="pg-forma">Forma de pagamento</label><select id="pg-forma" name="forma">${FORMAS.map(x => `<option ${d.formaPagamento === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+      <div class="f"><label for="pg-conta">Conta de destino</label><select id="pg-conta" name="conta"><option value="">${contas.length ? '—' : 'Nenhuma conta cadastrada para este credor'}</option>${contas.map(x => `<option>${esc(x)}</option>`).join('')}</select></div>`}
+      <div class="f full"><label for="pg-obs">${isAb ? 'Motivo do desconto' : 'Observações'}${isAb ? ' <span class="req">*</span>' : ''}</label><input type="text" id="pg-obs" name="obs"></div>
+      ${isAb ? '' : fileInput('pg-files', 'Comprovante')}
+      <div class="f full" id="pg-prev"></div>
+    </div>`,
+    onSubmit: async f => {
+      const data = fv(f, 'data'), valor = parseBRL(fv(f, 'valor'));
+      if (!data) { toast('Informe a data.', true); return false; }
+      if (data > X.t) { toast('Não é possível registrar pagamento com data futura. Use "Promessa de pagamento".', true); return false; }
+      if (data < d.dataOperacao) { toast('A data é anterior à operação.', true); return false; }
+      if (!(valor > 0)) { toast('Informe um valor maior que zero.', true); return false; }
+      if (isAb && !fv(f, 'obs')) { toast('Informe o motivo do desconto.', true); return false; }
+      const { r } = previewPag(d, data, valor);
+      if (r.excedente > 0) { toast(`O valor ultrapassa o saldo em ${brl(r.excedente)}. Máximo nesta data: ${brl(valor - r.excedente)}.`, true); return false; }
+      const dup = (X.pagsBy[d.id] || []).find(g => g.data === data && g.valor === valor && g.tipo === tipo);
+      if (dup && !f.dataset.dupOk) {
+        f.dataset.dupOk = '1';
+        toast(`Já existe um pagamento de ${brl(valor)} em ${fd(data)} nesta dívida. Toque de novo em salvar para confirmar que é outro pagamento.`, true);
+        return false;
+      }
+      const anexos = isAb ? [] : await uploadFiles(f.elements.files.files);
+      const id = newId('pagamentos');
+      await put('pagamentos', id, stamp({ dividaId: d.id, credorId: d.credorId, devedorId: d.devedorId, data, valor, tipo, forma: isAb ? '' : fv(f, 'forma'), conta: isAb ? '' : fv(f, 'conta'), obs: fv(f, 'obs'), anexos, cancelado: false }, true));
+      await audit('criação', 'pagamento', id, `${isAb ? 'Abatimento' : 'Recebimento'} de ${brl(valor)} em ${fd(data)} · ${divNum(d)} (${credNome(cr)})`, { dividaId: d.id });
+      if (!isAb && d.promessa && d.promessa.data && !d.promessa.cumprida) {
+        try { await upd('dividas', d.id, { promessa: { ...d.promessa, cumprida: true }, statusCobranca: d.statusCobranca === 'prometido' ? 'aberto' : d.statusCobranca }); } catch { }
+      }
+      toast(r.saldo === 0 ? 'Pagamento registrado. Dívida quitada.' : `Pagamento registrado. Saldo: ${brl(r.saldo)}`);
+    }
+  });
+  const upd_ = () => {
+    const data = fv(form, 'data'), valor = parseBRL(fv(form, 'valor')), el = $('#pg-prev');
+    if (!el) return;
+    if (!data || !(valor > 0)) { el.innerHTML = ''; return; }
+    const { r, parts } = previewPag(d, data, valor);
+    el.innerHTML = r.excedente > 0 ? `<div class="notice crit">Valor acima do saldo em ${brl(r.excedente)}.</div>`
+      : `<div class="box" style="font-size:13px">Este pagamento amortiza ${parts ? `<b>${brl(parts.principal)}</b> de principal, <b>${brl(parts.juros)}</b> de juros${parts.multa ? ` e <b>${brl(parts.multa)}</b> de multa` : ''}` : ''}. Saldo após: <b class="num">${brl(r.saldo)}</b>${r.saldo === 0 ? ' · <span class="ok">quita a dívida</span>' : ''}.</div>`;
+  };
+  form.addEventListener('input', upd_); form.addEventListener('change', upd_);
+  form.querySelectorAll('[data-fill]').forEach(b => b.addEventListener('click', () => {
+    let v = b.dataset.fill;
+    if (v === 'quitar') { const data = fv(form, 'data') || X.t; v = Eng.calcular(d, X.pagsBy[d.id] || [], X.ajsBy[d.id] || [], data).saldo; }
+    form.elements.valor.value = toInput(+v); upd_();
+  }));
+}
+ACT.pagar = el => openPagamento(X.div[el.dataset.id]);
+ACT.abater = el => openPagamento(X.div[el.dataset.id], 'abatimento');
+ACT.estornar = async el => {
+  if (!needWrite()) return;
+  const g = S.pagamentos.find(x => x.id === el.dataset.id); if (!g) return;
+  if (g.tipo === 'renegociacao') {
+    const d = X.div[g.dividaId]; const n = d && d.renegociadaPara && X.div[d.renegociadaPara];
+    if (n && !n.cancelada) { toast(`Cancele primeiro a dívida renegociada ${divNum(n)}.`, true); return; }
+  }
+  const j = await confirmBox('Estornar pagamento', `Estornar o lançamento de <b class="num">${brl(g.valor)}</b> de ${fd(g.data)}? O registro continua no histórico como estornado e o saldo é recalculado.`, 'Estornar', true, justField('Motivo do estorno'));
+  if (!j) return;
+  try { await upd('pagamentos', g.id, { cancelado: true, canceladoEm: nowIso(), canceladoPor: S.meId || null, motivoCancelamento: j }); await audit('estorno', 'pagamento', g.id, `Estorno de ${brl(g.valor)} (${fd(g.data)}): ${j}`, { dividaId: g.dividaId }); toast('Pagamento estornado.'); }
+  catch (e) { toast(errMsg(e), true); }
+};
+
+/* ---- ajuste manual ---- */
+ACT.ajuste = el => {
+  if (!needWrite()) return;
+  const d = X.div[el.dataset.id], c = X.C[d.id];
+  openModal({
+    title: 'Ajuste manual de encargos', ok: 'Registrar ajuste',
+    body: `<div class="notice info" style="font-size:13px">Juros em aberto: <b class="num">${brl(c.jurosAberto)}</b> · multa em aberto: <b class="num">${brl(c.multaAberta)}</b></div>
+    <div class="form">
+      <div class="f"><label for="aj-tipo">Encargo</label><select id="aj-tipo" name="tipo"><option value="juros">Juros</option><option value="multa">Multa</option></select></div>
+      <div class="f"><label for="aj-op">Operação</label><select id="aj-op" name="op"><option value="-">Reduzir (desconto)</option><option value="+">Acrescentar</option></select></div>
+      <div class="f"><label for="aj-val">Valor (R$) <span class="req">*</span></label><input type="text" class="money-in" inputmode="decimal" id="aj-val" name="valor"></div>
+      <div class="f"><label for="aj-data">Data</label><input type="date" id="aj-data" name="data" value="${X.t}" max="${X.t}"></div>
+      <div class="f full"><label for="aj-just">Justificativa <span class="req">*</span></label><textarea id="aj-just" name="just"></textarea></div>
+    </div>`,
+    onSubmit: async f => {
+      const v = parseBRL(fv(f, 'valor')), j = fv(f, 'just'), data = fv(f, 'data');
+      if (!(v > 0)) { toast('Informe o valor.', true); return false; }
+      if (!j) { toast('A justificativa é obrigatória.', true); return false; }
+      if (!data || data > X.t || data < d.dataOperacao) { toast('Data inválida.', true); return false; }
+      const valor = fv(f, 'op') === '-' ? -v : v;
+      const id = newId('ajustes');
+      await put('ajustes', id, stamp({ dividaId: d.id, credorId: d.credorId, devedorId: d.devedorId, tipo: fv(f, 'tipo'), valor, data, justificativa: j, cancelado: false }, true));
+      await audit('ajuste', 'ajuste', id, `Ajuste de ${fv(f, 'tipo')} ${valor > 0 ? '+' : '−'}${brl(v)}: ${j}`, { dividaId: d.id });
+      toast('Ajuste registrado.');
+    }
+  });
+};
+ACT.cancAjuste = async el => {
+  if (!needWrite()) return;
+  const a = S.ajustes.find(x => x.id === el.dataset.id);
+  const j = await confirmBox('Cancelar ajuste', 'O ajuste deixa de valer, mas permanece no histórico.', 'Cancelar ajuste', true, justField('Motivo'));
+  if (!j) return;
+  try { await upd('ajustes', a.id, { cancelado: true, canceladoEm: nowIso(), motivoCancelamento: j }); await audit('cancelamento', 'ajuste', a.id, `Ajuste de ${brl(Math.abs(a.valor))} cancelado: ${j}`, { dividaId: a.dividaId }); toast('Ajuste cancelado.'); }
+  catch (e) { toast(errMsg(e), true); }
+};
+
+/* ---- contato / cobrança ---- */
+ACT.contato = el => {
+  if (!needWrite()) return;
+  const d = X.div[el.dataset.id];
+  openModal({
+    title: 'Registrar contato de cobrança', ok: 'Registrar',
+    body: `<div class="form">
+      <div class="f"><label for="ct-data">Data</label><input type="date" id="ct-data" name="data" value="${X.t}"></div>
+      <div class="f"><label for="ct-canal">Canal</label><select id="ct-canal" name="canal">${['Telefone', 'WhatsApp', 'E-mail', 'Presencial', 'Notificação / carta', 'Advogado'].map(x => `<option>${x}</option>`).join('')}</select></div>
+      <div class="f"><label for="ct-resp">Responsável</label><input type="text" id="ct-resp" name="resp" value="${esc(S.names[S.meId] || '')}"></div>
+      <div class="f"><label for="ct-prox">Próximo acompanhamento</label><input type="date" id="ct-prox" name="proximo"></div>
+      <div class="f full"><label for="ct-desc">O que foi tratado <span class="req">*</span></label><textarea id="ct-desc" name="desc"></textarea></div>
+      <div class="f full"><label for="ct-st">Situação da cobrança</label><select id="ct-st" name="st">${COB_MANUAL.map(([k, l]) => `<option value="${k}" ${(d.statusCobranca || 'aberto') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    </div>`,
+    onSubmit: async f => {
+      if (!fv(f, 'desc')) { toast('Descreva o contato.', true); return false; }
+      const id = newId('contatos');
+      await put('contatos', id, stamp({ dividaId: d.id, devedorId: d.devedorId, credorId: d.credorId, data: fv(f, 'data') || X.t, canal: fv(f, 'canal'), responsavel: fv(f, 'resp'), descricao: fv(f, 'desc'), proximo: fv(f, 'proximo') }, true));
+      const st = fv(f, 'st');
+      await upd('dividas', d.id, { statusCobranca: st, proximoAcomp: fv(f, 'proximo') || '', atualizadoEm: nowIso() });
+      await audit('cobrança', 'contato', id, `Contato (${fv(f, 'canal')}): ${fv(f, 'desc').slice(0, 140)}${st !== (d.statusCobranca || 'aberto') ? ` · situação → ${COB[st][1]}` : ''}`, { dividaId: d.id });
+      toast('Contato registrado.');
+    }
+  });
+};
+ACT.promessa = el => {
+  if (!needWrite()) return;
+  const d = X.div[el.dataset.id], p = d.promessa || {};
+  openModal({
+    title: 'Promessa de pagamento', ok: 'Registrar promessa',
+    body: `<p class="muted" style="margin:0;font-size:14px">A promessa fica registrada à parte. O vencimento contratual (${fd(X.C[d.id].proxima?.venc)}) continua o mesmo para cálculo de atraso, juros e multa.</p>
+    <div class="form">
+      <div class="f"><label for="pr-data">Data prometida <span class="req">*</span></label><input type="date" id="pr-data" name="data" value="${p.cumprida ? '' : (p.data || '')}"></div>
+      <div class="f"><label for="pr-val">Valor prometido (R$)</label><input type="text" class="money-in" inputmode="decimal" id="pr-val" name="valor" value="${p.cumprida ? '' : toInput(p.valor)}"></div>
+      <div class="f full"><label for="pr-obs">Observações</label><input type="text" id="pr-obs" name="obs" value="${p.cumprida ? '' : esc(p.obs)}"></div>
+    </div>`,
+    onSubmit: async f => {
+      const data = fv(f, 'data'); if (!data) { toast('Informe a data prometida.', true); return false; }
+      const valor = parseBRL(fv(f, 'valor'));
+      const prom = { data, valor: valor > 0 ? valor : null, obs: fv(f, 'obs'), registradaEm: nowIso(), cumprida: false };
+      await upd('dividas', d.id, { promessa: prom, statusCobranca: 'prometido', atualizadoEm: nowIso() });
+      await put('contatos', newId('contatos'), stamp({ dividaId: d.id, devedorId: d.devedorId, credorId: d.credorId, data: X.t, canal: 'Promessa', responsavel: S.names[S.meId] || '', descricao: `Promessa de pagamento para ${fd(data)}${valor > 0 ? ' de ' + brl(valor) : ''}. ${prom.obs}`, proximo: data }, true));
+      await audit('cobrança', 'divida', d.id, `Promessa de pagamento para ${fd(data)}${valor > 0 ? ' · ' + brl(valor) : ''}`);
+      toast('Promessa registrada.');
+    }
+  });
+};
+ACT.novoVenc = el => {
+  if (!needWrite()) return;
+  const d = X.div[el.dataset.id], c = X.C[d.id];
+  const abertas = c.parcelas.filter(p => p.pago < p.valor);
+  const sel = +(el.dataset.n || (abertas[0] && abertas[0].n) || 1);
+  openModal({
+    title: 'Registrar novo vencimento', ok: 'Alterar vencimento',
+    body: `<p class="muted" style="margin:0;font-size:14px">Altera o vencimento contratual da parcela e recalcula atraso e multa. A data anterior fica registrada.</p><div class="form">
+      <div class="f"><label for="nv-p">Parcela</label><select id="nv-p" name="n">${abertas.map(p => `<option value="${p.n}" ${p.n === sel ? 'selected' : ''}>${p.n}/${c.parcelas.length} · ${fd(p.venc)} · ${brl(p.valor - p.pago)}</option>`).join('')}</select></div>
+      <div class="f"><label for="nv-d">Nova data <span class="req">*</span></label><input type="date" id="nv-d" name="data"></div>
+      <div class="f full"><label for="nv-m">Motivo <span class="req">*</span></label><input type="text" id="nv-m" name="motivo"></div></div>`,
+    onSubmit: async f => {
+      const n = +fv(f, 'n'), data = fv(f, 'data'), motivo = fv(f, 'motivo');
+      if (!data || !motivo) { toast('Informe a nova data e o motivo.', true); return false; }
+      if (data < d.dataOperacao) { toast('A data não pode ser anterior à operação.', true); return false; }
+      const cron = (d.cronograma && d.cronograma.length ? d.cronograma : Eng.gerarCronograma(d.valor, d.parcelas || 1, d.vencimento)).map(p => ({ ...p }));
+      const p = cron.find(x => x.n === n); const de = p.venc; p.venc = data;
+      const hist = [...(d.historicoVencimentos || []), { em: X.t, parcela: n, de, para: data, motivo }];
+      await upd('dividas', d.id, { cronograma: cron, vencimento: cron[0].venc, historicoVencimentos: hist, atualizadoEm: nowIso() });
+      await audit('vencimento', 'divida', d.id, `Parcela ${n}: vencimento ${fd(de)} → ${fd(data)}. ${motivo}`);
+      toast('Vencimento alterado.');
+    }
+  });
+};
+
+/* ---- renegociação ---- */
+ACT.renegociar = el => {
+  if (!needWrite()) return;
+  const d = X.div[el.dataset.id], c = X.C[d.id];
+  const form = openModal({
+    title: 'Renegociar dívida', ok: 'Confirmar renegociação',
+    body: `<div class="notice info" style="font-size:13px">A dívida ${esc(divNum(d))} recebe uma baixa por renegociação (não conta como recebimento) e uma nova dívida é criada com as condições do acordo. Todo o histórico original é mantido.</div>
+    <div class="form">
+      <div class="f"><label for="rn-data">Data do acordo</label><input type="date" id="rn-data" name="data" value="${X.t}" max="${X.t}"></div>
+      <div class="f"><label for="rn-val">Valor acordado (R$) <span class="req">*</span></label><input type="text" class="money-in" inputmode="decimal" id="rn-val" name="valor" value="${toInput(c.saldo)}"><span class="hint" id="rn-saldo">Saldo na data: ${brl(c.saldo)}</span></div>
+      <div class="f"><label for="rn-venc">1º vencimento <span class="req">*</span></label><input type="date" id="rn-venc" name="venc"></div>
+      <div class="f"><label for="rn-parc">Parcelas</label><input type="number" min="1" max="360" id="rn-parc" name="parcelas" value="1"></div>
+      <div class="f"><label for="rn-taxa">Juros (% a.m., opcional)</label><input type="text" inputmode="decimal" id="rn-taxa" name="taxa" placeholder="Sem juros"></div>
+      <div class="f"><label for="rn-tipo">Tipo de juros</label><select id="rn-tipo" name="tipo"><option value="simples">Simples</option><option value="composto">Compostos</option></select></div>
+      <div class="f"><label for="rn-multa">Multa por atraso (%, opcional)</label><input type="text" inputmode="decimal" id="rn-multa" name="multa" placeholder="Sem multa"></div>
+      <div class="f full"><label for="rn-obs">Termos do acordo</label><textarea id="rn-obs" name="obs"></textarea></div>
+    </div>`,
+    onSubmit: async f => {
+      const data = fv(f, 'data'), valor = parseBRL(fv(f, 'valor')), venc = fv(f, 'venc');
+      const parcelas = Math.max(1, parseInt(fv(f, 'parcelas')) || 1);
+      const taxa = Number(fv(f, 'taxa').replace(',', '.')) || 0, mp = Number(fv(f, 'multa').replace(',', '.')) || 0;
+      if (!data || data > X.t || data < d.dataOperacao) { toast('Data do acordo inválida.', true); return false; }
+      if (!(valor > 0)) { toast('Informe o valor acordado.', true); return false; }
+      if (!venc || venc < data) { toast('Informe o 1º vencimento (igual ou após o acordo).', true); return false; }
+      const saldoData = Eng.calcular(d, X.pagsBy[d.id] || [], X.ajsBy[d.id] || [], data).saldo;
+      if (saldoData <= 0) { toast('Não há saldo nesta data.', true); return false; }
+      const nid = newId('dividas'), pid = newId('pagamentos');
+      const nRen = S.dividas.filter(x => x.origemRenegociacao === d.id).length + 1;
+      const nova = {
+        credorId: d.credorId, devedorId: d.devedorId, valor, dataOperacao: data, descricao: `Renegociação de ${divNum(d)} · ${d.descricao}`, vencimento: venc, parcelas,
+        numero: `${divNum(d)}-R${nRen}`, categoria: d.categoria || '', formaPagamento: d.formaPagamento || '', amortizacao: d.amortizacao || 'juros_primeiro', obs: fv(f, 'obs'),
+        juros: taxa > 0 ? { ativo: true, taxa, periodo: 'mes', tipo: fv(f, 'tipo'), inicio: '' } : { ativo: false }, multa: mp > 0 ? { ativo: true, pct: mp } : { ativo: false },
+        cronograma: Eng.gerarCronograma(valor, parcelas, venc), anexos: [], statusCobranca: 'aberto', cancelada: false, origemRenegociacao: d.id
+      };
+      await put('dividas', nid, stamp(nova, true));
+      await put('pagamentos', pid, stamp({ dividaId: d.id, credorId: d.credorId, devedorId: d.devedorId, data, valor: saldoData, tipo: 'renegociacao', forma: '', conta: '', obs: `Renegociada para ${nova.numero}`, novaDividaId: nid, anexos: [], cancelado: false }, true));
+      await upd('dividas', d.id, { renegociadaPara: nid, atualizadoEm: nowIso() });
+      await audit('renegociação', 'divida', d.id, `Saldo de ${brl(saldoData)} renegociado em ${fd(data)} para ${nova.numero} (${brl(valor)} em ${parcelas}x)`);
+      await audit('criação', 'divida', nid, `${nova.numero} criada por renegociação de ${divNum(d)}`);
+      toast('Renegociação registrada.');
+      setTimeout(() => go('divida', { id: nid }), 50);
+    }
+  });
+  form.elements.data.addEventListener('change', () => { const v = form.elements.data.value; if (v) $('#rn-saldo').textContent = 'Saldo na data: ' + brl(Eng.calcular(d, X.pagsBy[d.id] || [], X.ajsBy[d.id] || [], v).saldo); });
+};
+
+/* ---- cancelar / reativar / anexar / jurídico ---- */
+ACT.cancelarDiv = async el => {
+  if (!needWrite()) return;
+  const d = X.div[el.dataset.id];
+  if ((X.pagsBy[d.id] || []).some(g => g.tipo === 'recebimento')) { toast('Esta dívida tem recebimentos. Estorne-os antes de cancelar.', true); return; }
+  const j = await confirmBox('Cancelar dívida', `Cancelar <b>${esc(divNum(d))}</b> (${brl(d.valor)})? Ela sai dos saldos, mas o registro e o histórico ficam preservados.`, 'Cancelar dívida', true, justField('Motivo do cancelamento'));
+  if (!j) return;
+  try { await upd('dividas', d.id, { cancelada: true, canceladaEm: X.t, canceladaPor: S.meId || null, motivoCancelamento: j }); await audit('cancelamento', 'divida', d.id, `Dívida cancelada: ${j}`); toast('Dívida cancelada.'); }
+  catch (e) { toast(errMsg(e), true); }
+};
+ACT.reativar = async el => {
+  if (!needWrite()) return;
+  const d = X.div[el.dataset.id];
+  const ok = await confirmBox('Reativar dívida', `Reativar <b>${esc(divNum(d))}</b>? Ela volta a compor os saldos.`, 'Reativar');
+  if (!ok) return;
+  try { await upd('dividas', d.id, { cancelada: false, atualizadoEm: nowIso() }); await audit('reativação', 'divida', d.id, 'Dívida reativada'); toast('Dívida reativada.'); }
+  catch (e) { toast(errMsg(e), true); }
+};
+ACT.anexar = el => {
+  if (!needWrite()) return;
+  const d = X.div[el.dataset.id];
+  openModal({
+    title: 'Anexar documentos', ok: 'Enviar', body: `<div class="form">${fileInput('ax-files')}</div>`,
+    onSubmit: async f => {
+      const n = await uploadFiles(f.elements.files.files);
+      if (!n.length) { toast('Selecione ao menos um arquivo.', true); return false; }
+      await upd('dividas', d.id, { anexos: [...(d.anexos || []), ...n], atualizadoEm: nowIso() });
+      await audit('documento', 'divida', d.id, `${n.length} documento(s) anexado(s): ${n.map(x => x.nome).join(', ')}`);
+      toast('Documentos anexados.');
+    }
+  });
+};
+ACT.juridico = el => {
+  if (!needWrite()) return;
+  const d = X.div[el.dataset.id], j = d.juridico || {};
+  const form = openModal({
+    title: j.ativo ? 'Cobrança jurídica' : 'Encaminhar ao jurídico', ok: j.ativo ? 'Salvar' : 'Encaminhar',
+    body: `<div class="form">
+      <div class="f"><label for="jr-adv">Advogado responsável</label><input type="text" id="jr-adv" name="advogado" value="${esc(j.advogado)}"></div>
+      <div class="f"><label for="jr-data">Data de encaminhamento</label><input type="date" id="jr-data" name="dataEnc" value="${j.dataEnc || X.t}"></div>
+      <div class="f"><label for="jr-proc">Número do processo</label><input type="text" id="jr-proc" name="processo" value="${esc(j.processo)}" placeholder="0000000-00.0000.0.00.0000"></div>
+      <div class="f"><label for="jr-fase">Fase</label><select id="jr-fase" name="fase">${FASES.map(x => `<option ${j.fase === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+      <div class="f"><label for="jr-prox">Próxima providência</label><input type="text" id="jr-prox" name="proxima" value="${esc(j.proxima)}"></div>
+      <div class="f"><label for="jr-prazo">Prazo da providência</label><input type="date" id="jr-prazo" name="prazo" value="${j.prazo || ''}"></div>
+      <div class="f full"><label for="jr-ac">Acordos realizados</label><textarea id="jr-ac" name="acordos">${esc(j.acordos)}</textarea></div>
+      <div class="f full"><label for="jr-obs">Observações</label><textarea id="jr-obs" name="obs">${esc(j.obs)}</textarea></div>
+      ${fileInput('jr-files', 'Documentos e contratos')}
+      ${j.anexos && j.anexos.length ? `<div class="f full"><span class="lb">Já anexados</span>${fileList(j.anexos)}</div>` : ''}
+      ${j.ativo ? `<div class="f full"><button type="button" class="btn danger" id="jr-end">Encerrar acompanhamento jurídico</button></div>` : ''}
+    </div>`,
+    onSubmit: async f => {
+      const n = await uploadFiles(f.elements.files.files);
+      const nj = { ...j, ativo: true, advogado: fv(f, 'advogado'), dataEnc: fv(f, 'dataEnc') || X.t, processo: fv(f, 'processo'), fase: fv(f, 'fase'), proxima: fv(f, 'proxima'), prazo: fv(f, 'prazo'), acordos: fv(f, 'acordos'), obs: fv(f, 'obs'), anexos: [...(j.anexos || []), ...n] };
+      await upd('dividas', d.id, { juridico: nj, statusCobranca: 'judicial', atualizadoEm: nowIso() });
+      await audit('jurídico', 'divida', d.id, j.ativo ? `Dados jurídicos atualizados · fase: ${nj.fase}` : `Encaminhada ao jurídico (${nj.advogado || 'advogado não informado'})`);
+      toast(j.ativo ? 'Dados jurídicos salvos.' : 'Dívida encaminhada ao jurídico.');
+    }
+  });
+  const end = form.querySelector('#jr-end');
+  if (end) end.addEventListener('click', async () => {
+    closeModal();
+    const r = await confirmBox('Encerrar jurídico', 'A dívida sai da área jurídica. Os dados ficam no histórico.', 'Encerrar', true, justField('Motivo'));
+    if (!r) return;
+    try { await upd('dividas', d.id, { juridico: { ...j, ativo: false, encerradoEm: X.t, motivoEncerramento: r }, statusCobranca: 'extrajudicial' }); await audit('jurídico', 'divida', d.id, `Acompanhamento jurídico encerrado: ${r}`); toast('Jurídico encerrado.'); }
+    catch (e) { toast(errMsg(e), true); }
+  });
+};
+
+/* ================= RECEBIMENTOS ================= */
+VIEWS.recebimentos = () => {
+  const devId = S.p.devedorId || '';
+  const f = S.p.rf || (S.p.rf = { de: monthBounds(X.t)[0], ate: X.t });
+  const abertasDev = devId ? S.dividas.filter(d => d.devedorId === devId && ativa(d) && inCart(d)) : [];
+  const porCred = {};
+  for (const d of abertasDev) (porCred[d.credorId] ||= []).push(d);
+  const devsComSaldo = new Set(S.dividas.filter(d => ativa(d) && inCart(d)).map(d => d.devedorId));
+  const recs = S.pagamentos.filter(g => (!f.de || g.data >= f.de) && (!f.ate || g.data <= f.ate) && X.div[g.dividaId] && inCart(X.div[g.dividaId]))
+    .sort((a, b) => (b.data + (b.criadoEm || '')).localeCompare(a.data + (a.criadoEm || '')));
+  const tot = recs.filter(g => !g.cancelado && g.tipo === 'recebimento').reduce((s, g) => s + g.valor, 0);
+  return `<div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Recebimentos</h1><div class="sub">Escolha o devedor e a dívida. O credor vem da própria dívida, então nenhum valor cai na carteira errada.</div></div></div>
+  ${carteiraChips()}
+  <section class="sheet"><header><h2>Registrar pagamento</h2></header><div class="body">
+    <div class="f" style="max-width:420px"><label for="rc-dev">Devedor</label><select id="rc-dev"><option value="">Selecione…</option>${devOptions(devId, v => devsComSaldo.has(v.id) || v.id === devId)}</select>${devsComSaldo.size ? '' : '<span class="hint">Nenhum devedor com saldo em aberto nesta carteira.</span>'}</div>
+  </div>
+  ${devId ? (abertasDev.length ? Object.entries(porCred).map(([cid, ds]) => `<div style="border-top:1px solid var(--line)"><div class="body" style="padding-bottom:4px"><span class="eyebrow">${credTag(X.cred[cid])} Credor: ${esc(credNome(X.cred[cid]))}</span></div><div class="list">${ds.map(d => { const c = X.C[d.id]; return `<button class="row ${c.situacao === 'vencida' ? 'stripe-crit' : 'stripe-acc'}" data-act="pagar" data-id="${d.id}"><div><div class="t">${esc(divNum(d))} · ${esc(d.descricao)}</div><div class="s">${sitPill(d)}${c.proxima ? ` próximo vencimento ${fd(c.proxima.venc)}` : ''}</div></div><div class="v">${brl(c.saldo)}<small>receber →</small></div></button>`; }).join('')}</div></div>`).join('') : `<div class="empty">Este devedor não tem dívidas em aberto${S.cart !== 'all' ? ' nesta carteira' : ''}.</div>`) : ''}
+  </section>
+  <section class="sheet"><header><h2>Recebimentos registrados</h2><span class="meta">Total recebido no período: <b class="num">${brl(tot)}</b></span></header>
+    <form class="body filters" id="rc-f"><div class="f"><label for="rc-de">De</label><input type="date" id="rc-de" name="de" value="${f.de}"></div><div class="f"><label for="rc-ate">Até</label><input type="date" id="rc-ate" name="ate" value="${f.ate}"></div></form>
+    ${recs.length ? `<div class="tw"><table><thead><tr><th>Data</th><th>Devedor</th><th>Credor</th><th>Dívida</th><th>Forma / conta</th><th class="r">Valor</th><th></th></tr></thead><tbody>
+    ${recs.map(g => { const d = X.div[g.dividaId]; return `<tr class="click" data-act="go" data-v="divida" data-id="${g.dividaId}"><td class="num">${fd(g.data)}</td><td>${esc(X.dev[g.devedorId]?.nome || '')}</td><td>${credTag(X.cred[g.credorId])} ${esc(credNome(X.cred[g.credorId]))}</td><td>${esc(divNum(d))}</td><td>${esc([g.forma, g.conta].filter(Boolean).join(' · ') || '—')}${g.anexos && g.anexos.length ? ' ' + IC.clip.replace('<svg', '<svg width="14" height="14"') : ''}</td><td class="m" ${g.cancelado ? 'style="text-decoration:line-through"' : ''}>${brl(g.valor)}</td><td>${g.cancelado ? '<span class="pill">Estornado</span>' : g.tipo === 'recebimento' ? '<span class="pill ok">Recebido</span>' : g.tipo === 'renegociacao' ? '<span class="pill acc">Renegociação</span>' : '<span class="pill">Abatimento</span>'}</td></tr>`; }).join('')}
+    </tbody></table></div>` : `<div class="empty">Nenhum recebimento no período.</div>`}
+  </section>`;
+};
+AFTER.recebimentos = () => {
+  const s = $('#rc-dev'); if (s) s.addEventListener('change', () => { S.p.devedorId = s.value; render(); });
+  const f = $('#rc-f'); if (f) f.addEventListener('change', () => { S.p.rf = { de: fv(f, 'de'), ate: fv(f, 'ate') }; render(); });
+};
+
+/* ================= VENCIMENTOS ================= */
+VIEWS.vencimentos = () => {
+  const t = X.t;
+  const B = { venc: [], hoje: [], d7: [], d15: [], d30: [], fut: [] };
+  const ab = S.dividas.filter(d => ativa(d) && inCart(d));
+  for (const d of ab) for (const p of X.C[d.id].parcelas) {
+    if (p.pago >= p.valor) continue;
+    const k = Eng.diff(t, p.venc);
+    (k < 0 ? B.venc : k === 0 ? B.hoje : k <= 7 ? B.d7 : k <= 15 ? B.d15 : k <= 30 ? B.d30 : B.fut).push({ d, p });
+  }
+  for (const k in B) B[k].sort((a, b) => a.p.venc < b.p.venc ? -1 : 1);
+  const proms = ab.filter(d => d.promessa && d.promessa.data && !d.promessa.cumprida).sort((a, b) => a.promessa.data < b.promessa.data ? -1 : 1);
+  const lim = Eng.addDays(t, -30);
+  const quit = S.dividas.filter(d => !d.cancelada && inCart(d) && X.C[d.id].situacao === 'quitada').map(d => ({ d, em: (X.pagsBy[d.id] || []).reduce((m, g) => g.data > m ? g.data : m, '') })).filter(x => x.em >= lim).sort((a, b) => a.em < b.em ? 1 : -1);
+  const sec = (k, titulo, vazio, open = true) => { const it = B[k]; const tot = it.reduce((s, x) => s + x.p.valor - x.p.pago, 0); return `<section class="sheet"><header><h2>${titulo}</h2><span class="meta">${it.length ? `${it.length} · <b class="num">${brl(tot)}</b>` : ''}</span></header><div class="list">${it.length ? it.slice(0, open ? 100 : 20).map(x => parcRow(x.d, x.p)).join('') : `<div class="empty">${vazio}</div>`}</div></section>`; };
+  return `<div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Agenda de vencimentos</h1><div class="sub">Valores de principal das parcelas em aberto. Juros e multas aparecem no saldo de cada dívida.</div></div></div>
+  ${carteiraChips()}
+  <div class="flex" style="font-size:13px"><span class="pill crit">Vencida</span><span class="pill warn">Vence em até 7 dias / parcialmente paga</span><span class="pill acc">Em dia</span><span class="pill ok">Quitada</span></div>
+  ${sec('venc', 'Vencidas', 'Nenhuma parcela vencida.')}
+  ${sec('hoje', 'Vencem hoje', 'Nada vence hoje.')}
+  <div class="grid2">${sec('d7', 'Próximos 7 dias', 'Nada nos próximos 7 dias.')}${sec('d15', 'De 8 a 15 dias', 'Nada entre 8 e 15 dias.')}</div>
+  <div class="grid2">${sec('d30', 'De 16 a 30 dias', 'Nada entre 16 e 30 dias.')}${sec('fut', 'Vencimentos futuros', 'Nenhum vencimento após 30 dias.', false)}</div>
+  <div class="grid2">
+  <section class="sheet"><header><h2>Promessas de pagamento</h2><span class="meta">não alteram o vencimento</span></header><div class="list">${proms.length ? proms.map(d => `<button class="row ${d.promessa.data < t ? 'stripe-crit' : 'stripe-warn'}" data-act="go" data-v="divida" data-id="${d.id}"><div><div class="t">${esc(devOf(d).nome)}</div><div class="s">Prometido para <b class="num">${fd(d.promessa.data)}</b>${d.promessa.data < t ? ' · <span class="crit">não cumprida</span>' : ''} · ${credTag(credOf(d))} ${esc(credNome(credOf(d)))}</div></div><div class="v">${brl(d.promessa.valor || X.C[d.id].saldo)}<small>${d.promessa.valor ? 'prometido' : 'saldo'}</small></div></button>`).join('') : '<div class="empty">Nenhuma promessa em aberto.</div>'}</div></section>
+  <section class="sheet"><header><h2>Quitadas nos últimos 30 dias</h2></header><div class="list">${quit.length ? quit.map(x => `<button class="row stripe-ok" data-act="go" data-v="divida" data-id="${x.d.id}"><div><div class="t">${esc(devOf(x.d).nome)}</div><div class="s"><span class="pill ok">Quitada</span> em ${fd(x.em)} · ${esc(divNum(x.d))}</div></div><div class="v">${brl(X.C[x.d.id].recebido)}<small>recebido</small></div></button>`).join('') : '<div class="empty">Nenhuma quitação recente.</div>'}</div></section>
+  </div>`;
+};
+
+/* ================= COBRANÇAS ================= */
+VIEWS.cobrancas = () => {
+  const fil = S.p.st || '';
+  const base = S.dividas.filter(d => !d.cancelada && inCart(d));
+  const st = Object.fromEntries(base.map(d => [d.id, statusCob(d)]));
+  const counts = {}; for (const k of Object.values(st)) counts[k] = (counts[k] || 0) + 1;
+  const lista = base.filter(d => fil ? st[d.id] === fil : st[d.id] !== 'quitado').sort((a, b) => X.C[b.id].vencido - X.C[a.id].vencido || X.C[b.id].saldo - X.C[a.id].saldo);
+  const ultimo = {};
+  for (const c of S.contatos) if (!ultimo[c.dividaId] || (c.data + (c.criadoEm || '')) > (ultimo[c.dividaId].data + (ultimo[c.dividaId].criadoEm || ''))) ultimo[c.dividaId] = c;
+  const pend = base.filter(d => ativa(d) && ultimo[d.id] && ultimo[d.id].proximo && ultimo[d.id].proximo <= X.t).sort((a, b) => ultimo[a.id].proximo < ultimo[b.id].proximo ? -1 : 1);
+  const semContato = base.filter(d => ativa(d) && X.C[d.id].situacao === 'vencida' && !ultimo[d.id]);
+  return `<div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Cobranças</h1><div class="sub">Acompanhamento administrativo de cada dívida, com histórico de contatos.</div></div></div>
+  ${carteiraChips()}
+  ${pend.length || semContato.length ? `<div class="grid2">
+    <section class="sheet"><header><h2>Acompanhamentos para hoje</h2><span class="meta">${pend.length}</span></header><div class="list">${pend.length ? pend.map(d => `<button class="row stripe-warn" data-act="go" data-v="divida" data-id="${d.id}"><div><div class="t">${esc(devOf(d).nome)}</div><div class="s">Retornar em <b class="num">${fd(ultimo[d.id].proximo)}</b> · último: ${esc((ultimo[d.id].descricao || '').slice(0, 60))}</div></div><div class="v">${brl(X.C[d.id].saldo)}</div></button>`).join('') : '<div class="empty">Nenhum retorno agendado para hoje.</div>'}</div></section>
+    <section class="sheet"><header><h2>Vencidas sem nenhum contato</h2><span class="meta">${semContato.length}</span></header><div class="list">${semContato.length ? semContato.map(d => divRow(d, 'atraso')).join('') : '<div class="empty">Todas as vencidas já têm contato registrado.</div>'}</div></section>
+  </div>` : ''}
+  <div class="carteiras"><button class="chip ${!fil ? 'on' : ''}" data-act="cobF" data-s="">Em andamento</button>${COBS.map(c => `<button class="chip ${fil === c[0] ? 'on' : ''}" data-act="cobF" data-s="${c[0]}">${c[1]} <span class="num">${counts[c[0]] || 0}</span></button>`).join('')}</div>
+  <section class="sheet">${lista.length ? `<div class="tw"><table><thead><tr><th>Devedor</th><th>Credor</th><th>Situação</th><th>Último contato</th><th>Próximo</th><th class="r">Vencido</th><th class="r">Saldo</th></tr></thead><tbody>
+    ${lista.map(d => { const u = ultimo[d.id]; const c = X.C[d.id]; return `<tr class="click" data-act="go" data-v="divida" data-id="${d.id}"><td><b>${esc(devOf(d).nome)}</b><span class="s">${esc(divNum(d))} · ${esc(d.descricao)}</span></td><td>${credTag(credOf(d))} ${esc(credNome(credOf(d)))}</td><td>${cobPill(st[d.id])}</td><td>${u ? `<span class="num">${fd(u.data)}</span><span class="s">${esc(u.canal || '')}</span>` : '<span class="muted">—</span>'}</td><td class="num ${u && u.proximo && u.proximo <= X.t ? 'crit' : ''}">${u && u.proximo ? fd(u.proximo) : '—'}</td><td class="m ${c.vencido ? 'crit' : ''}">${brl(c.vencido)}</td><td class="m"><b>${brl(c.saldo)}</b></td></tr>`; }).join('')}
+  </tbody></table></div>` : `<div class="empty">Nenhuma dívida nesta situação.</div>`}</section>`;
+};
+ACT.cobF = el => { S.p.st = el.dataset.s; render(); };
+
+/* ================= JURÍDICO ================= */
+VIEWS.juridico = () => {
+  const ds = S.dividas.filter(d => !d.cancelada && inCart(d) && d.juridico && d.juridico.ativo);
+  const enc = S.dividas.filter(d => inCart(d) && d.juridico && !d.juridico.ativo && d.juridico.encerradoEm);
+  const rec = d => S.pagamentos.filter(g => g.dividaId === d.id && !g.cancelado && g.tipo === 'recebimento' && g.data >= (d.juridico.dataEnc || '')).reduce((s, g) => s + g.valor, 0);
+  const tOrig = ds.reduce((s, d) => s + d.valor, 0), tAt = ds.reduce((s, d) => s + X.C[d.id].saldo, 0), tRec = ds.reduce((s, d) => s + rec(d), 0);
+  const candidatas = S.dividas.filter(d => ativa(d) && inCart(d) && !(d.juridico && d.juridico.ativo));
+  return `<div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Cobrança jurídica</h1><div class="sub">Dívidas com advogado. Elas continuam somando no saldo a receber.</div></div>
+    ${S.canWrite ? `<div class="acts"><button class="btn pri" data-act="encJur">Encaminhar dívida</button></div>` : ''}</div>
+  ${carteiraChips()}
+  <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><div class="l">Valor original</div><div class="v">${brl(tOrig)}</div><div class="h">${ds.length} dívida${ds.length !== 1 ? 's' : ''} no jurídico</div></div><div class="kpi"><div class="l">Valor atualizado</div><div class="v legal">${brl(tAt)}</div></div><div class="kpi"><div class="l">Recuperado após envio</div><div class="v ok">${brl(tRec)}</div></div></div>
+  <section class="sheet">${ds.length ? `<div class="tw"><table><thead><tr><th>Devedor</th><th>Credor</th><th>Advogado</th><th>Processo</th><th>Fase</th><th>Próxima providência</th><th class="r">Original</th><th class="r">Atualizado</th><th class="r">Recuperado</th></tr></thead><tbody>
+  ${ds.map(d => { const j = d.juridico; return `<tr class="click" data-act="go" data-v="divida" data-id="${d.id}"><td><b>${esc(devOf(d).nome)}</b><span class="s">${esc(divNum(d))} · enviado ${fd(j.dataEnc)}</span></td><td>${credTag(credOf(d))} ${esc(credNome(credOf(d)))}</td><td>${esc(j.advogado || '—')}</td><td class="num">${esc(j.processo || '—')}</td><td>${esc(j.fase || '—')}</td><td>${esc(j.proxima || '—')}${j.prazo ? `<span class="s ${j.prazo < X.t ? 'crit' : ''}">até ${fd(j.prazo)}</span>` : ''}</td><td class="m">${brl(d.valor)}</td><td class="m"><b>${brl(X.C[d.id].saldo)}</b></td><td class="m ok">${brl(rec(d))}</td></tr>`; }).join('')}
+  </tbody></table></div>` : `<div class="empty"><b>Nenhuma dívida no jurídico</b>Use "Encaminhar dívida" ou o menu de ações de uma dívida.</div>`}</section>
+  ${enc.length ? `<section class="sheet"><header><h2>Encerradas</h2></header><div class="list">${enc.map(d => `<button class="row" data-act="go" data-v="divida" data-id="${d.id}"><div><div class="t">${esc(devOf(d).nome)}</div><div class="s">Encerrado em ${fd(d.juridico.encerradoEm)} · ${esc(d.juridico.motivoEncerramento || '')}</div></div><div class="v">${brl(X.C[d.id].saldo)}</div></button>`).join('')}</div></section>` : ''}`;
+};
+ACT.encJur = () => {
+  const c = S.dividas.filter(d => ativa(d) && inCart(d) && !(d.juridico && d.juridico.ativo)).sort((a, b) => X.C[b.id].vencido - X.C[a.id].vencido);
+  if (!c.length) { toast('Não há dívidas em aberto para encaminhar.', true); return; }
+  openModal({
+    title: 'Encaminhar ao jurídico', ok: 'Continuar',
+    body: `<div class="f"><label for="ej">Dívida</label><select id="ej" name="d">${c.map(d => `<option value="${d.id}">${esc(devOf(d).nome)} · ${esc(divNum(d))} · ${brl(X.C[d.id].saldo)}${X.C[d.id].vencido ? ' (vencida)' : ''}</option>`).join('')}</select></div>`,
+    onSubmit: f => { const id = fv(f, 'd'); setTimeout(() => ACT.juridico({ dataset: { id } }), 30); }
+  });
+};
+
+/* ================= RELATÓRIOS ================= */
+const REPS = [
+  ['pf', 'Total a receber · pessoa física'], ['pj', 'Total a receber · por empresa'], ['cons', 'Total consolidado'],
+  ['venc', 'Dívidas vencidas'], ['avenc', 'Dívidas a vencer'], ['recm', 'Recebimentos mensais'], ['prev', 'Previsão de recebimentos'],
+  ['jur', 'Dívidas em cobrança jurídica'], ['ext', 'Extrato individual do devedor'], ['hist', 'Histórico de empréstimos e pagamentos']
+];
+function relatorio(k, f) {
+  const inP = dt => (!f.de || dt >= f.de) && (!f.ate || dt <= f.ate);
+  const okD = d => !d.cancelada && inCart(d, f.cart) && (!f.dev || d.devedorId === f.dev) && (!f.sit || statusCob(d) === f.sit);
+  const M = v => ({ v, t: 'm' }), D = v => ({ v, t: 'd' }), N = v => ({ v, t: 'n' });
+  const sumCol = (rows, i) => rows.reduce((s, r) => s + (r[i].v || 0), 0);
+  let cols = [], rows = [], foot = null, nota = '';
+  if (k === 'pf') {
+    const ds = S.dividas.filter(d => okD(d) && ativa(d) && credOf(d).tipo === 'PF' && inP(d.dataOperacao));
+    cols = ['Devedor', 'Dívida', 'Operação', 'Próx. vencimento', 'Principal aberto', 'Juros + multa', 'Saldo'];
+    rows = ds.map(d => { const c = X.C[d.id]; return [devOf(d).nome, divNum(d) + ' · ' + d.descricao, D(d.dataOperacao), D(c.proxima ? c.proxima.venc : ''), M(c.principalAberto), M(c.jurosAberto + c.multaAberta), M(c.saldo)]; });
+    foot = ['Total', '', '', '', M(sumCol(rows, 4)), M(sumCol(rows, 5)), M(sumCol(rows, 6))];
+  } else if (k === 'pj' || k === 'cons') {
+    const g = {};
+    for (const d of S.dividas) if (okD(d) && ativa(d) && inP(d.dataOperacao) && (k === 'cons' || credOf(d).tipo === 'PJ')) { const x = (g[d.credorId] ||= { n: 0, p: 0, e: 0, s: 0, v: 0 }); const c = X.C[d.id]; x.n++; x.p += c.principalAberto; x.e += c.jurosAberto + c.multaAberta; x.s += c.saldo; x.v += c.vencido; }
+    const ks = Object.keys(g).sort((a, b) => (X.cred[a]?.tipo === 'PF' ? -1 : 1) - (X.cred[b]?.tipo === 'PF' ? -1 : 1) || g[b].s - g[a].s);
+    cols = ['Credor', k === 'cons' ? 'Tipo' : 'CNPJ', 'Dívidas', 'Principal aberto', 'Encargos', 'Vencido', 'Saldo'];
+    rows = ks.map(id => { const c = X.cred[id] || {}; return [credNome(c), k === 'cons' ? (c.tipo === 'PF' ? 'Pessoa física' : 'Pessoa jurídica') : fmtDoc(c.doc), N(g[id].n), M(g[id].p), M(g[id].e), M(g[id].v), M(g[id].s)]; });
+    foot = [k === 'cons' ? 'Total consolidado' : 'Total empresas', '', N(sumCol(rows, 2)), M(sumCol(rows, 3)), M(sumCol(rows, 4)), M(sumCol(rows, 5)), M(sumCol(rows, 6))];
+    if (k === 'cons') nota = 'Cada linha é uma carteira independente. O total consolidado é apenas a soma para visão geral.';
+  } else if (k === 'venc') {
+    const ds = S.dividas.filter(d => okD(d) && ativa(d) && X.C[d.id].situacao === 'vencida' && inP(X.C[d.id].parcelas.find(p => p.status === 'vencida')?.venc || ''));
+    cols = ['Devedor', 'Credor', 'Dívida', 'Vencida desde', 'Dias de atraso', 'Valor vencido', 'Saldo total'];
+    rows = ds.sort((a, b) => X.C[b.id].diasAtraso - X.C[a.id].diasAtraso).map(d => { const c = X.C[d.id]; return [devOf(d).nome, credNome(credOf(d)), divNum(d), D(c.parcelas.find(p => p.status === 'vencida').venc), N(c.diasAtraso), M(c.vencido), M(c.saldo)]; });
+    foot = ['Total', '', '', '', '', M(sumCol(rows, 5)), M(sumCol(rows, 6))];
+  } else if (k === 'avenc' || k === 'prev') {
+    const it = [];
+    for (const d of S.dividas) if (okD(d) && ativa(d)) for (const p of X.C[d.id].parcelas) if (p.pago < p.valor && p.venc >= X.t && inP(p.venc)) it.push({ d, p });
+    it.sort((a, b) => a.p.venc < b.p.venc ? -1 : 1);
+    if (k === 'avenc') {
+      cols = ['Vencimento', 'Devedor', 'Credor', 'Dívida', 'Parcela', 'Valor em aberto'];
+      rows = it.map(({ d, p }) => [D(p.venc), devOf(d).nome, credNome(credOf(d)), divNum(d), `${p.n}/${X.C[d.id].parcelas.length}`, M(p.valor - p.pago)]);
+      foot = ['Total', '', '', '', '', M(sumCol(rows, 5))];
+    } else {
+      const g = {};
+      for (const { d, p } of it) { const key = p.venc.slice(0, 7) + '|' + d.credorId; (g[key] ||= { n: 0, v: 0 }); g[key].n++; g[key].v += p.valor - p.pago; }
+      cols = ['Mês', 'Credor', 'Parcelas', 'Valor previsto'];
+      rows = Object.keys(g).sort().map(key => { const [ym, cid] = key.split('|'); return [mesNome(ym), credNome(X.cred[cid]), N(g[key].n), M(g[key].v)]; });
+      foot = ['Total', '', N(sumCol(rows, 2)), M(sumCol(rows, 3))];
+      nota = 'Previsão pelo principal das parcelas futuras. Juros e multas não estão incluídos.';
+    }
+  } else if (k === 'recm') {
+    const g = {};
+    for (const x of S.pagamentos) { const d = X.div[x.dividaId]; if (x.cancelado || x.tipo !== 'recebimento' || !d || !inCart(d, f.cart) || (f.dev && x.devedorId !== f.dev) || !inP(x.data)) continue; const key = x.data.slice(0, 7) + '|' + x.credorId; (g[key] ||= { n: 0, v: 0 }); g[key].n++; g[key].v += x.valor; }
+    cols = ['Mês', 'Credor', 'Recebimentos', 'Valor recebido'];
+    rows = Object.keys(g).sort().reverse().map(key => { const [ym, cid] = key.split('|'); return [mesNome(ym), credNome(X.cred[cid]), N(g[key].n), M(g[key].v)]; });
+    foot = ['Total', '', N(sumCol(rows, 2)), M(sumCol(rows, 3))];
+  } else if (k === 'jur') {
+    const ds = S.dividas.filter(d => okD(d) && d.juridico && d.juridico.ativo && inP(d.juridico.dataEnc || ''));
+    cols = ['Devedor', 'Credor', 'Advogado', 'Processo', 'Fase', 'Encaminhada', 'Valor original', 'Valor atualizado', 'Recuperado'];
+    rows = ds.map(d => { const j = d.juridico; const r = S.pagamentos.filter(g => g.dividaId === d.id && !g.cancelado && g.tipo === 'recebimento' && g.data >= (j.dataEnc || '')).reduce((s, g) => s + g.valor, 0); return [devOf(d).nome, credNome(credOf(d)), j.advogado || '', j.processo || '', j.fase || '', D(j.dataEnc), M(d.valor), M(X.C[d.id].saldo), M(r)]; });
+    foot = ['Total', '', '', '', '', '', M(sumCol(rows, 6)), M(sumCol(rows, 7)), M(sumCol(rows, 8))];
+  } else if (k === 'ext') {
+    if (!f.dev) return { cols: [], rows: [], aviso: 'Selecione um devedor nos filtros para gerar o extrato.' };
+    const creds = [...new Set(S.dividas.filter(d => d.devedorId === f.dev && !d.cancelada && inCart(d, f.cart)).map(d => d.credorId))];
+    cols = ['Credor', 'Data', 'Descrição', 'Dívida', 'Débito', 'Crédito', 'Saldo'];
+    for (const cid of creds) {
+      const cc = contaCorrente(f.dev, cid).filter(r => inP(r.data));
+      for (const r of cc) rows.push([credNome(X.cred[cid]), D(r.data), r.tipo === 'principal' ? 'Dívida / empréstimo · ' + (r.d.descricao || '') : r.desc, divNum(r.d), M(r.debito || null), M(r.credito || null), M(r.saldo)]);
+    }
+    nota = 'O saldo é acumulado separadamente para cada credor.';
+  } else if (k === 'hist') {
+    cols = ['Data', 'Tipo', 'Devedor', 'Credor', 'Dívida', 'Valor'];
+    for (const d of S.dividas) if (inCart(d, f.cart) && (!f.dev || d.devedorId === f.dev) && inP(d.dataOperacao)) rows.push([D(d.dataOperacao), d.cancelada ? 'Dívida (cancelada)' : d.origemRenegociacao ? 'Dívida por renegociação' : 'Empréstimo / dívida', devOf(d).nome, credNome(credOf(d)), divNum(d) + ' · ' + d.descricao, M(d.valor)]);
+    for (const g of S.pagamentos) { const d = X.div[g.dividaId]; if (!d || !inCart(d, f.cart) || (f.dev && g.devedorId !== f.dev) || !inP(g.data)) continue; rows.push([D(g.data), g.cancelado ? 'Pagamento estornado' : g.tipo === 'recebimento' ? 'Pagamento recebido' : g.tipo === 'renegociacao' ? 'Baixa por renegociação' : 'Abatimento', devOf(d).nome, credNome(credOf(d)), divNum(d), M(g.valor)]); }
+    rows.sort((a, b) => a[0].v < b[0].v ? -1 : a[0].v > b[0].v ? 1 : 0);
+  }
+  return { cols, rows, foot, nota };
+}
+const cellTxt = c => c == null ? '' : typeof c !== 'object' ? String(c) : c.t === 'm' ? (c.v == null ? '—' : brl(c.v)) : c.t === 'd' ? fd(c.v) : String(c.v);
+const isNumCell = c => c && typeof c === 'object' && (c.t === 'm' || c.t === 'n');
+function relFiltroTxt(f) {
+  const p = [];
+  p.push(f.cart === 'all' ? 'Consolidado' : f.cart === 'PF' ? 'Pessoa física' : f.cart === 'PJ' ? 'Todas as empresas' : credNome(X.cred[f.cart]));
+  if (f.dev) p.push('Devedor: ' + (X.dev[f.dev]?.nome || ''));
+  if (f.sit) p.push('Situação: ' + COB[f.sit][1]);
+  if (f.de || f.ate) p.push(`Período: ${f.de ? fd(f.de) : 'início'} a ${f.ate ? fd(f.ate) : 'hoje'}`);
+  return p.join(' · ');
+}
+VIEWS.relatorios = () => {
+  const f = S.p.relf || (S.p.relf = { k: 'cons', cart: S.cart, dev: '', sit: '', de: '', ate: '' });
+  const R = relatorio(f.k, f);
+  const titulo = REPS.find(r => r[0] === f.k)[1];
+  return `<div class="ph"><div><div class="eyebrow">Consultas e exportações</div><h1>Relatórios</h1><div class="sub">Todos os valores calculados em ${fd(X.t)} a partir dos dados cadastrados.</div></div>
+    <div class="acts"><button class="btn" data-act="expXls">${IC.xls} Excel</button><button class="btn" data-act="expPdf">${IC.pdf} PDF</button></div></div>
+  <form class="sheet" id="rel-f"><div class="body filters">
+    <div class="f" style="flex-basis:260px"><label for="rl-k">Relatório</label><select id="rl-k" name="k">${REPS.map(([k, l], i) => `<option value="${k}" ${f.k === k ? 'selected' : ''}>${i + 1}. ${l}</option>`).join('')}</select></div>
+    <div class="f"><label for="rl-c">Credor</label><select id="rl-c" name="cart"><option value="all" ${f.cart === 'all' ? 'selected' : ''}>Todos (consolidado)</option><option value="PF" ${f.cart === 'PF' ? 'selected' : ''}>Pessoa física</option><option value="PJ" ${f.cart === 'PJ' ? 'selected' : ''}>Todas as empresas</option>${S.credores.filter(c => c.tipo === 'PJ').map(c => `<option value="${c.id}" ${f.cart === c.id ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></div>
+    <div class="f"><label for="rl-d">Devedor</label><select id="rl-d" name="dev"><option value="">Todos</option>${devOptions(f.dev)}</select></div>
+    <div class="f"><label for="rl-s">Situação</label><select id="rl-s" name="sit"><option value="">Todas</option>${COBS.map(c => `<option value="${c[0]}" ${f.sit === c[0] ? 'selected' : ''}>${c[1]}</option>`).join('')}</select></div>
+    <div class="f"><label for="rl-de">De</label><input type="date" id="rl-de" name="de" value="${f.de}"></div>
+    <div class="f"><label for="rl-ate">Até</label><input type="date" id="rl-ate" name="ate" value="${f.ate}"></div>
+  </div></form>
+  <section class="sheet"><header><h2>${esc(titulo)}</h2><span class="meta">${esc(relFiltroTxt(f))}</span></header>
+  ${R.aviso ? `<div class="empty">${esc(R.aviso)}</div>` : R.rows.length ? `<div class="tw"><table><thead><tr>${R.cols.map((c, i) => `<th class="${R.rows[0] && isNumCell(R.rows[0][i]) ? 'r' : ''}">${esc(c)}</th>`).join('')}</tr></thead><tbody>
+    ${R.rows.map(r => `<tr>${r.map(c => `<td class="${isNumCell(c) ? 'm' : c && c.t === 'd' ? 'num' : ''}">${esc(cellTxt(c))}</td>`).join('')}</tr>`).join('')}</tbody>
+    ${R.foot ? `<tfoot><tr>${R.foot.map(c => `<td class="${isNumCell(c) ? 'm' : ''}">${esc(cellTxt(c))}</td>`).join('')}</tr></tfoot>` : ''}</table></div>` : `<div class="empty">Nenhum registro para os filtros escolhidos.</div>`}
+  ${R.nota ? `<div class="body muted" style="font-size:13px;border-top:1px solid var(--line)">${esc(R.nota)}</div>` : ''}</section>`;
+};
+AFTER.relatorios = () => {
+  const f = $('#rel-f'); if (!f) return;
+  f.addEventListener('change', () => { S.p.relf = { k: fv(f, 'k'), cart: fv(f, 'cart'), dev: fv(f, 'dev'), sit: fv(f, 'sit'), de: fv(f, 'de'), ate: fv(f, 'ate') }; render(); });
+};
+
+/* ================= EXPORTAÇÃO ================= */
+const LIBS = {
+  xlsx: 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+  jspdf: 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+  autotable: 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'
+};
+const loaded = {};
+function loadScript(src) {
+  return loaded[src] ||= new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => { delete loaded[src]; rej(new Error('Falha ao carregar ' + src)); }; document.head.appendChild(s); });
+}
+async function saveFile(filename, data) {
+  if (!DL) { toast('Download indisponível nesta visualização.', true); return; }
+  try { const r = await DL.save({ filename, data }); if (r && r.status) toast('Arquivo gerado.'); }
+  catch (e) { if (e && ['declined','cancelled','canceled','dismissed','user_declined'].includes(e.code)) return; toast('Não foi possível salvar o arquivo.', true); }
+}
+const fnameDate = () => X.t.split('-').reverse().join('-');
+const slug = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+async function exportXlsx(title, sub, cols, rows, foot) {
+  await loadScript(LIBS.xlsx);
+  const conv = c => c == null ? '' : typeof c !== 'object' ? c : c.t === 'm' ? (c.v == null ? '' : c.v / 100) : c.t === 'd' ? fd(c.v) : c.v;
+  const aoa = [[title], [sub], [`Gerado em ${fd(X.t)}`], [], cols, ...rows.map(r => r.map(conv))];
+  if (foot) aoa.push(foot.map(conv));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const moneyCols = cols.map((_, i) => rows.some(r => r[i] && r[i].t === 'm'));
+  for (let r = 5; r < aoa.length; r++) moneyCols.forEach((m, c) => { if (!m) return; const ref = XLSX.utils.encode_cell({ r, c }); if (ws[ref] && typeof ws[ref].v === 'number') ws[ref].z = '"R$" #,##0.00'; });
+  ws['!cols'] = cols.map((h, i) => ({ wch: Math.min(48, Math.max(h.length + 2, ...aoa.slice(5).map(r => String(r[i] ?? '').length + 2))) }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+  await saveFile(`${slug(title)}-${fnameDate()}.xlsx`, XLSX.write(wb, { bookType: 'xlsx', type: 'array' }));
+}
+async function newPdf(landscape) {
+  await loadScript(LIBS.jspdf); await loadScript(LIBS.autotable);
+  return new window.jspdf.jsPDF({ orientation: landscape ? 'landscape' : 'portrait', unit: 'pt', format: 'a4' });
+}
+function pdfHeader(doc, title, sub) {
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text(title, 40, 46);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
+  doc.text(doc.splitTextToSize(sub, doc.internal.pageSize.getWidth() - 80), 40, 62); doc.setTextColor(0);
+}
+function pdfFooter(doc) {
+  const n = doc.getNumberOfPages(), w = doc.internal.pageSize.getWidth(), h = doc.internal.pageSize.getHeight();
+  for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(120); doc.text(`Gestão de Contas a Receber · gerado em ${fd(X.t)}`, 40, h - 20); doc.text(`Página ${i} de ${n}`, w - 40, h - 20, { align: 'right' }); }
+}
+async function exportPdf(title, sub, cols, rows, foot, nota) {
+  const doc = await newPdf(cols.length > 6);
+  pdfHeader(doc, title, sub);
+  const right = {}; cols.forEach((_, i) => { if (rows.some(r => isNumCell(r[i]))) right[i] = { halign: 'right' }; });
+  doc.autoTable({ startY: 80, head: [cols], body: rows.map(r => r.map(cellTxt)), foot: foot ? [foot.map(cellTxt)] : undefined, styles: { fontSize: 8, cellPadding: 4 }, headStyles: { fillColor: [30, 62, 112] }, footStyles: { fillColor: [232, 235, 229], textColor: 20, fontStyle: 'bold' }, columnStyles: right, margin: { left: 40, right: 40 } });
+  if (nota) { doc.setFontSize(8); doc.setTextColor(90); doc.text(doc.splitTextToSize(nota, doc.internal.pageSize.getWidth() - 80), 40, doc.lastAutoTable.finalY + 16); }
+  pdfFooter(doc);
+  await saveFile(`${slug(title)}-${fnameDate()}.pdf`, doc.output('arraybuffer'));
+}
+async function runExport(fn) { toast('Gerando arquivo…'); try { await fn(); } catch (e) { console.error(e); toast('Não foi possível gerar o arquivo. Verifique a conexão.', true); } }
+ACT.expXls = () => { const f = S.p.relf; const R = relatorio(f.k, f); if (R.aviso || !R.rows.length) { toast(R.aviso || 'Nada para exportar.', true); return; } runExport(() => exportXlsx(REPS.find(r => r[0] === f.k)[1], relFiltroTxt(f), R.cols, R.rows, R.foot)); };
+ACT.expPdf = () => { const f = S.p.relf; const R = relatorio(f.k, f); if (R.aviso || !R.rows.length) { toast(R.aviso || 'Nada para exportar.', true); return; } runExport(() => exportPdf(REPS.find(r => r[0] === f.k)[1], relFiltroTxt(f), R.cols, R.rows, R.foot, R.nota)); };
+ACT.extratoPdf = el => runExport(async () => {
+  const v = X.dev[el.dataset.id];
+  const creds = [...new Set(S.dividas.filter(d => d.devedorId === v.id && !d.cancelada).map(d => d.credorId))];
+  if (!creds.length) { toast('Sem movimentações para o extrato.', true); return; }
+  const doc = await newPdf(false);
+  pdfHeader(doc, 'Extrato de conta corrente', `${v.nome}${v.doc ? ' · ' + fmtDoc(v.doc) : ''} · posição em ${fd(X.t)}, com juros e multas até esta data`);
+  let y = 84;
+  for (const cid of creds) {
+    const cr = X.cred[cid] || {};
+    const rows = contaCorrente(v.id, cid);
+    if (y > doc.internal.pageSize.getHeight() - 120) { doc.addPage(); y = 50; }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text(`Credor: ${credNome(cr)}${cr.doc ? ' · ' + fmtDoc(cr.doc) : ''} (${cr.tipo === 'PF' ? 'pessoa física' : 'pessoa jurídica'})`, 40, y);
+    doc.autoTable({
+      startY: y + 8, head: [['Data', 'Descrição', 'Dívida', 'Débito', 'Crédito', 'Saldo']],
+      body: rows.map(r => [fd(r.data), r.tipo === 'principal' ? 'Dívida / empréstimo · ' + (r.d.descricao || '') : r.desc, divNum(r.d), r.debito ? brl(r.debito) : '', r.credito ? brl(r.credito) : '', brl(r.saldo)]),
+      foot: [['', 'Saldo devedor', '', '', '', brl(rows.length ? rows[rows.length - 1].saldo : 0)]],
+      styles: { fontSize: 8, cellPadding: 4 }, headStyles: { fillColor: [30, 62, 112] }, footStyles: { fillColor: [232, 235, 229], textColor: 20, fontStyle: 'bold' },
+      columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } }, margin: { left: 40, right: 40 }
+    });
+    y = doc.lastAutoTable.finalY + 28;
+  }
+  pdfFooter(doc);
+  await saveFile(`extrato-${slug(v.nome)}-${fnameDate()}.pdf`, doc.output('arraybuffer'));
+});
+
+/* ================= CONFIGURAÇÕES ================= */
+VIEWS.config = () => {
+  const pf = S.credores.filter(c => c.tipo === 'PF'), pj = S.credores.filter(c => c.tipo === 'PJ').sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  const credRow = c => { const n = S.dividas.filter(d => d.credorId === c.id && ativa(d)); const s = n.reduce((t, d) => t + X.C[d.id].saldo, 0); return `<button class="row" data-act="editCredor" data-id="${c.id}"><div><div class="t">${esc(credNome(c))} ${c.ativo === false ? '<span class="pill">Inativo</span>' : ''}</div><div class="s">${c.razao && c.razao !== c.nome ? esc(c.razao) + ' · ' : ''}${c.doc ? `<span class="num">${esc(fmtDoc(c.doc))}</span>` : ''}${(c.contas || []).length ? ` · ${c.contas.length} conta${c.contas.length > 1 ? 's' : ''}` : ''}</div></div><div class="v">${brl(s)}<small>${n.length} em aberto</small></div></button>`; };
+  const aud = S.auditoria.slice(0, 80);
+  return `<div class="ph"><div><div class="eyebrow">Parâmetros do sistema</div><h1>Configurações</h1></div></div>
+  <div class="grid2">
+    <section class="sheet"><header><h2>Pessoa física</h2>${S.canWrite && !pf.length ? `<button class="btn sm" data-act="novoCredorPF">Cadastrar</button>` : ''}</header><div class="list">${pf.length ? pf.map(credRow).join('') : '<div class="empty">Cadastre você como credor pessoa física.</div>'}</div></section>
+    <section class="sheet"><header><h2>Empresas credoras</h2>${S.canWrite ? `<button class="btn sm pri" data-act="novoCredor">${IC.nova} Nova empresa</button>` : ''}</header><div class="list">${pj.length ? pj.map(credRow).join('') : '<div class="empty">Nenhuma empresa cadastrada. Cada empresa terá carteira e saldos próprios.</div>'}</div></section>
+  </div>
+  <div class="grid2">
+    <section class="sheet"><header><h2>Categorias de dívida</h2></header><div class="body"><form id="cfg-cat" class="f"><label for="cfg-cats">Uma por linha</label><textarea id="cfg-cats" name="cats" style="min-height:160px">${esc(cats().join('\n'))}</textarea>${S.canWrite ? '<div><button type="submit" class="btn sm">Salvar categorias</button></div>' : ''}</form></div></section>
+    <section class="sheet"><header><h2>Backup e recuperação</h2></header><div class="body" style="display:flex;flex-direction:column;gap:12px">
+      <p style="margin:0" class="muted">O banco de dados já guarda tudo automaticamente. Use o backup como cópia de segurança extra, guardada por você.</p>
+      <div class="flex"><button class="btn" data-act="backup">Baixar backup (JSON)</button>${S.canWrite ? `<label class="btn" for="cfg-rest">Restaurar backup</label><input type="file" id="cfg-rest" accept="application/json,.json" hidden>` : ''}</div>
+      <p style="margin:0;font-size:13px" class="muted">${S.dividas.length} dívidas · ${S.pagamentos.length} lançamentos de pagamento · ${S.devedores.length} devedores · ${S.credores.length} credores</p>
+    </div></section>
+  </div>
+  <section class="sheet"><header><h2>Acesso e segurança</h2><button class="btn sm" data-act="sair">Sair</button></header><div class="body" style="display:flex;flex-direction:column;gap:10px;font-size:14px">
+    <p style="margin:0">O acesso é feito com e-mail e senha. Só e-mails autorizados na tabela <b>usuarios</b> do Supabase entram no sistema.</p>
+    <dl class="kv"><dt>Editor</dt><dd>Consulta e altera tudo, inclusive documentos.</dd><dt>Consulta</dt><dd>Vê saldos e relatórios, sem alterar.</dd></dl>
+    <p style="margin:0" class="muted">Para dar acesso a outra pessoa: no Supabase, cadastre o e-mail na tabela usuarios (papel editor ou consulta) e crie o login em Authentication → Users → Add user. Seu acesso atual: <b>${S.canWrite ? 'editor' : 'consulta'}</b>.</p>
+    <p style="margin:0" class="muted">Nenhum dado demonstrativo foi incluído: tudo o que aparece aqui foi cadastrado por você.</p>
+  </div></section>
+  <section class="sheet"><header><h2>Registro de alterações</h2><span class="meta">últimas ${aud.length}</span></header>
+    ${aud.length ? `<div class="tw"><table><thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Detalhe</th></tr></thead><tbody>${aud.map(a => `<tr ${a.dividaId || a.entidade === 'divida' ? `class="click" data-act="go" data-v="divida" data-id="${a.dividaId || a.entidadeId}"` : ''}><td class="num" style="white-space:nowrap">${fdt(a.em)}</td><td>${esc(nomeUser(a.por))}</td><td style="text-transform:capitalize">${esc(a.acao)} · ${esc(a.entidade)}</td><td>${esc(a.resumo)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Nenhuma alteração registrada.</div>'}
+  </section>`;
+};
+AFTER.config = () => {
+  const fc = $('#cfg-cat');
+  if (fc) fc.addEventListener('submit', async e => {
+    e.preventDefault(); if (!needWrite()) return;
+    const list = [...new Set(fv(fc, 'cats').split('\n').map(s => s.trim()).filter(Boolean))];
+    if (!list.length) { toast('Informe ao menos uma categoria.', true); return; }
+    try { await withRetry(() => db.doc('config/geral').set({ ...S.config, categorias: list, atualizadoEm: nowIso() })); await audit('edição', 'config', 'geral', `Categorias: ${list.join(', ')}`); toast('Categorias salvas.'); }
+    catch (er) { toast(errMsg(er), true); }
+  });
+  const r = $('#cfg-rest');
+  if (r) r.addEventListener('change', () => { const file = r.files[0]; r.value = ''; if (file) restaurar(file); });
+};
+function credorModal(c, tipo) {
+  if (!needWrite()) return;
+  tipo = c ? c.tipo : tipo;
+  const temDiv = c && S.dividas.some(d => d.credorId === c.id);
+  openModal({
+    title: c ? 'Editar credor' : tipo === 'PF' ? 'Credor pessoa física' : 'Nova empresa credora', ok: c ? 'Salvar' : 'Cadastrar',
+    body: `<div class="form">
+      <div class="f ${tipo === 'PF' ? 'full' : ''}"><label for="cr-nome">${tipo === 'PF' ? 'Nome completo' : 'Nome da empresa'} <span class="req">*</span></label><input type="text" id="cr-nome" name="nome" value="${esc(c ? c.nome : '')}"></div>
+      ${tipo === 'PJ' ? `<div class="f"><label for="cr-razao">Razão social</label><input type="text" id="cr-razao" name="razao" value="${esc(c ? c.razao : '')}"></div>` : ''}
+      <div class="f"><label for="cr-doc">${tipo === 'PF' ? 'CPF' : 'CNPJ'}</label><input type="text" inputmode="numeric" id="cr-doc" name="doc" value="${esc(c ? fmtDoc(c.doc) : '')}"></div>
+      <div class="f full"><label for="cr-contas">Contas bancárias de recebimento</label><textarea id="cr-contas" name="contas" placeholder="Uma por linha. Ex.: Itaú ag. 0000 c/c 00000-0 · Pix CNPJ">${esc(c ? (c.contas || []).join('\n') : '')}</textarea></div>
+      ${c ? `<div class="f full"><label class="flex" style="font-weight:500"><input type="checkbox" name="ativo" ${c.ativo !== false ? 'checked' : ''}> Credor ativo (aparece nas novas dívidas)</label>${temDiv ? '<span class="hint">Credores com dívidas não podem ser excluídos; desative se não usar mais.</span>' : ''}</div>` : ''}
+    </div>`,
+    onSubmit: async f => {
+      const doc = digits(fv(f, 'doc'));
+      const data = { tipo, nome: fv(f, 'nome'), razao: tipo === 'PJ' ? fv(f, 'razao') : '', doc, contas: fv(f, 'contas').split('\n').map(s => s.trim()).filter(Boolean), ativo: c ? fv(f, 'ativo') : true };
+      if (!data.nome) { toast('Informe o nome.', true); return false; }
+      if (doc && (tipo === 'PF' ? doc.length !== 11 : doc.length !== 14)) { toast(tipo === 'PF' ? 'O CPF deve ter 11 dígitos.' : 'O CNPJ deve ter 14 dígitos.', true); return false; }
+      if (doc && S.credores.some(x => x.doc === doc && (!c || x.id !== c.id))) { toast('Já existe um credor com este documento.', true); return false; }
+      if (c) { await put('credores', c.id, stamp(clean({ ...c, ...data }), false)); await audit('edição', 'credor', c.id, `Credor ${data.nome} alterado`); toast('Credor atualizado.'); }
+      else { const id = newId('credores'); await put('credores', id, stamp(data, true)); await audit('criação', 'credor', id, `Credor ${data.nome} (${tipo}) cadastrado`); toast('Credor cadastrado.'); }
+    }
+  });
+}
+ACT.novoCredor = () => credorModal(null, 'PJ');
+ACT.novoCredorPF = () => credorModal(null, 'PF');
+ACT.editCredor = el => S.canWrite ? credorModal(X.cred[el.dataset.id]) : null;
+ACT.backup = () => runExport(async () => {
+  const dados = {}; for (const c of COLS) dados[c] = S[c].map(x => ({ ...x }));
+  dados.config = [{ id: 'geral', ...S.config }];
+  const json = JSON.stringify({ app: 'gestao-contas-a-receber', versao: 1, exportadoEm: nowIso(), dados }, null, 1);
+  await saveFile(`backup-contas-a-receber-${fnameDate()}.json`, json);
+});
+async function restaurar(file) {
+  if (!needWrite()) return;
+  let j; try { j = JSON.parse(await file.text()); } catch { toast('Arquivo inválido: não é um JSON.', true); return; }
+  if (!j || j.app !== 'gestao-contas-a-receber' || !j.dados) { toast('Este arquivo não é um backup deste aplicativo.', true); return; }
+  const n = COLS.reduce((s, c) => s + ((j.dados[c] || []).length), 0);
+  const ok = await confirmBox('Restaurar backup', `O backup de <b>${fdt(j.exportadoEm)}</b> tem ${n} registros. Registros com o mesmo identificador serão substituídos pela versão do backup; registros que não estão no backup permanecem. Continuar?`, 'Restaurar', true);
+  if (!ok) return;
+  let feitos = 0, falhas = 0;
+  toast('Restaurando…');
+  for (const c of COLS) for (const x of (j.dados[c] || [])) {
+    if (!x.id || typeof x.id !== 'string') { falhas++; continue; }
+    try { await put(c, x.id, clean(x)); feitos++; } catch (e) { falhas++; if (e && (e.code === 'invalid_argument' || e.code === 'quota_exceeded')) { toast(errMsg(e), true); break; } await sleep(300); }
+  }
+  for (const x of (j.dados.config || [])) if (x.id === 'geral') { try { await put('config', 'geral', clean(x)); } catch { } }
+  await audit('restauração', 'backup', 'backup', `Backup de ${fdt(j.exportadoEm)} restaurado: ${feitos} registros${falhas ? `, ${falhas} falhas` : ''}`);
+  toast(`Restauração concluída: ${feitos} registros${falhas ? `, ${falhas} com falha` : ''}.`, !!falhas);
+}
+
+/* ================= INICIALIZAÇÃO ================= */
+async function boot() {
+  try { const c = localStorage.getItem('gcr.cart'); if (c) S.cart = c; } catch { }
+  const h = (location.hash || '').slice(1);
+  if (VIEWS[h] && !['divida', 'devedor'].includes(h)) S.view = h;
+  build(); renderShell();
+  if (typeof window.claude === 'undefined' || !window.claude.use) { S.offline = true; render(); return; }
+  [db, U, AS, DL] = await Promise.all(['db', 'user', 'assets', 'downloads'].map(n => window.claude.use(n).catch(() => null)));
+  if (!db) { S.offline = true; render(); return; }
+  if (U) {
+    try { S.meId = await U.id(); } catch { }
+    try { const ce = await U.canEdit(); S.canWrite = ce !== false; } catch { }
+    try { const me = await U.me(); if (me && me.name && S.meId) S.names[S.meId] = me.name; } catch { }
+  }
+  for (const c of COLS) {
+    let q = db.collection(c);
+    if (c === 'auditoria') q = q.orderBy('em', 'desc').limit(800);
+    q.onSnapshot(snap => {
+      S[c] = snap.docs.map(x => ({ ...x.data(), id: x.id }));
+      S.loaded[c] = true;
+      if (c === 'credores' && !['all', 'PF', 'PJ'].includes(S.cart) && !S.credores.some(x => x.id === S.cart)) S.cart = 'all';
+      if (COLS.every(k => S.loaded[k])) S.ready = true;
+      requestRender();
+    }, err => { console.error(c, err); toast('Falha ao carregar ' + c + '. Recarregue a página.', true); });
+  }
+  db.doc('config/geral').onSnapshot(s => { S.config = s.exists ? s.data() : {}; requestRender(); }, () => { });
+}
+const _render = render;
+render = function () {
+  if (db && !S.ready && !S.offline) { build(); renderShell(); $('#main').innerHTML = '<div class="loading">Carregando seus dados…</div>'; return; }
+  _render();
+};
+
+/* ================= CONEXÃO SUPABASE (substitui o banco do Claude) ================= */
+const CFG_OK = !/COLE_AQUI/.test(SUPABASE_URL + SUPABASE_KEY);
+const SB = CFG_OK ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }) : null;
+const Supa = (() => {
+  const cache = {};            // colecao -> Map(id -> data)
+  const listeners = new Set();
+  let perfil = null, sessao = null;
+  const colOf = c => (cache[c] ||= new Map());
+  const genId = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/-/g, '').slice(0, 20);
+  const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  const merge = (a, b) => { const r = { ...(a || {}) }; for (const [k, v] of Object.entries(b)) r[k] = isObj(v) && isObj(r[k]) ? merge(r[k], v) : v; return r; };
+  const mapErr = e => {
+    const m = (e && (e.message || e.details || '')) + '';
+    const code = e && e.code;
+    if (code === '42501' || /row-level security|permission/i.test(m)) return { code: 'invalid_argument', message: m };
+    if (/fetch|network|Failed|timeout/i.test(m)) return { code: 'unavailable', message: m };
+    return { code: 'unknown', message: m };
+  };
+  const notify = col => { for (const l of listeners) if (l.col === col) l.emit(); };
+
+  async function carregarTudo() {
+    for (const k of Object.keys(cache)) cache[k].clear();
+    let from = 0;
+    for (;;) {
+      const { data, error } = await SB.from('registros').select('colecao,id,data').range(from, from + 999);
+      if (error) throw mapErr(error);
+      for (const r of data) colOf(r.colecao).set(r.id, r.data);
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+    for (const l of listeners) l.emit();
+  }
+  function tempoReal() {
+    SB.channel('registros-mudancas').on('postgres_changes', { event: '*', schema: 'public', table: 'registros' }, p => {
+      if (p.eventType === 'DELETE') { const o = p.old || {}; if (o.colecao && o.id) { colOf(o.colecao).delete(o.id); notify(o.colecao); } return; }
+      const r = p.new; if (!r || !r.colecao) return;
+      colOf(r.colecao).set(r.id, r.data); notify(r.colecao);
+    }).subscribe();
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') carregarTudo().catch(() => { }); });
+  }
+
+  function docRef(col, id) {
+    return {
+      id, path: col + '/' + id,
+      async get() { const d = colOf(col).get(id); return { id, exists: !!d, data: () => d }; },
+      async set(data) {
+        const clean = JSON.parse(JSON.stringify(data));
+        const { error } = await SB.from('registros').upsert({ colecao: col, id, data: clean, atualizado_em: new Date().toISOString(), atualizado_por: sessao?.user?.id || null });
+        if (error) throw mapErr(error);
+        colOf(col).set(id, clean); notify(col);
+      },
+      async update(data) {
+        let cur = colOf(col).get(id);
+        if (!cur) { const { data: r } = await SB.from('registros').select('data').eq('colecao', col).eq('id', id).maybeSingle(); cur = r && r.data; }
+        if (!cur) throw { code: 'invalid_argument', message: 'documento inexistente' };
+        await this.set(merge(cur, JSON.parse(JSON.stringify(data))));
+      },
+      async delete() {
+        const { error } = await SB.from('registros').delete().eq('colecao', col).eq('id', id);
+        if (error) throw mapErr(error);
+        colOf(col).delete(id); notify(col);
+      },
+      onSnapshot(next) {
+        const l = { col, emit: () => { const d = colOf(col).get(id); next({ id, exists: !!d, data: () => d, metadata: {} }); } };
+        listeners.add(l); setTimeout(l.emit, 0); return () => listeners.delete(l);
+      },
+      collection(sub) { return collRef(col + '/' + id + '/' + sub); }
+    };
+  }
+  function collRef(col, opts = {}) {
+    const q = {
+      path: col,
+      doc: id => docRef(col, id || genId()),
+      orderBy: (f, dir = 'asc') => collRef(col, { ...opts, f, dir }),
+      limit: n => collRef(col, { ...opts, n }),
+      where: () => q,
+      async add(data) { const r = docRef(col, genId()); await r.set(data); return r; },
+      _docs() {
+        let arr = [...colOf(col).entries()].map(([id, d]) => ({ id, exists: true, data: () => d }));
+        if (opts.f) arr.sort((a, b) => { const x = a.data()[opts.f] ?? '', y = b.data()[opts.f] ?? ''; return (x < y ? -1 : x > y ? 1 : 0) * (opts.dir === 'desc' ? -1 : 1); });
+        if (opts.n) arr = arr.slice(0, opts.n);
+        return arr;
+      },
+      async get() { const docs = q._docs(); return { docs, size: docs.length, empty: !docs.length }; },
+      onSnapshot(next) {
+        const l = { col, emit: () => { const docs = q._docs(); next({ docs, size: docs.length, empty: !docs.length, metadata: {}, docChanges: () => [] }); } };
+        listeners.add(l); setTimeout(l.emit, 0); return () => listeners.delete(l);
+      }
+    };
+    return q;
+  }
+  const db = {
+    collection: p => collRef(p),
+    doc: p => { const i = p.lastIndexOf('/'); return docRef(p.slice(0, i), p.slice(i + 1)); }
+  };
+  const user = {
+    id: async () => sessao?.user?.id || null,
+    isOwner: async () => perfil?.papel === 'editor',
+    canEdit: async () => perfil?.papel === 'editor',
+    can: async () => perfil?.papel === 'editor',
+    me: async () => ({ id: sessao?.user?.id || null, name: perfil?.nome || sessao?.user?.email || '', email: sessao?.user?.email || '' }),
+    profiles: async ids => {
+      const out = {}; for (const i of ids) out[i] = { id: i, name: '' };
+      try { const { data } = await SB.from('usuarios').select('user_id,nome,email').in('user_id', ids); for (const r of data || []) out[r.user_id] = { id: r.user_id, name: r.nome || r.email }; } catch { }
+      return out;
+    }
+  };
+  const assets = {
+    async upload(file) {
+      const nome = file.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.\-]+/g, '_').slice(-80);
+      const path = `${new Date().getFullYear()}/${genId()}-${nome}`;
+      const { error } = await SB.storage.from('anexos').upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+      if (error) throw mapErr(error);
+      return { id: path, url: '', contentType: file.type, sizeBytes: file.size };
+    },
+    async signedUrl(path) { const { data, error } = await SB.storage.from('anexos').createSignedUrl(path, 600); if (error) throw mapErr(error); return data.signedUrl; }
+  };
+  const downloads = {
+    async save({ filename, data }) {
+      const blob = data instanceof Blob ? data : new Blob([data]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      return { status: 'saved' };
+    }
+  };
+  async function entrar(s) {
+    sessao = s;
+    const { data, error } = await SB.rpc('meu_perfil');
+    if (error) throw mapErr(error);
+    perfil = Array.isArray(data) ? data[0] : data;
+    if (!perfil) return false;
+    await carregarTudo();
+    tempoReal();
+    window.claude = { use: async n => ({ db, user, assets, downloads }[n] || null) };
+    return true;
+  }
+  return { entrar, assets, perfil: () => perfil, sessao: () => sessao };
+})();
+
+/* ================= TELA DE LOGIN ================= */
+function telaLogin(modo = 'entrar', msg = '') {
+  document.body.classList.add('auth');
+  const box = $('#login');
+  box.hidden = false; document.querySelector('.app').hidden = true;
+  const titulo = { entrar: 'Entrar', esqueci: 'Recuperar senha', nova: 'Criar nova senha' }[modo];
+  box.innerHTML = `<form class="login-card" id="f-login" novalidate>
+    <div class="brand" style="padding:0 0 8px"><span>Livro de recebíveis</span><b>Gestão de Contas a Receber</b></div>
+    <h1 style="margin:0;font-size:20px">${titulo}</h1>
+    ${msg ? `<div class="notice ${/erro|inválid|não/i.test(msg) ? 'crit' : 'info'}">${esc(msg)}</div>` : ''}
+    ${!CFG_OK ? `<div class="notice crit">Configuração pendente: cole a URL e a chave do Supabase no início do arquivo index.html.</div>` : ''}
+    ${modo !== 'nova' ? `<div class="f"><label for="lg-email">E-mail</label><input type="email" id="lg-email" name="email" autocomplete="username" required></div>` : ''}
+    ${modo !== 'esqueci' ? `<div class="f"><label for="lg-senha">${modo === 'nova' ? 'Nova senha (mínimo 8 caracteres)' : 'Senha'}</label><input type="password" id="lg-senha" name="senha" autocomplete="${modo === 'nova' ? 'new-password' : 'current-password'}" required></div>` : ''}
+    <button type="submit" class="btn pri" ${CFG_OK ? '' : 'disabled'}>${modo === 'entrar' ? 'Entrar' : modo === 'esqueci' ? 'Enviar link por e-mail' : 'Salvar nova senha'}</button>
+    ${modo === 'entrar' ? `<button type="button" class="btn ghost" data-modo="esqueci">Esqueci minha senha</button>` : modo === 'esqueci' ? `<button type="button" class="btn ghost" data-modo="entrar">Voltar</button>` : ''}
+  </form>`;
+  box.querySelectorAll('[data-modo]').forEach(b => b.addEventListener('click', () => telaLogin(b.dataset.modo)));
+  const f = $('#f-login');
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = f.querySelector('button[type=submit]'); btn.disabled = true;
+    try {
+      if (modo === 'entrar') {
+        const { data, error } = await SB.auth.signInWithPassword({ email: fv(f, 'email'), password: f.elements.senha.value });
+        if (error) { telaLogin('entrar', 'E-mail ou senha inválidos.'); return; }
+        await abrirApp(data.session);
+      } else if (modo === 'esqueci') {
+        const { error } = await SB.auth.resetPasswordForEmail(fv(f, 'email'), { redirectTo: location.origin + location.pathname });
+        telaLogin('entrar', error ? 'Não foi possível enviar o e-mail. Tente de novo em instantes.' : 'Se o e-mail estiver cadastrado, você receberá um link para criar a nova senha.');
+      } else {
+        const s = f.elements.senha.value;
+        if (s.length < 8) { telaLogin('nova', 'A senha precisa ter pelo menos 8 caracteres.'); return; }
+        const { error } = await SB.auth.updateUser({ password: s });
+        if (error) { telaLogin('nova', 'Não foi possível salvar a senha: ' + error.message); return; }
+        const { data } = await SB.auth.getSession();
+        await abrirApp(data.session);
+      }
+    } catch (er) { console.error(er); telaLogin(modo, 'Erro de conexão. Verifique a internet e tente de novo.'); }
+    finally { if (btn.isConnected) btn.disabled = false; }
+  });
+  const first = f.querySelector('input'); if (first) setTimeout(() => first.focus(), 30);
+}
+async function abrirApp(session) {
+  $('#login').innerHTML = '<div class="loading">Carregando seus dados…</div>';
+  let ok = false;
+  try { ok = await Supa.entrar(session); } catch (e) { console.error(e); telaLogin('entrar', 'Erro ao carregar os dados: ' + (e.message || 'conexão')); return; }
+  if (!ok) { await SB.auth.signOut(); telaLogin('entrar', 'Seu e-mail não está autorizado neste sistema. Peça acesso ao administrador.'); return; }
+  document.body.classList.remove('auth');
+  $('#login').hidden = true; document.querySelector('.app').hidden = false;
+  boot();
+}
+ACT.sair = async () => { const ok = await confirmBox('Sair', 'Encerrar a sessão neste aparelho?', 'Sair'); if (!ok) return; await SB.auth.signOut(); location.reload(); };
+ACT.abrirAnexo = async el => {
+  const w = window.open('', '_blank');
+  try { const u = await Supa.assets.signedUrl(el.dataset.path); if (w) w.location = u; else location.href = u; }
+  catch (e) { if (w) w.close(); toast('Não foi possível abrir o documento.', true); }
+};
+async function iniciar() {
+  if (!CFG_OK) { telaLogin(); return; }
+  let recovery = /type=recovery/.test(location.hash);
+  SB.auth.onAuthStateChange(ev => { if (ev === 'PASSWORD_RECOVERY') { recovery = true; telaLogin('nova'); } });
+  const { data } = await SB.auth.getSession();
+  if (recovery) { telaLogin('nova'); return; }
+  if (data.session) await abrirApp(data.session); else telaLogin();
+}
+iniciar();
+
+</script>
+
+</body>
+</html>
