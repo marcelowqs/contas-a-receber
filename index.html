@@ -19,18 +19,19 @@
   --legal:#653A93; --legal-soft:#ECE4F5; --shadow:0 1px 2px rgba(20,30,25,.06),0 4px 16px rgba(20,30,25,.05);
   --f-ui:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --pf:#0B7A83; --pf-soft:#DDF1F2; --pj:#9A3A6E; --pj-soft:#F5E3EC;
   --r:10px;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0F1312; --surface:#161B1A; --sunk:#1D2321; --ink:#E5EAE6; --muted:#97A39C; --line:#2A3230;
   --accent:#93B2EE; --accent-ink:#0F1A2E; --accent-soft:#1E2A40;
   --ok:#5BC38B; --ok-soft:#173226; --warn:#E2A74E; --warn-soft:#382A14; --crit:#F0796C; --crit-soft:#3B1D1A;
-  --legal:#B99CE8; --legal-soft:#2C2240; --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}}
+  --legal:#B99CE8; --legal-soft:#2C2240; --pf:#5CC9D1; --pf-soft:#14302F; --pj:#E58AB9; --pj-soft:#3A1C2C; --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0F1312; --surface:#161B1A; --sunk:#1D2321; --ink:#E5EAE6; --muted:#97A39C; --line:#2A3230;
   --accent:#93B2EE; --accent-ink:#0F1A2E; --accent-soft:#1E2A40;
   --ok:#5BC38B; --ok-soft:#173226; --warn:#E2A74E; --warn-soft:#382A14; --crit:#F0796C; --crit-soft:#3B1D1A;
-  --legal:#B99CE8; --legal-soft:#2C2240; --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}
+  --legal:#B99CE8; --legal-soft:#2C2240; --pf:#5CC9D1; --pf-soft:#14302F; --pj:#E58AB9; --pj-soft:#3A1C2C; --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-ui);-webkit-font-smoothing:antialiased}
@@ -140,8 +141,12 @@ td .s{display:block;font-size:12px;color:var(--muted)}
 .pill.crit{background:var(--crit-soft);color:var(--crit)} .pill.legal{background:var(--legal-soft);color:var(--legal)}
 .pill.acc{background:var(--accent-soft);color:var(--accent)}
 .tag{font-size:11px;font-weight:700;letter-spacing:.06em;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted);text-transform:uppercase;white-space:nowrap}
-.tag.pf{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
-.tag.pj{color:var(--ink)}
+.tag.pf{color:var(--pf);background:var(--pf-soft);border-color:transparent}
+.tag.pj{color:var(--pj);background:var(--pj-soft);border-color:transparent}
+.chip.pf::before,.chip.pj::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:0}
+.chip.pf::before{background:var(--pf)} .chip.pj::before{background:var(--pj)}
+.kpi.pf{box-shadow:inset 0 3px 0 var(--pf)} .kpi.pf .v{color:var(--pf)}
+.kpi.pj{box-shadow:inset 0 3px 0 var(--pj)} .kpi.pj .v{color:var(--pj)}
 .stamp{display:inline-block;font:700 11px var(--f-num);letter-spacing:.14em;color:var(--legal);border:1.5px solid var(--legal);padding:2px 6px;border-radius:3px;transform:rotate(-2deg)}
 
 /* ---- listas ---- */
@@ -675,7 +680,7 @@ ACT.maisMenu = () => openModal({
 function carteiraChips() {
   const pj = S.credores.filter(c => c.tipo === 'PJ' && c.ativo !== false);
   const opts = [['all', 'Consolidado'], ['PF', 'Pessoa Física'], ['PJ', 'Todas as empresas'], ...pj.map(c => [c.id, c.nome])];
-  return `<div class="carteiras" role="group" aria-label="Carteira">${opts.map(([k, l]) => `<button class="chip ${S.cart === k ? 'on' : ''}" data-act="cart" data-c="${esc(k)}">${esc(l)}</button>`).join('')}</div>`;
+  return `<div class="carteiras" role="group" aria-label="Carteira">${opts.map(([k, l]) => `<button class="chip ${k === 'PF' ? 'pf' : k === 'all' ? '' : 'pj'} ${S.cart === k ? 'on' : ''}" data-act="cart" data-c="${esc(k)}">${esc(l)}</button>`).join('')}</div>`;
 }
 const cartLabel = () => S.cart === 'all' ? 'Visão consolidada' : S.cart === 'PF' ? 'Carteira pessoa física' : S.cart === 'PJ' ? 'Todas as empresas' : credNome(X.cred[S.cart]);
 
@@ -732,11 +737,11 @@ VIEWS.painel = () => {
     <div class="list">${quem.length ? quem.map(([id, x]) => {
       const v = X.dev[id] || { nome: '(devedor removido)' };
       return `<button class="row compact" data-act="go" data-v="devedor" data-id="${id}">
-        <div class="t">${x.venc ? '<span class="dot crit" title="Tem valor vencido"></span>' : '<span class="dot"></span>'}${esc(v.nome)}${x.prox ? ` <span class="num sm ${x.prox < X.t ? 'crit' : ''}">${ddmm(x.prox)}</span>` : ''}${x.jur ? ' <span class="tag" style="color:var(--legal)">JUR</span>' : ''}${x.prev ? ` <span class="tag" title="Inclui ${brl(x.prev)} previsto">${x.prev === x.saldo ? 'PREVISTA' : 'PARTE PREVISTA'}</span>` : ''}<span class="muted sm">${[...x.creds].map(c => esc(credCurto(X.cred[c]))).join(' · ')} · ${x.n} dívida${x.n !== 1 ? 's' : ''}</span>${x.venc ? `<span class="crit sm">vencido ${brl(x.venc)}</span>` : ''}</div>
+        <div class="t">${x.venc ? '<span class="dot crit" title="Tem valor vencido"></span>' : '<span class="dot"></span>'}${esc(v.nome)}${x.prox ? ` <span class="num sm ${x.prox < X.t ? 'crit' : ''}">${ddmm(x.prox)}</span>` : ''}${x.jur ? ' <span class="tag" style="color:var(--legal)">JUR</span>' : ''}${x.prev ? ` <span class="tag" title="Inclui ${brl(x.prev)} previsto">${x.prev === x.saldo ? 'PREVISTA' : 'PARTE PREVISTA'}</span>` : ''}${[...x.creds].map(c => `<span class="tag ${X.cred[c] && X.cred[c].tipo === 'PF' ? 'pf' : 'pj'}">${esc(credCurto(X.cred[c]))}</span>`).join('')}<span class="muted sm">${x.n} dívida${x.n !== 1 ? 's' : ''}</span>${x.venc ? `<span class="crit sm">vencido ${brl(x.venc)}</span>` : ''}</div>
         <div class="v">${brl(x.saldo)}</div></button>`;
     }).join('') : `<div class="empty">Ninguém com saldo em aberto nesta seleção.</div>`}<button class="row compact" data-act="go" data-v="devedores"><span class="t muted" style="font-weight:500">Ver todos os devedores e cadastrar novo</span><span class="v muted">›</span></button></div></section>`;
 
-  const kp = (l, v, h, cls = '', lead) => `<div class="kpi ${lead ? 'lead' : ''}"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
+  const kp = (l, v, h, cls = '', lead, extra = '') => `<div class="kpi ${lead ? 'lead' : ''} ${extra}"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
   const vazio = !S.dividas.length;
   const totPrev = ab.filter(prevista).reduce((s, d) => s + X.C[d.id].saldo, 0);
 
@@ -758,8 +763,8 @@ VIEWS.painel = () => {
   ${vazio ? onboarding() : `
   <div class="kpis" style="grid-template-columns:repeat(var(--kc,3),minmax(0,1fr))">
     ${kp('Total a receber', brl(total), totPrev ? `${brl(total - totPrev)} confirmado · ${brl(totPrev)} previsto` : `${ab.length} dívida${ab.length !== 1 ? 's' : ''} em aberto`, '', true)}
-    ${kp('Pessoa física', brl(pf), 'Carteira PF')}
-    ${kp('Pessoa jurídica', brl(pj), 'Todas as empresas')}
+    ${kp('Pessoa física', brl(pf), 'Carteira PF', '', false, 'pf')}
+    ${kp('Pessoa jurídica', brl(pj), 'Todas as empresas', '', false, 'pj')}
     ${kp('Vencido', brl(venc), nVenc ? `${nVenc} dívida${nVenc > 1 ? 's' : ''} em atraso` : 'Nada em atraso', venc ? 'crit' : '')}
     ${kp('A vencer', brl(aVenc), 'Saldo ainda no prazo')}
     ${kp('Previsto no mês', brl(prevMes), 'Parcelas com vencimento no mês')}
