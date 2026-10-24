@@ -2000,7 +2000,7 @@ function rowPagar({ cp, p }, pfs) {
 function resumoPagarDash() {
   const pfs = pfCarteiras();
   if (!pfs.length) return '';
-  const t = X.t, lim = Eng.addDays(t, 7);
+  const t = X.t, lim = Eng.addDays(t, 60);
   const [m0, m1] = monthBounds(t);
   const it = S.contas_pagar.filter(cp => !cp.cancelada && pfs.some(c => c.id === cp.credorId)).map(cp => ({ cp, p: posPagar(cp) })).filter(x => x.p.saldo > 0);
   const venc = it.filter(x => x.p.st === 'vencida');
@@ -2008,9 +2008,9 @@ function resumoPagarDash() {
   const mes = it.filter(x => x.cp.vencimento >= m0 && x.cp.vencimento <= m1);
   const soma = a => a.reduce((s, x) => s + x.p.saldo, 0);
   const lista = [...venc, ...semana].sort((a, b) => a.cp.vencimento < b.cp.vencimento ? -1 : 1);
-  return `<section class="sheet"><header><h2>Contas a pagar</h2><span class="meta">${venc.length ? `<span class="crit">vencidas ${brl(soma(venc))}</span> · ` : ''}7 dias ${brl(soma(semana))} · no mês ${brl(soma(mes))}</span></header>
-    <div class="list">${lista.length ? lista.slice(0, 8).map(x => rowPagar(x, pfs)).join('') : `<div class="empty">Nada vencido nem vencendo nos próximos 7 dias.</div>`}
-    <button class="row compact" data-act="go" data-v="pagar"><span class="t muted" style="font-weight:500">${lista.length > 8 ? `Ver todas (${lista.length})` : 'Abrir contas a pagar'}</span><span class="v muted">›</span></button></div></section>`;
+  return `<section class="sheet"><header><h2>Contas a pagar</h2><span class="meta">${venc.length ? `<span class="crit">vencidas ${brl(soma(venc))}</span> · ` : ''}próximos 60 dias ${brl(soma(semana))}</span></header>
+    <div class="list">${lista.length ? lista.slice(0, 15).map(x => rowPagar(x, pfs)).join('') : `<div class="empty">Nada vencido nem vencendo nos próximos 60 dias.</div>`}
+    <button class="row compact" data-act="go" data-v="pagar"><span class="t muted" style="font-weight:500">${lista.length > 15 ? `Ver todas (${lista.length})` : 'Abrir contas a pagar'}</span><span class="v muted">›</span></button></div></section>`;
 }
 VIEWS.pagar = () => {
   const pfs = pfCarteiras();
