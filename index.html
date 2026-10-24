@@ -145,6 +145,12 @@ td .s{display:block;font-size:12px;color:var(--muted)}
 .list{display:flex;flex-direction:column}
 .row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);align-items:center;cursor:pointer;text-align:left;background:none;border-left:0;border-right:0;border-top:0;width:100%}
 .row:last-child{border-bottom:0}
+.row.compact{padding:8px 18px;gap:10px}
+.row.compact .t{font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.row.compact .v{font-size:14px}
+.row.compact .sm{font-size:12px;font-weight:500}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
+.dot.crit{background:var(--crit)}
 .row:hover{background:var(--sunk)}
 .row .t{font-weight:600;overflow-wrap:anywhere}
 .row .s{font-size:13px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -701,10 +707,9 @@ VIEWS.painel = () => {
   const quemSec = `<section class="sheet"><header><h2>Quem me deve</h2><span class="meta">${quem.length} devedor${quem.length !== 1 ? 'es' : ''} · ${brl(total)}</span></header>
     <div class="list">${quem.length ? quem.map(([id, x]) => {
       const v = X.dev[id] || { nome: '(devedor removido)' };
-      return `<button class="row ${x.jur ? 'stripe-legal' : x.venc ? 'stripe-crit' : 'stripe-acc'}" data-act="go" data-v="devedor" data-id="${id}">
-        <div><div class="t">${esc(v.nome)}</div><div class="s">${[...x.creds].map(c => `${credTag(X.cred[c])} ${esc(credNome(X.cred[c]))}`).join(' · ')} · ${x.n} dívida${x.n !== 1 ? 's' : ''}${x.venc ? ` · <span class="crit">vencido ${brl(x.venc)}</span>` : ''}${x.jur ? ' <span class="stamp">JURÍDICO</span>' : ''}</div>
-        <div class="bar" style="max-width:320px"><i style="width:${maxS ? Math.max(2, Math.round(x.saldo / maxS * 100)) : 0}%;background:${x.venc ? 'var(--crit)' : 'var(--accent)'}"></i></div></div>
-        <div class="v">${brl(x.saldo)}<small>a receber</small></div></button>`;
+      return `<button class="row compact" data-act="go" data-v="devedor" data-id="${id}">
+        <div class="t">${x.venc ? '<span class="dot crit" title="Tem valor vencido"></span>' : '<span class="dot"></span>'}${esc(v.nome)}${x.jur ? ' <span class="tag" style="color:var(--legal)">JUR</span>' : ''}${x.venc ? ` <span class="crit sm">vencido ${brl(x.venc)}</span>` : ''}</div>
+        <div class="v">${brl(x.saldo)}</div></button>`;
     }).join('') : `<div class="empty">Ninguém com saldo em aberto nesta seleção.</div>`}</div></section>`;
 
   const kp = (l, v, h, cls = '', lead) => `<div class="kpi ${lead ? 'lead' : ''}"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
