@@ -2046,8 +2046,15 @@ VIEWS.pagar = () => {
     ${kp('Pago no mês', brl(pagoMes), '', pagoMes ? 'ok' : '')}
   </div>
   ${vencidas.length ? `<section class="sheet"><header><h2>Vencidas</h2><span class="meta">${brl(totVenc)}</span></header><div class="list">${vencidas.map(row).join('')}</div></section>` : ''}
-  <section class="sheet"><header><div class="flex"><button class="btn ghost sm" data-act="mesPagar" data-m="${ym(-1)}" aria-label="Mês anterior">‹</button><h2 style="text-transform:capitalize;min-width:130px;text-align:center">${MESES[m - 1]} ${y}</h2><button class="btn ghost sm" data-act="mesPagar" data-m="${ym(1)}" aria-label="Próximo mês">›</button></div><span class="meta">${doMes.length} conta${doMes.length !== 1 ? 's' : ''} · em aberto ${brl(aPagarMes)}</span></header>
-    <div class="list">${doMes.length ? doMes.map(row).join('') : `<div class="empty">Nenhuma conta com vencimento neste mês.${S.canWrite ? '<button class="btn pri" data-act="novaPagar">Nova conta</button>' : ''}</div>`}</div></section>`;
+  <div class="flex" style="justify-content:space-between"><button class="btn sm" data-act="mesPagar" data-m="${ym(-1)}">‹ Mês anterior</button><span class="eyebrow">Próximos 3 meses</span><button class="btn sm" data-act="mesPagar" data-m="${ym(1)}">Próximo mês ›</button></div>
+  <div class="grid3" style="align-items:start">${[0, 1, 2].map(k => {
+    const mk = ym(k); const [yy, mm] = mk.split('-').map(Number);
+    const a0 = mk + '-01', a1 = mk + '-' + String(new Date(Date.UTC(yy, mm, 0)).getUTCDate()).padStart(2, '0');
+    const its = comPos.filter(x => x.cp.vencimento >= a0 && x.cp.vencimento <= a1).sort((a, b) => a.cp.vencimento < b.cp.vencimento ? -1 : a.cp.vencimento > b.cp.vencimento ? 1 : 0);
+    const aberto = its.reduce((s, x) => s + x.p.saldo, 0), total = its.reduce((s, x) => s + x.cp.valor, 0);
+    return `<section class="sheet"><header><h2 style="text-transform:capitalize">${MESES[mm - 1]} ${yy}</h2><span class="meta">em aberto <b class="num">${brl(aberto)}</b>${total !== aberto ? ` de ${brl(total)}` : ''}</span></header>
+      <div class="list">${its.length ? its.map(row).join('') : `<div class="empty">Nenhuma conta neste mês.</div>`}</div></section>`;
+  }).join('')}</div>`;
 };
 ACT.mesPagar = el => { S.p.mes = el.dataset.m; render(); };
 
