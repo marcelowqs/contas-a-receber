@@ -100,7 +100,7 @@ a{color:var(--accent)}
 .kpi.lead{background:var(--accent);color:var(--accent-ink)}
 .kpi.lead .l,.kpi.lead .h{color:inherit;opacity:.8}
 .kpi .v.crit{color:var(--crit)} .kpi .v.ok{color:var(--ok)} .kpi .v.legal{color:var(--legal)}
-@media (max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi .v{font-size:17px}}
+@media (max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}.kpi .v{font-size:17px}}
 
 /* ---- folhas ---- */
 .sheet{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);min-width:0}
@@ -243,7 +243,7 @@ fieldset{border:0;padding:0;margin:0}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.9/dist/umd/supabase.js"></script>
 <script>if(!window.supabase)document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"><\/script>')</script>
 <script>
-/* ===== CONFIGURAÇÃO: cole aqui os dados do seu projeto Supabase (Project Settings → API) ===== */
+/* ===== CONFIGURAÇÃO DO SUPABASE (Project Settings → API) ===== */
 const SUPABASE_URL = 'https://xnuvodkkivtksrbadqdq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_GyEB9bLql-NkkL_0o45tTw_22X6jkY4';
 </script>
@@ -403,7 +403,8 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const brl = c => BRL.format((c || 0) / 100).replace(/ /g, ' ');
-const fd = s => s ? s.slice(0, 10).split('-').reverse().join('/') : '—';
+const SEM = '9999-12-31';
+const fd = s => s === SEM ? 'Sem previsão' : s ? s.slice(0, 10).split('-').reverse().join('/') : '—';
 const fdt = iso => { if (!iso) return '—'; const d = new Date(iso); return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' ' + d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }); };
 const hoje = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -446,6 +447,7 @@ const IC = {
   juridico: I('<path d="M12 3v18M7 21h10M4 7h16"/><path d="M6.5 7 3.5 13.5a3 3 0 0 0 6 0zM17.5 7l-3 6.5a3 3 0 0 0 6 0z"/>'),
   relatorios: I('<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 15.5h7M9 9h3"/>'),
   config: I('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>'),
+  refresh: I('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>'),
   mais: I('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'),
   back: I('<path d="M15 5l-7 7 7 7"/>'),
   x: I('<path d="M6 6l12 12M18 6 6 18"/>'),
@@ -456,7 +458,7 @@ const IC = {
 };
 const NAV = [
   ['painel', 'Dashboard'], ['devedores', 'Devedores'], ['nova', 'Nova Dívida'], ['recebimentos', 'Recebimentos'],
-  ['vencimentos', 'Vencimentos'], ['cobrancas', 'Cobranças'], ['juridico', 'Jurídico'], ['relatorios', 'Relatórios'], ['config', 'Configurações']
+  ['vencimentos', 'Vencimentos'], ['cobrancas', 'Cobranças'], ['relatorios', 'Relatórios'], ['config', 'Configurações']
 ];
 
 /* ================= DOMÍNIO ================= */
@@ -578,6 +580,7 @@ document.addEventListener('click', e => {
 document.addEventListener('input', e => { if (e.target.closest('form[data-guard]')) S.dirty = true; });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#modal-root').firstChild) closeModal(); });
 ACT.go = el => go(el.dataset.v, el.dataset.id ? { id: el.dataset.id } : {});
+ACT.atualizar = () => { toast('Atualizando…'); setTimeout(() => location.reload(), 150); };
 ACT.cart = el => { S.cart = el.dataset.c; try { localStorage.setItem('gcr.cart', S.cart); } catch { } render(); };
 
 /* modal genérico */
@@ -628,7 +631,7 @@ function renderShell() {
   const venc = S.dividas.filter(d => X.C[d.id] && X.C[d.id].situacao === 'vencida' && !d.cancelada).length;
   $('#side').innerHTML = `<div class="brand"><span>Livro de recebíveis</span><b>Gestão de Contas a Receber</b></div>
     ${NAV.map(([k, l]) => `<button class="nav-btn ${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}<span>${l}</span>${k === 'vencimentos' && venc ? `<span class="ct">${venc}</span>` : ''}</button>`).join('')}
-    <div class="foot">${S.canWrite ? '' : '<div class="pill warn" style="margin-bottom:8px">Somente leitura</div>'}Valores em R$ · ${fd(X.t)}<div style="margin-top:8px"><button class="btn sm" data-act="sair">Sair</button></div></div>`;
+    <div class="foot">${S.canWrite ? '' : '<div class="pill warn" style="margin-bottom:8px">Somente leitura</div>'}Valores em R$ · ${fd(X.t)}<div class="flex" style="margin-top:8px"><button class="btn sm" data-act="atualizar">Atualizar</button><button class="btn sm" data-act="sair">Sair</button></div></div>`;
   const tb = [['painel', 'Painel'], ['devedores', 'Devedores'], ['nova', 'Nova'], ['recebimentos', 'Receber'], ['mais', 'Mais']];
   $('#tabbar').innerHTML = tb.map(([k, l]) => k === 'nova'
     ? `<button class="plus ${navOn(k) ? 'on' : ''}" data-act="go" data-v="nova"><span class="ic">${IC.nova}</span>${l}</button>`
@@ -638,7 +641,7 @@ function renderShell() {
 const navOn = k => S.view === k || (k === 'devedores' && S.view === 'devedor') || (k === 'painel' && S.view === 'divida' && false);
 ACT.maisMenu = () => openModal({
   title: 'Menu', noFoot: true,
-  body: `<div class="sheetmenu">${NAV.filter(n => !['painel', 'devedores', 'nova', 'recebimentos'].includes(n[0])).map(([k, l]) => `<button type="button" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('')}</div>`
+  body: `<div class="sheetmenu">${NAV.filter(n => !['painel', 'devedores', 'nova', 'recebimentos'].includes(n[0])).map(([k, l]) => `<button type="button" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('')}<button type="button" data-act="atualizar">${IC.refresh}Atualizar</button></div>`
 });
 
 function carteiraChips() {
@@ -678,7 +681,7 @@ VIEWS.painel = () => {
   const ids = new Set(base.map(d => d.id));
   const recMes = sum(S.pagamentos.filter(g => !g.cancelado && g.tipo === 'recebimento' && g.data >= m0 && g.data <= m1 && ids.has(g.dividaId)), g => g.valor);
   let prevMes = 0;
-  for (const d of ab) for (const p of X.C[d.id].parcelas) if (p.venc >= m0 && p.venc <= m1 && p.pago < p.valor) prevMes += p.valor - p.pago;
+  for (const d of ab) for (const p of X.C[d.id].parcelas) if (p.venc !== SEM && p.venc >= m0 && p.venc <= m1 && p.pago < p.valor) prevMes += p.valor - p.pago;
   const nVenc = ab.filter(d => X.C[d.id].situacao === 'vencida').length;
 
   const atrasadas = ab.filter(d => X.C[d.id].situacao === 'vencida').sort((a, b) => X.C[b.id].diasAtraso - X.C[a.id].diasAtraso);
@@ -686,6 +689,23 @@ VIEWS.painel = () => {
   const lim = Eng.addDays(t, 30);
   for (const d of ab) for (const p of X.C[d.id].parcelas) if (p.pago < p.valor && p.venc >= t && p.venc <= lim) prox.push({ d, p });
   prox.sort((a, b) => a.p.venc < b.p.venc ? -1 : 1);
+
+  const devMap = {};
+  for (const d of ab) {
+    const x = (devMap[d.devedorId] ||= { saldo: 0, venc: 0, n: 0, creds: new Set(), jur: false });
+    const c = X.C[d.id]; x.saldo += c.saldo; x.venc += c.vencido; x.n++; x.creds.add(d.credorId);
+    if (d.juridico && d.juridico.ativo) x.jur = true;
+  }
+  const quem = Object.entries(devMap).sort((a, b) => b[1].saldo - a[1].saldo);
+  const maxS = quem.length ? quem[0][1].saldo : 0;
+  const quemSec = `<section class="sheet"><header><h2>Quem me deve</h2><span class="meta">${quem.length} devedor${quem.length !== 1 ? 'es' : ''} · ${brl(total)}</span></header>
+    <div class="list">${quem.length ? quem.map(([id, x]) => {
+      const v = X.dev[id] || { nome: '(devedor removido)' };
+      return `<button class="row ${x.jur ? 'stripe-legal' : x.venc ? 'stripe-crit' : 'stripe-acc'}" data-act="go" data-v="devedor" data-id="${id}">
+        <div><div class="t">${esc(v.nome)}</div><div class="s">${[...x.creds].map(c => `${credTag(X.cred[c])} ${esc(credNome(X.cred[c]))}`).join(' · ')} · ${x.n} dívida${x.n !== 1 ? 's' : ''}${x.venc ? ` · <span class="crit">vencido ${brl(x.venc)}</span>` : ''}${x.jur ? ' <span class="stamp">JURÍDICO</span>' : ''}</div>
+        <div class="bar" style="max-width:320px"><i style="width:${maxS ? Math.max(2, Math.round(x.saldo / maxS * 100)) : 0}%;background:${x.venc ? 'var(--crit)' : 'var(--accent)'}"></i></div></div>
+        <div class="v">${brl(x.saldo)}<small>a receber</small></div></button>`;
+    }).join('') : `<div class="empty">Ninguém com saldo em aberto nesta seleção.</div>`}</div></section>`;
 
   const kp = (l, v, h, cls = '', lead) => `<div class="kpi ${lead ? 'lead' : ''}"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
   const vazio = !S.dividas.length;
@@ -703,26 +723,18 @@ VIEWS.painel = () => {
 
   return `
   <div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Quem me deve, e quanto</h1><div class="sub">Posição atualizada em ${fd(t)}, com juros e multas calculados até hoje.</div></div>
-    <div class="acts"><button class="btn" data-act="go" data-v="recebimentos">Registrar recebimento</button><button class="btn pri" data-act="go" data-v="nova">${IC.nova} Nova dívida</button></div></div>
+    <div class="acts"><button class="btn" data-act="atualizar" aria-label="Atualizar">${IC.refresh} Atualizar</button><button class="btn" data-act="go" data-v="recebimentos">Registrar recebimento</button><button class="btn pri" data-act="go" data-v="nova">${IC.nova} Nova dívida</button></div></div>
   ${carteiraChips()}
   ${vazio ? onboarding() : `
-  <div class="kpis">
+  <div class="kpis" style="grid-template-columns:repeat(var(--kc,3),minmax(0,1fr))">
     ${kp('Total a receber', brl(total), `${ab.length} dívida${ab.length !== 1 ? 's' : ''} em aberto`, '', true)}
     ${kp('Pessoa física', brl(pf), 'Carteira PF')}
     ${kp('Pessoa jurídica', brl(pj), 'Todas as empresas')}
-    ${kp('Em cobrança jurídica', brl(jur), '', jur ? 'legal' : '')}
     ${kp('Vencido', brl(venc), nVenc ? `${nVenc} dívida${nVenc > 1 ? 's' : ''} em atraso` : 'Nada em atraso', venc ? 'crit' : '')}
     ${kp('A vencer', brl(aVenc), 'Saldo ainda no prazo')}
-    ${kp('Recebido no mês', brl(recMes), MESES[+t.slice(5, 7) - 1], recMes ? 'ok' : '')}
     ${kp('Previsto no mês', brl(prevMes), 'Parcelas com vencimento no mês')}
   </div>
-  <form class="sheet" data-filters="painel"><div class="body filters">
-    <div class="f"><label for="pf-dev">Devedor</label><select id="pf-dev" name="dev"><option value="">Todos</option>${devOptions(f.dev)}</select></div>
-    <div class="f"><label for="pf-de">Operação de</label><input type="date" id="pf-de" name="de" value="${f.de}"></div>
-    <div class="f"><label for="pf-ate">até</label><input type="date" id="pf-ate" name="ate" value="${f.ate}"></div>
-    <div class="f"><label for="pf-sit">Situação</label><select id="pf-sit" name="sit"><option value="">Todas</option>${COBS.map(c => `<option value="${c[0]}" ${f.sit === c[0] ? 'selected' : ''}>${c[1]}</option>`).join('')}</select></div>
-    ${(f.dev || f.de || f.ate || f.sit) ? `<button type="button" class="btn ghost" data-act="clearF">Limpar filtros</button>` : ''}
-  </div></form>
+  ${quemSec}
   <div class="grid2">
     <section class="sheet"><header><h2>Dívidas em atraso</h2><span class="meta">${atrasadas.length ? brl(venc) : ''}</span></header>
       <div class="list">${atrasadas.length ? atrasadas.slice(0, 8).map(d => divRow(d, 'atraso')).join('') : `<div class="empty">Nenhuma dívida vencida nesta seleção.</div>`}
@@ -964,8 +976,9 @@ VIEWS.nova = () => {
     <div class="f"><label for="nd-valor">Valor original (R$) <span class="req">*</span></label><input type="text" class="money-in" inputmode="decimal" id="nd-valor" name="valor" value="${toInput(d.valor)}" placeholder="0,00"></div>
     <div class="f"><label for="nd-data">Data da operação <span class="req">*</span></label><input type="date" id="nd-data" name="dataOperacao" value="${d.dataOperacao || X.t}"></div>
     <div class="f full"><label for="nd-desc">Motivo ou descrição <span class="req">*</span></label><input type="text" id="nd-desc" name="descricao" value="${esc(d.descricao)}" placeholder="Ex.: Empréstimo para capital de giro"></div>
-    <div class="f"><label for="nd-venc">Data prevista para pagamento <span class="req">*</span></label><input type="date" id="nd-venc" name="vencimento" value="${d.vencimento || ''}"><span class="hint">Com parcelas, é o vencimento da 1ª parcela.</span></div>
-    <div class="f"><label for="nd-parc">Quantidade de parcelas</label><input type="number" min="1" max="360" id="nd-parc" name="parcelas" value="${d.parcelas || 1}"></div>
+    <div class="f full"><span class="lb">Como será pago?</span><div class="seg" data-seg="livre"><button type="button" class="${!d.livre ? 'on' : ''}" data-val="0">Com data definida</button><button type="button" class="${d.livre ? 'on' : ''}" data-val="1">Pagamento em partes</button></div><input type="hidden" name="livre" value="${d.livre ? 1 : 0}"><span class="hint" id="hint-livre" ${d.livre ? '' : 'hidden'}>A dívida fica em aberto sem vencimento: registre cada valor que for recebendo e o saldo é recalculado. Ela nunca fica "vencida".</span></div>
+    <div class="f" id="wrap-venc" ${d.livre ? 'hidden' : ''}><label for="nd-venc">Data prevista para pagamento <span class="req">*</span></label><input type="date" id="nd-venc" name="vencimento" value="${d.vencimento && d.vencimento !== SEM ? d.vencimento : ''}"><span class="hint">Com parcelas, é o vencimento da 1ª parcela.</span></div>
+    <div class="f" id="wrap-parc" ${d.livre ? 'hidden' : ''}><label for="nd-parc">Quantidade de parcelas</label><input type="number" min="1" max="360" id="nd-parc" name="parcelas" value="${d.parcelas || 1}"></div>
     <div class="section-title">Identificação</div>
     <div class="f"><label for="nd-num">Número da operação</label><input type="text" id="nd-num" name="numero" value="${esc(d.numero || '')}" placeholder="${ed ? '' : proxNumero()}"><span class="hint">${ed ? '' : 'Em branco, usa ' + proxNumero()}</span></div>
     <div class="f"><label for="nd-cat">Categoria</label><select id="nd-cat" name="categoria"><option value="">—</option>${cats().map(c => `<option ${d.categoria === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
@@ -973,7 +986,7 @@ VIEWS.nova = () => {
     <div class="f"><label for="nd-amort">Regra de amortização</label><select id="nd-amort" name="amortizacao"><option value="juros_primeiro" ${d.amortizacao !== 'principal_primeiro' ? 'selected' : ''}>Pagamento quita multa e juros, depois o principal</option><option value="principal_primeiro" ${d.amortizacao === 'principal_primeiro' ? 'selected' : ''}>Pagamento quita o principal primeiro</option></select></div>
     <div class="section-title">Encargos</div>
     <div class="f"><span class="lb">Aplicar juros?</span><div class="seg" data-seg="jAtivo"><button type="button" class="${!j.ativo ? 'on' : ''}" data-val="0">Não</button><button type="button" class="${j.ativo ? 'on' : ''}" data-val="1">Sim</button></div><input type="hidden" name="jAtivo" value="${j.ativo ? 1 : 0}"></div>
-    <div class="f"><span class="lb">Multa por atraso?</span><div class="seg" data-seg="mAtivo"><button type="button" class="${!m.ativo ? 'on' : ''}" data-val="0">Não</button><button type="button" class="${m.ativo ? 'on' : ''}" data-val="1">Sim</button></div><input type="hidden" name="mAtivo" value="${m.ativo ? 1 : 0}"></div>
+    <div class="f" id="wrap-multa" ${d.livre ? 'hidden' : ''}><span class="lb">Multa por atraso?</span><div class="seg" data-seg="mAtivo"><button type="button" class="${!m.ativo ? 'on' : ''}" data-val="0">Não</button><button type="button" class="${m.ativo ? 'on' : ''}" data-val="1">Sim</button></div><input type="hidden" name="mAtivo" value="${m.ativo ? 1 : 0}"></div>
     <div class="box full" id="box-juros" ${j.ativo ? '' : 'hidden'}><div class="form">
       <div class="f"><label for="nd-taxa">Taxa (%)</label><input type="text" inputmode="decimal" id="nd-taxa" name="taxa" value="${j.taxa != null ? String(j.taxa).replace('.', ',') : ''}" placeholder="Ex.: 2"></div>
       <div class="f"><label for="nd-per">Periodicidade</label><select id="nd-per" name="periodo"><option value="mes" ${j.periodo !== 'ano' ? 'selected' : ''}>Ao mês</option><option value="ano" ${j.periodo === 'ano' ? 'selected' : ''}>Ao ano</option></select></div>
@@ -997,12 +1010,13 @@ VIEWS.nova = () => {
 function readDividaForm(f) {
   const valor = parseBRL(fv(f, 'valor'));
   const parcelas = Math.max(1, Math.min(360, parseInt(fv(f, 'parcelas')) || 1));
-  const jAtivo = fv(f, 'jAtivo') === '1', mAtivo = fv(f, 'mAtivo') === '1';
+  const livre = fv(f, 'livre') === '1';
+  const jAtivo = fv(f, 'jAtivo') === '1', mAtivo = !livre && fv(f, 'mAtivo') === '1';
   const taxa = Number(fv(f, 'taxa').replace(',', '.'));
   const mpct = Number(fv(f, 'mpct').replace(',', '.'));
   return {
     credorId: f.elements.credorId.value, devedorId: f.elements.devedorId.value, valor, dataOperacao: fv(f, 'dataOperacao'),
-    descricao: fv(f, 'descricao'), vencimento: fv(f, 'vencimento'), parcelas, numero: fv(f, 'numero'), categoria: fv(f, 'categoria'),
+    descricao: fv(f, 'descricao'), vencimento: livre ? SEM : fv(f, 'vencimento'), parcelas: livre ? 1 : parcelas, livre, numero: fv(f, 'numero'), categoria: fv(f, 'categoria'),
     formaPagamento: fv(f, 'formaPagamento'), amortizacao: fv(f, 'amortizacao'), obs: fv(f, 'obs'),
     juros: jAtivo ? { ativo: true, taxa, periodo: fv(f, 'periodo'), tipo: fv(f, 'jtipo'), inicio: fv(f, 'inicio') || '' } : { ativo: false },
     multa: mAtivo ? { ativo: true, pct: mpct } : { ativo: false }
@@ -1026,7 +1040,9 @@ AFTER.nova = () => {
   const prev = () => {
     const x = readDividaForm(f);
     $('#box-juros').hidden = !x.juros.ativo; $('#box-multa').hidden = !x.multa.ativo;
+    ['#wrap-venc', '#wrap-parc', '#wrap-multa'].forEach(s => $(s).hidden = x.livre); $('#hint-livre').hidden = !x.livre;
     const el = $('#nd-prev');
+    if (x.livre) { el.innerHTML = ''; return; }
     if (!(x.valor > 0) || !x.vencimento) { el.innerHTML = ''; return; }
     const cr = Eng.gerarCronograma(x.valor, x.parcelas, x.vencimento);
     const show = cr.length > 6 ? [...cr.slice(0, 3), null, ...cr.slice(-2)] : cr;
@@ -1108,7 +1124,7 @@ VIEWS.divida = () => {
       <div><div class="eyebrow" style="margin-bottom:8px">Ajustes manuais de juros e multa</div>${ajs.length ? `<div class="timeline">${ajs.map(a => `<div class="tl"><div class="d">${fd(a.data)}</div><div><div class="flex"><b class="num" ${a.cancelado ? 'style="text-decoration:line-through"' : ''}>${a.valor > 0 ? '+' : '−'}${brl(Math.abs(a.valor))}</b><span class="pill">${a.tipo === 'multa' ? 'Multa' : 'Juros'}</span>${!a.cancelado && S.canWrite ? `<button class="btn ghost sm right" data-act="cancAjuste" data-id="${a.id}">Cancelar</button>` : ''}</div><div class="muted" style="font-size:13px">${esc(a.justificativa)}${a.cancelado ? ' · cancelado' : ''}</div></div></div>`).join('')}</div>` : '<div class="muted">Nenhum ajuste.</div>'}</div>
     </div></div>`;
   if (tab === 'parc') body = `<div class="tw"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th class="r">Valor</th><th class="r">Pago</th><th class="r">Restante</th><th>Situação</th><th></th></tr></thead><tbody>
-    ${c.parcelas.map(p => { const st = { paga: ['Paga', 'ok'], vencida: ['Vencida', 'crit'], parcial: ['Parcial', 'warn'], aberta: ['A vencer', 'acc'] }[p.status]; return `<tr><td>${p.n}/${c.parcelas.length}</td><td class="num">${fd(p.venc)}</td><td class="m">${brl(p.valor)}</td><td class="m">${brl(p.pago)}</td><td class="m">${brl(p.valor - p.pago)}</td><td><span class="pill ${st[1]}">${st[0]}</span></td><td class="r">${p.status !== 'paga' && !ro && S.canWrite ? `<button class="btn ghost sm" data-act="novoVenc" data-id="${d.id}" data-n="${p.n}">Alterar vencimento</button>` : ''}</td></tr>`; }).join('')}
+    ${c.parcelas.map(p => { const st = { paga: ['Paga', 'ok'], vencida: ['Vencida', 'crit'], parcial: ['Parcial', 'warn'], aberta: ['A vencer', 'acc'] }[p.status]; return `<tr><td>${p.n}/${c.parcelas.length}</td><td class="num">${fd(p.venc)}</td><td class="m">${brl(p.valor)}</td><td class="m">${brl(p.pago)}</td><td class="m">${brl(p.valor - p.pago)}</td><td><span class="pill ${st[1]}">${st[0]}</span></td><td class="r">${p.status !== 'paga' && !ro && S.canWrite ? `<button class="btn ghost sm" data-act="novoVenc" data-id="${d.id}" data-n="${p.n}">${p.venc === SEM ? 'Definir vencimento' : 'Alterar vencimento'}</button>` : ''}</td></tr>`; }).join('')}
     </tbody></table></div>
     ${histVenc.length ? `<div class="body" style="border-top:1px solid var(--line)"><div class="eyebrow" style="margin-bottom:8px">Vencimentos alterados</div><div class="timeline">${histVenc.map(h => `<div class="tl"><div class="d">${fd(h.em)}</div><div>Parcela ${h.parcela}: ${fd(h.de)} → <b>${fd(h.para)}</b><div class="muted" style="font-size:13px">${esc(h.motivo)}</div></div></div>`).join('')}</div></div>` : ''}
     ${d.promessa && d.promessa.data ? `<div class="body" style="border-top:1px solid var(--line)"><div class="notice info">Promessa de pagamento para <b>${fd(d.promessa.data)}</b>${d.promessa.valor ? ` de <b class="num">${brl(d.promessa.valor)}</b>` : ''}. O vencimento contratual não foi alterado.${d.promessa.cumprida ? ' Promessa cumprida.' : ''}</div></div>` : ''}`;
@@ -1126,7 +1142,7 @@ VIEWS.divida = () => {
   return `<div class="flex"><button class="btn ghost sm" data-act="go" data-v="devedor" data-id="${d.devedorId}">${IC.back} ${esc(dv.nome)}</button></div>
   <div class="ph"><div><div class="eyebrow">${credTag(cr)} ${esc(credNome(cr))} · ${esc(divNum(d))}${d.categoria ? ' · ' + esc(d.categoria) : ''}</div>
     <h1>${esc(d.descricao || 'Dívida')}</h1>
-    <div class="sub flex" style="margin-top:6px">${d.cancelada ? '<span class="pill">Cancelada</span>' : sitPill(d)} ${d.cancelada ? '' : cobPill(cob)} ${jur.ativo ? '<span class="stamp">JURÍDICO</span>' : ''}<span>Operação em ${fd(d.dataOperacao)} · devedor <a href="#devedor" data-act="go" data-v="devedor" data-id="${d.devedorId}">${esc(dv.nome)}</a></span></div></div>
+    <div class="sub flex" style="margin-top:6px">${d.cancelada ? '<span class="pill">Cancelada</span>' : sitPill(d)} ${d.cancelada ? '' : cobPill(cob)} ${jur.ativo ? '<span class="stamp">JURÍDICO</span>' : ''}${d.livre && X.C[d.id].proxima && X.C[d.id].proxima.venc === SEM ? '<span class="pill acc">Pagamento em partes</span>' : ''}<span>Operação em ${fd(d.dataOperacao)} · devedor <a href="#devedor" data-act="go" data-v="devedor" data-id="${d.devedorId}">${esc(dv.nome)}</a></span></div></div>
     ${S.canWrite && !d.cancelada ? `<div class="acts">${c.saldo > 0 ? `<button class="btn pri" data-act="pagar" data-id="${d.id}">Registrar pagamento</button>` : ''}<button class="btn" data-act="acoes" data-id="${d.id}">Mais ações</button></div>` : ''}${d.cancelada && S.canWrite ? `<div class="acts"><button class="btn" data-act="reativar" data-id="${d.id}">Reativar dívida</button></div>` : ''}</div>
   ${d.cancelada ? `<div class="notice crit">Dívida cancelada em ${fd(d.canceladaEm)}: ${esc(d.motivoCancelamento || '')}. Ela não entra nos saldos, mas o histórico foi preservado.</div>` : ''}
   ${nova ? `<div class="notice info">Esta dívida foi renegociada. O saldo passou para <a href="#divida" data-act="go" data-v="divida" data-id="${nova.id}">${esc(divNum(nova))}</a>.</div>` : ''}
@@ -1186,6 +1202,7 @@ function openPagamento(d, tipo = 'recebimento') {
   const cr = credOf(d), c = X.C[d.id];
   const contas = (cr.contas || []).filter(Boolean);
   const isAb = tipo === 'abatimento';
+  const livreAb = c.proxima && c.proxima.venc === SEM;
   const sugest = c.proxima ? Math.min(c.proxima.valor - c.proxima.pago + (c.vencido ? c.jurosAberto + c.multaAberta : 0), c.saldo) : c.saldo;
   const form = openModal({
     title: isAb ? 'Conceder desconto / abatimento' : 'Registrar pagamento', ok: isAb ? 'Registrar abatimento' : 'Registrar pagamento',
@@ -1193,7 +1210,7 @@ function openPagamento(d, tipo = 'recebimento') {
     ${isAb ? '<div class="hint muted">O abatimento reduz o saldo, mas não conta como valor recebido.</div>' : ''}
     <div class="form">
       <div class="f"><label for="pg-data">Data do pagamento <span class="req">*</span></label><input type="date" id="pg-data" name="data" value="${X.t}" max="${X.t}"></div>
-      <div class="f"><label for="pg-valor">Valor ${isAb ? 'do abatimento' : 'recebido'} (R$) <span class="req">*</span></label><input type="text" class="money-in" inputmode="decimal" id="pg-valor" name="valor" placeholder="0,00"><div class="flex"><button type="button" class="btn ghost sm" data-fill="${sugest}">${c.parcelas.length > 1 ? 'Próxima parcela' : 'Sugerido'} ${brl(sugest)}</button><button type="button" class="btn ghost sm" data-fill="quitar">Quitar saldo</button></div></div>
+      <div class="f"><label for="pg-valor">Valor ${isAb ? 'do abatimento' : 'recebido'} (R$) <span class="req">*</span></label><input type="text" class="money-in" inputmode="decimal" id="pg-valor" name="valor" placeholder="0,00"><div class="flex">${livreAb ? '' : `<button type="button" class="btn ghost sm" data-fill="${sugest}">${c.parcelas.length > 1 ? 'Próxima parcela' : 'Sugerido'} ${brl(sugest)}</button>`}<button type="button" class="btn ghost sm" data-fill="quitar">Quitar saldo</button></div>${livreAb ? '<span class="hint">Informe o valor que recebeu agora; pode ser qualquer quantia.</span>' : ''}</div>
       ${isAb ? '' : `<div class="f"><label for="pg-forma">Forma de pagamento</label><select id="pg-forma" name="forma">${FORMAS.map(x => `<option ${d.formaPagamento === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
       <div class="f"><label for="pg-conta">Conta de destino</label><select id="pg-conta" name="conta"><option value="">${contas.length ? '—' : 'Nenhuma conta cadastrada para este credor'}</option>${contas.map(x => `<option>${esc(x)}</option>`).join('')}</select></div>`}
       <div class="f full"><label for="pg-obs">${isAb ? 'Motivo do desconto' : 'Observações'}${isAb ? ' <span class="req">*</span>' : ''}</label><input type="text" id="pg-obs" name="obs"></div>
@@ -1356,7 +1373,7 @@ ACT.novoVenc = el => {
       const cron = (d.cronograma && d.cronograma.length ? d.cronograma : Eng.gerarCronograma(d.valor, d.parcelas || 1, d.vencimento)).map(p => ({ ...p }));
       const p = cron.find(x => x.n === n); const de = p.venc; p.venc = data;
       const hist = [...(d.historicoVencimentos || []), { em: X.t, parcela: n, de, para: data, motivo }];
-      await upd('dividas', d.id, { cronograma: cron, vencimento: cron[0].venc, historicoVencimentos: hist, atualizadoEm: nowIso() });
+      await upd('dividas', d.id, { cronograma: cron, vencimento: cron[0].venc, historicoVencimentos: hist, livre: cron.some(x => x.venc === SEM), atualizadoEm: nowIso() });
       await audit('vencimento', 'divida', d.id, `Parcela ${n}: vencimento ${fd(de)} → ${fd(data)}. ${motivo}`);
       toast('Vencimento alterado.');
     }
@@ -1510,10 +1527,11 @@ AFTER.recebimentos = () => {
 /* ================= VENCIMENTOS ================= */
 VIEWS.vencimentos = () => {
   const t = X.t;
-  const B = { venc: [], hoje: [], d7: [], d15: [], d30: [], fut: [] };
+  const B = { venc: [], hoje: [], d7: [], d15: [], d30: [], fut: [], livre: [] };
   const ab = S.dividas.filter(d => ativa(d) && inCart(d));
   for (const d of ab) for (const p of X.C[d.id].parcelas) {
     if (p.pago >= p.valor) continue;
+    if (p.venc === SEM) { B.livre.push({ d, p }); continue; }
     const k = Eng.diff(t, p.venc);
     (k < 0 ? B.venc : k === 0 ? B.hoje : k <= 7 ? B.d7 : k <= 15 ? B.d15 : k <= 30 ? B.d30 : B.fut).push({ d, p });
   }
@@ -1529,6 +1547,7 @@ VIEWS.vencimentos = () => {
   ${sec('hoje', 'Vencem hoje', 'Nada vence hoje.')}
   <div class="grid2">${sec('d7', 'Próximos 7 dias', 'Nada nos próximos 7 dias.')}${sec('d15', 'De 8 a 15 dias', 'Nada entre 8 e 15 dias.')}</div>
   <div class="grid2">${sec('d30', 'De 16 a 30 dias', 'Nada entre 16 e 30 dias.')}${sec('fut', 'Vencimentos futuros', 'Nenhum vencimento após 30 dias.', false)}</div>
+  ${B.livre.length ? sec('livre', 'Pagamento em partes (sem previsão)', '') : ''}
   <div class="grid2">
   <section class="sheet"><header><h2>Promessas de pagamento</h2><span class="meta">não alteram o vencimento</span></header><div class="list">${proms.length ? proms.map(d => `<button class="row ${d.promessa.data < t ? 'stripe-crit' : 'stripe-warn'}" data-act="go" data-v="divida" data-id="${d.id}"><div><div class="t">${esc(devOf(d).nome)}</div><div class="s">Prometido para <b class="num">${fd(d.promessa.data)}</b>${d.promessa.data < t ? ' · <span class="crit">não cumprida</span>' : ''} · ${credTag(credOf(d))} ${esc(credNome(credOf(d)))}</div></div><div class="v">${brl(d.promessa.valor || X.C[d.id].saldo)}<small>${d.promessa.valor ? 'prometido' : 'saldo'}</small></div></button>`).join('') : '<div class="empty">Nenhuma promessa em aberto.</div>'}</div></section>
   <section class="sheet"><header><h2>Quitadas nos últimos 30 dias</h2></header><div class="list">${quit.length ? quit.map(x => `<button class="row stripe-ok" data-act="go" data-v="divida" data-id="${x.d.id}"><div><div class="t">${esc(devOf(x.d).nome)}</div><div class="s"><span class="pill ok">Quitada</span> em ${fd(x.em)} · ${esc(divNum(x.d))}</div></div><div class="v">${brl(X.C[x.d.id].recebido)}<small>recebido</small></div></button>`).join('') : '<div class="empty">Nenhuma quitação recente.</div>'}</div></section>
@@ -1617,7 +1636,7 @@ function relatorio(k, f) {
     foot = ['Total', '', '', '', '', M(sumCol(rows, 5)), M(sumCol(rows, 6))];
   } else if (k === 'avenc' || k === 'prev') {
     const it = [];
-    for (const d of S.dividas) if (okD(d) && ativa(d)) for (const p of X.C[d.id].parcelas) if (p.pago < p.valor && p.venc >= X.t && inP(p.venc)) it.push({ d, p });
+    for (const d of S.dividas) if (okD(d) && ativa(d)) for (const p of X.C[d.id].parcelas) if (p.pago < p.valor && p.venc !== SEM && p.venc >= X.t && inP(p.venc)) it.push({ d, p });
     it.sort((a, b) => a.p.venc < b.p.venc ? -1 : 1);
     if (k === 'avenc') {
       cols = ['Vencimento', 'Devedor', 'Credor', 'Dívida', 'Parcela', 'Valor em aberto'];
