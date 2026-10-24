@@ -727,7 +727,7 @@ VIEWS.painel = () => {
   }
 
   return `
-  <div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Quem me deve, e quanto</h1><div class="sub">Posição atualizada em ${fd(t)}, com juros e multas calculados até hoje.</div></div>
+  <div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Contas a receber</h1><div class="sub">Posição atualizada em ${fd(t)}, com juros e multas calculados até hoje.</div></div>
     <div class="acts"><button class="btn" data-act="atualizar" aria-label="Atualizar">${IC.refresh} Atualizar</button><button class="btn" data-act="go" data-v="recebimentos">Registrar recebimento</button><button class="btn pri" data-act="go" data-v="nova">${IC.nova} Nova dívida</button></div></div>
   ${carteiraChips()}
   ${vazio ? onboarding() : `
