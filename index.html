@@ -743,6 +743,17 @@ VIEWS.painel = () => {
 
   const kp = (l, v, h, cls = '', lead, extra = '') => `<div class="kpi ${lead ? 'lead' : ''} ${extra}"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
   const vazio = !S.dividas.length;
+  const pag30 = (() => {
+    if (typeof pfCarteiras !== 'function') return null;
+    const pfs = pfCarteiras(); if (!pfs.length) return null;
+    const lim = Eng.addDays(t, 30); let total = 0, vencP = 0, n = 0;
+    for (const cp of S.contas_pagar) {
+      if (cp.cancelada || !pfs.some(c => c.id === cp.credorId) || cp.vencimento > lim) continue;
+      const p = posPagar(cp); if (p.saldo <= 0) continue;
+      total += p.saldo; n++; if (cp.vencimento < t) vencP += p.saldo;
+    }
+    return { total, venc: vencP, n };
+  })();
   const totPrev = ab.filter(prevista).reduce((s, d) => s + X.C[d.id].saldo, 0);
 
   let porCarteira = '';
@@ -764,10 +775,10 @@ VIEWS.painel = () => {
   <div class="kpis" style="grid-template-columns:repeat(var(--kc,3),minmax(0,1fr))">
     ${kp('Total a receber', brl(total), totPrev ? `${brl(total - totPrev)} confirmado · ${brl(totPrev)} previsto` : `${ab.length} dívida${ab.length !== 1 ? 's' : ''} em aberto`, '', true)}
     ${kp('Pessoa física', brl(pf), 'Carteira PF', '', false, 'pf')}
+    ${pag30 ? kp('Contas a pagar (30 dias)', brl(pag30.total), pag30.venc ? `<span class="crit">${brl(pag30.venc)} vencido</span>` : `${pag30.n} conta${pag30.n !== 1 ? 's' : ''}`, '', false, 'pf') : ''}
     ${kp('Pessoa jurídica', brl(pj), 'Todas as empresas', '', false, 'pj')}
     ${kp('Vencido', brl(venc), nVenc ? `${nVenc} dívida${nVenc > 1 ? 's' : ''} em atraso` : 'Nada em atraso', venc ? 'crit' : '')}
     ${kp('A vencer', brl(aVenc), 'Saldo ainda no prazo')}
-    ${kp('Previsto no mês', brl(prevMes), 'Parcelas com vencimento no mês')}
   </div>
   <div class="grid2" style="align-items:start">${quemSec}${typeof resumoPagarDash === 'function' ? resumoPagarDash() : ''}</div>
   <div class="grid2">
