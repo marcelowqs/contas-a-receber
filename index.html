@@ -2045,12 +2045,8 @@ function formPagar(cp = {}) {
     <div class="f"><label for="cp-venc">Vencimento <span class="req">*</span></label><input type="date" id="cp-venc" name="vencimento" value="${cp.vencimento || X.t}"></div>
     <div class="f"><label for="cp-cat">Categoria</label><select id="cp-cat" name="categoria"><option value="">—</option>${CATS_PAGAR.map(c => `<option ${cp.categoria === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
     ${cp.id ? (cp.grupo ? `<div class="f full"><label class="flex" style="font-weight:500"><input type="checkbox" name="futuras" checked> Aplicar também às próximas contas desta recorrência ainda não pagas</label></div>` : '') : `
-    <div class="f full"><span class="lb">Tipo de conta</span><div class="seg" data-seg="tipo"><button type="button" class="on" data-val="avulsa">Avulsa (uma vez)</button><button type="button" data-val="recorrente">Recorrente</button></div><input type="hidden" name="tipo" value="avulsa"></div>
-    <div class="box full" id="cp-rec" hidden><div class="form">
-      <div class="f"><label for="cp-freq">Repete</label><select id="cp-freq" name="freq"><option value="semanal">Toda semana</option><option value="quinzenal">A cada 15 dias</option><option value="mensal" selected>Todo mês</option><option value="anual">Todo ano</option></select></div>
-      <div class="f"><label for="cp-fim">Até quando</label><select id="cp-fim" name="fim"><option value="sem">Sem data para terminar</option>${[2, 3, 4, 5, 6, 10, 12, 18, 24, 36, 48, 60].map(n => `<option value="${n}">${n} vezes</option>`).join('')}</select></div>
-      <span class="hint full">As contas sem data para terminar são criadas automaticamente com antecedência: 3 meses (semanais), 6 meses (quinzenais), 12 meses (mensais) ou 2 anos (anuais).</span>
-    </div></div>`}
+    <div class="f"><label for="cp-freq">Repete</label><select id="cp-freq" name="freq"><option value="unico">Pagamento único</option><option value="mensal">Mensalmente</option><option value="semanal">Semanalmente</option><option value="quinzenal">Quinzenalmente (a cada 15 dias)</option><option value="anual">Anualmente</option></select></div>
+    <div class="f" id="cp-rec" hidden><label for="cp-fim">Até quando</label><select id="cp-fim" name="fim"><option value="sem">Sem data para terminar</option>${[2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36, 48, 60].map(n => `<option value="${n}">${n} vezes</option>`).join('')}</select><span class="hint">Sem data para terminar: as próximas são criadas automaticamente.</span></div>`}
     <div class="f full"><label for="cp-obs">Observações</label><textarea id="cp-obs" name="obs">${esc(cp.obs)}</textarea></div>
     ${fileInput('cp-files', 'Boleto ou documento')}
   </div>`;
@@ -2065,7 +2061,7 @@ ACT.novaPagar = () => {
       if (!fav) { toast('Informe a quem pagar.', true); return false; }
       if (!(valor > 0)) { toast('Informe o valor.', true); return false; }
       if (!venc) { toast('Informe o vencimento.', true); return false; }
-      const rec = fv(f, 'tipo') === 'recorrente';
+      const rec = fv(f, 'freq') !== 'unico';
       const freq = FREQS[fv(f, 'freq')] ? fv(f, 'freq') : 'mensal';
       const fim = rec ? (fv(f, 'fim') === 'sem' ? 'sem' : Math.max(2, parseInt(fv(f, 'fim')) || 2)) : 1;
       const anexos = await uploadFiles(f.elements.files.files, credorId);
@@ -2086,7 +2082,7 @@ ACT.novaPagar = () => {
       S.p.mes = venc.slice(0, 7);
     }
   });
-  form.addEventListener('change', () => { const b = form.querySelector('#cp-rec'); if (b) b.hidden = fv(form, 'tipo') !== 'recorrente'; });
+  form.addEventListener('change', () => { const b = form.querySelector('#cp-rec'); if (b) b.hidden = fv(form, 'freq') === 'unico'; });
 };
 ACT.verPagar = el => {
   const cp = S.contas_pagar.find(x => x.id === el.dataset.id); if (!cp) return;
