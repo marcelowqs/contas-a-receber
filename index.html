@@ -505,6 +505,7 @@ function build() {
 const credOf = d => X.cred[d.credorId] || { nome: '(credor removido)', tipo: '?' };
 const devOf = d => X.dev[d.devedorId] || { nome: '(devedor removido)' };
 const credNome = c => c ? (c.tipo === 'PF' ? c.nome : (c.nome || c.razao)) : '—';
+const credCurto = c => c && c.tipo === 'PF' ? 'PF' : credNome(c);
 const credTag = c => c ? (c.tipo === 'PF' ? '<span class="tag pf">PF</span>' : '<span class="tag pj">PJ</span>') : '';
 const divNum = d => d.numero || ('#' + d.id.slice(-5).toUpperCase());
 function inCart(d, cart = S.cart) {
@@ -710,7 +711,7 @@ VIEWS.painel = () => {
     <div class="list">${quem.length ? quem.map(([id, x]) => {
       const v = X.dev[id] || { nome: '(devedor removido)' };
       return `<button class="row compact" data-act="go" data-v="devedor" data-id="${id}">
-        <div class="t">${x.venc ? '<span class="dot crit" title="Tem valor vencido"></span>' : '<span class="dot"></span>'}${esc(v.nome)}${x.prox ? ` <span class="num sm ${x.prox < X.t ? 'crit' : ''}">${ddmm(x.prox)}</span>` : ''}${x.jur ? ' <span class="tag" style="color:var(--legal)">JUR</span>' : ''}<span class="muted sm">${[...x.creds].map(c => esc(credNome(X.cred[c]))).join(' · ')} · ${x.n} dívida${x.n !== 1 ? 's' : ''}</span>${x.venc ? `<span class="crit sm">vencido ${brl(x.venc)}</span>` : ''}</div>
+        <div class="t">${x.venc ? '<span class="dot crit" title="Tem valor vencido"></span>' : '<span class="dot"></span>'}${esc(v.nome)}${x.prox ? ` <span class="num sm ${x.prox < X.t ? 'crit' : ''}">${ddmm(x.prox)}</span>` : ''}${x.jur ? ' <span class="tag" style="color:var(--legal)">JUR</span>' : ''}<span class="muted sm">${[...x.creds].map(c => esc(credCurto(X.cred[c]))).join(' · ')} · ${x.n} dívida${x.n !== 1 ? 's' : ''}</span>${x.venc ? `<span class="crit sm">vencido ${brl(x.venc)}</span>` : ''}</div>
         <div class="v">${brl(x.saldo)}</div></button>`;
     }).join('') : `<div class="empty">Ninguém com saldo em aberto nesta seleção.</div>`}</div></section>`;
 
@@ -815,7 +816,7 @@ VIEWS.devedores = () => {
     <section class="sheet"><div class="list">
     ${rows.length ? rows.map(r => `<button class="row ${r.jur ? 'stripe-legal' : r.venc ? 'stripe-crit' : r.saldo ? 'stripe-acc' : ''}" data-act="go" data-v="devedor" data-id="${r.v.id}">
       <div><div class="t">${esc(r.v.nome)}${r.prox ? ` <span class="num ${r.prox < X.t ? 'crit' : 'muted'}" style="font-weight:500;font-size:13px">${ddmm(r.prox)}</span>` : ''}</div><div class="s">${r.v.doc ? `<span class="num">${esc(fmtDoc(r.v.doc))}</span>` : `<span>${r.v.tipo === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física'}</span>`}
-        ${r.creds.map(c => `${credTag(X.cred[c])} ${esc(credNome(X.cred[c]))}`).join(' · ')}${r.venc ? ` · <span class="crit">vencido ${brl(r.venc)}</span>` : ''}${r.jur ? ' <span class="stamp">JURÍDICO</span>' : ''}</div></div>
+        ${r.creds.map(c => X.cred[c] && X.cred[c].tipo === 'PF' ? credTag(X.cred[c]) : `${credTag(X.cred[c])} ${esc(credNome(X.cred[c]))}`).join(' · ')}${r.venc ? ` · <span class="crit">vencido ${brl(r.venc)}</span>` : ''}${r.jur ? ' <span class="stamp">JURÍDICO</span>' : ''}</div></div>
       <div class="v">${brl(r.saldo)}<small>${r.saldo ? 'a receber' : 'sem saldo'}</small></div></button>`).join('')
       : `<div class="empty"><b>${S.devedores.length ? 'Nenhum devedor encontrado' : 'Nenhum devedor cadastrado'}</b>${S.devedores.length ? 'Ajuste a busca ou a carteira selecionada.' : 'Cadastre a primeira pessoa ou empresa que lhe deve.'}${S.devedores.length ? '' : '<button class="btn pri" data-act="novoDevedor">Novo devedor</button>'}</div>`}
     </div></section>`;
