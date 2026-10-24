@@ -397,12 +397,13 @@ const Eng = (() => {
 'use strict';
 /* ================= ESTADO ================= */
 const S = {
+  contas_pagar: [],
   credores: [], devedores: [], dividas: [], pagamentos: [], ajustes: [], contatos: [], auditoria: [], config: {},
   loaded: {}, view: 'painel', p: {}, cart: 'all', canWrite: true, meId: null, offline: false,
   dirty: false, pending: false, names: {}
 };
 let db = null, U = null, AS = null, DL = null, X = null;
-const COLS = ['credores', 'devedores', 'dividas', 'pagamentos', 'ajustes', 'contatos', 'auditoria'];
+const COLS = ['credores', 'devedores', 'dividas', 'pagamentos', 'ajustes', 'contatos', 'contas_pagar', 'auditoria'];
 
 /* ================= UTILITÁRIOS ================= */
 const $ = s => document.querySelector(s);
@@ -446,6 +447,7 @@ function monthBounds(t) { const ym = t.slice(0, 7); const [y, m] = ym.split('-')
 const I = (p, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${p}</svg>`;
 const IC = {
   agenda: I('<rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M8 14h2M14 14h2M8 17.5h2"/>'),
+  pagar: I('<rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19M15 15h3"/><path d="M7 15l2-2M7 15l2 2"/>'),
   painel: I('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
   devedores: I('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/>'),
   nova: I('<path d="M12 5v14M5 12h14"/>'),
@@ -465,7 +467,7 @@ const IC = {
   copy: I('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>')
 };
 const NAV = [
-  ['painel', 'Dashboard'], ['nova', 'Cadastrar dívida'], ['agenda', 'Vencimentos e cobranças'], ['relatorios', 'Relatórios'], ['config', 'Configurações']
+  ['painel', 'Dashboard'], ['nova', 'Cadastrar dívida'], ['agenda', 'Vencimentos e cobranças'], ['pagar', 'Contas a pagar'], ['relatorios', 'Relatórios'], ['config', 'Configurações']
 ];
 
 /* ================= DOMÍNIO ================= */
@@ -644,16 +646,16 @@ function renderShell() {
   $('#side').innerHTML = `<div class="brand"><span>Livro de recebíveis</span><b>Gestão de Contas a Receber</b></div>
     ${NAV.map(([k, l]) => `<button class="nav-btn ${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}<span>${l}</span>${k === 'agenda' && venc ? `<span class="ct">${venc}</span>` : ''}</button>`).join('')}
     <div class="foot">${S.canWrite ? '' : '<div class="pill warn" style="margin-bottom:8px">Somente leitura</div>'}Valores em R$ · ${fd(X.t)}<div class="flex" style="margin-top:8px"><button class="btn sm" data-act="atualizar">Atualizar</button><button class="btn sm" data-act="sair">Sair</button></div></div>`;
-  const tb = [['painel', 'Painel'], ['nova', 'Cadastrar'], ['agenda', 'Agenda'], ['relatorios', 'Relatórios'], ['config', 'Config.']];
+  const tb = [['painel', 'Painel'], ['nova', 'Cadastrar'], ['agenda', 'Agenda'], ['pagar', 'A pagar'], ['mais', 'Mais']];
   $('#tabbar').innerHTML = tb.map(([k, l]) => k === 'nova'
     ? `<button class="plus ${navOn(k) ? 'on' : ''}" data-act="go" data-v="nova"><span class="ic">${IC.nova}</span>${l}</button>`
-    : k === 'mais' ? `<button class="${['vencimentos', 'cobrancas', 'juridico', 'relatorios', 'config'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
+    : k === 'mais' ? `<button class="${['juridico', 'relatorios', 'config'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
       : `<button class="${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('');
 }
 const navOn = k => S.view === k || (k === 'agenda' && ['vencimentos', 'cobrancas'].includes(S.view)) || (k === 'painel' && ['devedor', 'devedores', 'divida', 'recebimentos'].includes(S.view));
 ACT.maisMenu = () => openModal({
   title: 'Menu', noFoot: true,
-  body: `<div class="sheetmenu">${NAV.filter(n => !['painel', 'devedores', 'nova', 'recebimentos'].includes(n[0])).map(([k, l]) => `<button type="button" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('')}<button type="button" data-act="atualizar">${IC.refresh}Atualizar</button></div>`
+  body: `<div class="sheetmenu">${NAV.filter(n => !['painel', 'nova', 'agenda', 'pagar'].includes(n[0])).map(([k, l]) => `<button type="button" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('')}<button type="button" data-act="atualizar">${IC.refresh}Atualizar</button></div>`
 });
 
 function carteiraChips() {
@@ -1951,7 +1953,7 @@ async function boot() {
       S[c] = snap.docs.map(x => ({ ...x.data(), id: x.id }));
       S.loaded[c] = true;
       if (c === 'credores' && !['all', 'PF', 'PJ'].includes(S.cart) && !S.credores.some(x => x.id === S.cart)) S.cart = 'all';
-      if (COLS.every(k => S.loaded[k])) S.ready = true;
+      if (COLS.every(k => S.loaded[k])) { if (!S.ready) setTimeout(() => typeof estenderRecorrentes === 'function' && estenderRecorrentes(), 1500); S.ready = true; }
       requestRender();
     }, err => { console.error(c, err); toast('Falha ao carregar ' + c + '. Recarregue a página.', true); });
   }
@@ -1962,6 +1964,229 @@ render = function () {
   if (db && !S.ready && !S.offline) { build(); renderShell(); $('#main').innerHTML = '<div class="loading">Carregando seus dados…</div>'; return; }
   _render();
 };
+
+/* ================= CONTAS A PAGAR (pessoa física) ================= */
+const CATS_PAGAR = ['Moradia', 'Condomínio', 'Cartão de crédito', 'Impostos e taxas', 'Escola', 'Saúde', 'Seguros', 'Empréstimo / financiamento', 'Funcionários', 'Contas de consumo', 'Outros'];
+const pfCarteiras = () => S.credores.filter(c => c.tipo === 'PF');
+function posPagar(cp, t = X.t) {
+  const pags = (cp.pagamentos || []).filter(p => !p.estornado);
+  const pago = pags.reduce((s, p) => s + p.valor, 0);
+  const saldo = Math.max(0, cp.valor - pago);
+  const ultimo = pags.reduce((m, p) => p.data > m ? p.data : m, '');
+  const st = cp.cancelada ? 'cancelada' : saldo <= 0 ? 'paga' : cp.vencimento < t ? 'vencida' : pago > 0 ? 'parcial' : 'aberta';
+  return { pago, saldo, st, ultimo };
+}
+const ST_PAGAR = { aberta: ['A pagar', 'acc'], parcial: ['Paga em parte', 'warn'], vencida: ['Vencida', 'crit'], paga: ['Paga', 'ok'], cancelada: ['Cancelada', ''] };
+const pillPagar = st => `<span class="pill ${ST_PAGAR[st][1]}">${ST_PAGAR[st][0]}</span>`;
+
+VIEWS.pagar = () => {
+  const pfs = pfCarteiras();
+  if (!pfs.length) return `<div class="ph"><div><h1>Contas a pagar</h1></div></div><div class="notice">Cadastre primeiro a sua pessoa física em Configurações → Pessoa física.</div><div><button class="btn pri" data-act="go" data-v="config">Ir para Configurações</button></div>`;
+  const t = X.t;
+  const mes = S.p.mes || t.slice(0, 7);
+  const [y, m] = mes.split('-').map(Number);
+  const m0 = mes + '-01', m1 = mes + '-' + String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0');
+  const todas = S.contas_pagar.filter(cp => !cp.cancelada && pfs.some(c => c.id === cp.credorId));
+  const comPos = todas.map(cp => ({ cp, p: posPagar(cp) }));
+  const vencidas = comPos.filter(x => x.p.st === 'vencida').sort((a, b) => a.cp.vencimento < b.cp.vencimento ? -1 : 1);
+  const doMes = comPos.filter(x => x.cp.vencimento >= m0 && x.cp.vencimento <= m1).sort((a, b) => a.cp.vencimento < b.cp.vencimento ? -1 : a.cp.vencimento > b.cp.vencimento ? 1 : 0);
+  const aPagarMes = doMes.reduce((s, x) => s + x.p.saldo, 0);
+  const totVenc = vencidas.reduce((s, x) => s + x.p.saldo, 0);
+  const lim7 = Eng.addDays(t, 7);
+  const prox7 = comPos.filter(x => x.p.saldo > 0 && x.cp.vencimento >= t && x.cp.vencimento <= lim7).reduce((s, x) => s + x.p.saldo, 0);
+  let pagoMes = 0;
+  for (const cp of todas) for (const pg of (cp.pagamentos || [])) if (!pg.estornado && pg.data >= m0 && pg.data <= m1) pagoMes += pg.valor;
+  const ym = (k) => { const d = new Date(Date.UTC(y, m - 1 + k, 1)); return d.toISOString().slice(0, 7); };
+  const row = ({ cp, p }) => `<button class="row compact ${p.st === 'vencida' ? 'stripe-crit' : p.st === 'paga' ? 'stripe-ok' : p.st === 'parcial' ? 'stripe-warn' : 'stripe-acc'}" data-act="verPagar" data-id="${cp.id}">
+    <div class="t"><span class="num sm ${p.st === 'vencida' ? 'crit' : 'muted'}">${ddmm(cp.vencimento)}</span>${esc(cp.favorecido || cp.descricao)}${cp.favorecido && cp.descricao ? `<span class="muted sm">${esc(cp.descricao)}</span>` : ''}${cp.parcela ? `<span class="muted sm">${esc(cp.parcela)}</span>` : ''}${pfs.length > 1 ? `<span class="tag">${esc(credNome(X.cred[cp.credorId]))}</span>` : ''}${p.st !== 'aberta' ? pillPagar(p.st) : ''}</div>
+    <div class="v">${brl(p.st === 'paga' ? cp.valor : p.saldo)}</div></button>`;
+  const kp = (l, v, h, cls = '') => `<div class="kpi"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
+  return `<div class="ph"><div><div class="eyebrow">${pfs.length === 1 ? 'Pessoa física · ' + esc(credNome(pfs[0])) : 'Pessoa física'}</div><h1>Contas a pagar</h1><div class="sub">Visível só para você.</div></div>
+    ${S.canWrite ? `<div class="acts"><button class="btn pri" data-act="novaPagar">${IC.nova} Nova conta</button></div>` : ''}</div>
+  <div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    ${kp('A pagar no mês', brl(aPagarMes), MESES[m - 1] + '/' + y)}
+    ${kp('Vencidas', brl(totVenc), vencidas.length ? `${vencidas.length} conta${vencidas.length > 1 ? 's' : ''}` : 'Nada em atraso', totVenc ? 'crit' : '')}
+    ${kp('Próximos 7 dias', brl(prox7))}
+    ${kp('Pago no mês', brl(pagoMes), '', pagoMes ? 'ok' : '')}
+  </div>
+  ${vencidas.length ? `<section class="sheet"><header><h2>Vencidas</h2><span class="meta">${brl(totVenc)}</span></header><div class="list">${vencidas.map(row).join('')}</div></section>` : ''}
+  <section class="sheet"><header><div class="flex"><button class="btn ghost sm" data-act="mesPagar" data-m="${ym(-1)}" aria-label="Mês anterior">‹</button><h2 style="text-transform:capitalize;min-width:130px;text-align:center">${MESES[m - 1]} ${y}</h2><button class="btn ghost sm" data-act="mesPagar" data-m="${ym(1)}" aria-label="Próximo mês">›</button></div><span class="meta">${doMes.length} conta${doMes.length !== 1 ? 's' : ''} · em aberto ${brl(aPagarMes)}</span></header>
+    <div class="list">${doMes.length ? doMes.map(row).join('') : `<div class="empty">Nenhuma conta com vencimento neste mês.${S.canWrite ? '<button class="btn pri" data-act="novaPagar">Nova conta</button>' : ''}</div>`}</div></section>`;
+};
+ACT.mesPagar = el => { S.p.mes = el.dataset.m; render(); };
+
+function formPagar(cp = {}) {
+  const pfs = pfCarteiras();
+  const sel = cp.credorId || (pfs[0] && pfs[0].id);
+  return `<div class="form">
+    ${pfs.length > 1 ? `<div class="f full"><label for="cp-cred">Pessoa física</label><select id="cp-cred" name="credorId">${pfs.map(c => `<option value="${c.id}" ${sel === c.id ? 'selected' : ''}>${esc(credNome(c))}</option>`).join('')}</select></div>` : `<input type="hidden" name="credorId" value="${sel}">`}
+    <div class="f"><label for="cp-fav">A quem pagar <span class="req">*</span></label><input type="text" id="cp-fav" name="favorecido" value="${esc(cp.favorecido)}" placeholder="Ex.: Condomínio, Banco, Fulano"></div>
+    <div class="f"><label for="cp-desc">Descrição</label><input type="text" id="cp-desc" name="descricao" value="${esc(cp.descricao)}" placeholder="Ex.: Taxa de outubro"></div>
+    <div class="f"><label for="cp-val">Valor (R$) <span class="req">*</span></label><input type="text" class="money-in" inputmode="decimal" id="cp-val" name="valor" value="${toInput(cp.valor)}" placeholder="0,00"></div>
+    <div class="f"><label for="cp-venc">Vencimento <span class="req">*</span></label><input type="date" id="cp-venc" name="vencimento" value="${cp.vencimento || X.t}"></div>
+    <div class="f"><label for="cp-cat">Categoria</label><select id="cp-cat" name="categoria"><option value="">—</option>${CATS_PAGAR.map(c => `<option ${cp.categoria === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+    ${cp.id ? (cp.grupo ? `<div class="f full"><label class="flex" style="font-weight:500"><input type="checkbox" name="futuras" checked> Aplicar também às próximas contas desta recorrência ainda não pagas</label></div>` : '') : `
+    <div class="f full"><span class="lb">Tipo de conta</span><div class="seg" data-seg="tipo"><button type="button" class="on" data-val="avulsa">Avulsa (uma vez)</button><button type="button" data-val="recorrente">Recorrente</button></div><input type="hidden" name="tipo" value="avulsa"></div>
+    <div class="box full" id="cp-rec" hidden><div class="form">
+      <div class="f"><label for="cp-freq">Repete</label><select id="cp-freq" name="freq"><option value="mensal">Todo mês</option><option value="anual">Todo ano</option></select></div>
+      <div class="f"><label for="cp-fim">Até quando</label><select id="cp-fim" name="fim"><option value="sem">Sem data para terminar</option>${[2, 3, 4, 5, 6, 10, 12, 18, 24, 36, 48, 60].map(n => `<option value="${n}">${n} vezes</option>`).join('')}</select></div>
+      <span class="hint full">As contas sem data para terminar são criadas automaticamente com 12 meses de antecedência (ou 2 anos, se forem anuais).</span>
+    </div></div>`}
+    <div class="f full"><label for="cp-obs">Observações</label><textarea id="cp-obs" name="obs">${esc(cp.obs)}</textarea></div>
+    ${fileInput('cp-files', 'Boleto ou documento')}
+  </div>`;
+}
+ACT.novaPagar = () => {
+  if (!needWrite()) return;
+  const form = openModal({
+    title: 'Nova conta a pagar', ok: 'Cadastrar', body: formPagar(),
+    onSubmit: async f => {
+      const valor = parseBRL(fv(f, 'valor')), venc = fv(f, 'vencimento'), fav = fv(f, 'favorecido');
+      const credorId = fv(f, 'credorId');
+      if (!fav) { toast('Informe a quem pagar.', true); return false; }
+      if (!(valor > 0)) { toast('Informe o valor.', true); return false; }
+      if (!venc) { toast('Informe o vencimento.', true); return false; }
+      const rec = fv(f, 'tipo') === 'recorrente';
+      const freq = fv(f, 'freq') === 'anual' ? 'anual' : 'mensal';
+      const fim = rec ? (fv(f, 'fim') === 'sem' ? 'sem' : Math.max(2, parseInt(fv(f, 'fim')) || 2)) : 1;
+      const anexos = await uploadFiles(f.elements.files.files, credorId);
+      const base = { credorId, favorecido: fav, descricao: fv(f, 'descricao'), valor, categoria: fv(f, 'categoria'), obs: fv(f, 'obs') };
+      let n = 1;
+      if (!rec) {
+        await put('contas_pagar', newId('contas_pagar'), stamp({ ...base, vencimento: venc, anexos, pagamentos: [], cancelada: false }, true));
+      } else {
+        const grupo = newId('contas_pagar');
+        const recorrente = { freq, fim, inicio: venc };
+        n = fim === 'sem' ? horizonte(freq, venc) : fim;
+        for (let i = 0; i < n; i++) {
+          await put('contas_pagar', grupo + '-' + i, stamp({ ...base, vencimento: proxVenc(venc, freq, i), anexos: i === 0 ? anexos : [], pagamentos: [], cancelada: false, grupo, seq: i, recorrente, parcela: fim === 'sem' ? 'Recorrente' : `${i + 1}/${fim}` }, true));
+        }
+      }
+      await audit('criação', 'conta a pagar', 'conta', `${fav}: ${brl(valor)}${rec ? ` · ${freq === 'anual' ? 'anual' : 'mensal'}${fim === 'sem' ? ', sem data para terminar' : `, ${fim} vezes`}` : ''} · vencimento ${fd(venc)}`, { credorId });
+      toast(rec ? (fim === 'sem' ? 'Conta recorrente cadastrada.' : `${n} contas cadastradas.`) : 'Conta cadastrada.');
+      S.p.mes = venc.slice(0, 7);
+    }
+  });
+  form.addEventListener('change', () => { const b = form.querySelector('#cp-rec'); if (b) b.hidden = fv(form, 'tipo') !== 'recorrente'; });
+};
+ACT.verPagar = el => {
+  const cp = S.contas_pagar.find(x => x.id === el.dataset.id); if (!cp) return;
+  const p = posPagar(cp);
+  const pags = (cp.pagamentos || []);
+  openModal({
+    title: cp.favorecido || 'Conta a pagar', noFoot: true,
+    body: `<div class="flex">${pillPagar(p.st)}${cp.parcela ? `<span class="muted">Parcela ${esc(cp.parcela)}</span>` : ''}${cp.categoria ? `<span class="muted">${esc(cp.categoria)}</span>` : ''}</div>
+    <dl class="kv"><dt>Descrição</dt><dd>${esc(cp.descricao || '—')}</dd><dt>Vencimento</dt><dd class="num">${fd(cp.vencimento)}</dd><dt>Valor</dt><dd class="num">${brl(cp.valor)}</dd><dt>Pago</dt><dd class="num ok">${brl(p.pago)}</dd><dt>Falta pagar</dt><dd class="num"><b>${brl(p.saldo)}</b></dd>${cp.obs ? `<dt>Observações</dt><dd style="white-space:pre-wrap">${esc(cp.obs)}</dd>` : ''}</dl>
+    ${pags.length ? `<div><div class="eyebrow" style="margin-bottom:6px">Pagamentos</div><div class="timeline">${pags.map((pg, i) => `<div class="tl"><div class="d">${fd(pg.data)}</div><div><div class="flex"><b class="num" ${pg.estornado ? 'style="text-decoration:line-through"' : ''}>${brl(pg.valor)}</b>${pg.forma ? `<span class="muted">${esc(pg.forma)}</span>` : ''}${pg.estornado ? '<span class="pill">Estornado</span>' : S.canWrite ? `<button type="button" class="btn ghost sm right" data-act="estornarPagar" data-id="${cp.id}" data-i="${i}">Estornar</button>` : ''}</div>${fileList(pg.anexos)}</div></div>`).join('')}</div></div>` : ''}
+    ${cp.anexos && cp.anexos.length ? `<div><div class="eyebrow" style="margin-bottom:6px">Documentos</div>${fileList(cp.anexos)}</div>` : ''}
+    ${S.canWrite ? `<div class="flex" style="justify-content:flex-end;border-top:1px solid var(--line);padding-top:14px">${!cp.cancelada ? `<button type="button" class="btn danger" data-act="cancelarPagar" data-id="${cp.id}">Excluir</button>` : ''}<button type="button" class="btn" data-act="editarPagar" data-id="${cp.id}">Editar</button>${p.saldo > 0 && !cp.cancelada ? `<button type="button" class="btn pri" data-act="pagarConta" data-id="${cp.id}">Registrar pagamento</button>` : ''}</div>` : ''}`
+  });
+};
+ACT.pagarConta = el => {
+  if (!needWrite()) return;
+  const cp = S.contas_pagar.find(x => x.id === el.dataset.id); const p = posPagar(cp);
+  const form = openModal({
+    title: 'Registrar pagamento', ok: 'Registrar',
+    body: `<div class="notice info" style="font-size:13px"><b>${esc(cp.favorecido)}</b>${cp.descricao ? ' · ' + esc(cp.descricao) : ''} · falta pagar <b class="num">${brl(p.saldo)}</b></div>
+    <div class="form">
+      <div class="f"><label for="pp-data">Data do pagamento</label><input type="date" id="pp-data" name="data" value="${X.t}"></div>
+      <div class="f"><label for="pp-val">Valor pago (R$)</label><input type="text" class="money-in" inputmode="decimal" id="pp-val" name="valor" value="${toInput(p.saldo)}"><span class="hint">Pode ser só uma parte.</span></div>
+      <div class="f"><label for="pp-forma">Forma</label><select id="pp-forma" name="forma">${FORMAS.map(x => `<option>${x}</option>`).join('')}</select></div>
+      ${fileInput('pp-files', 'Comprovante')}
+    </div>`,
+    onSubmit: async f => {
+      const v = parseBRL(fv(f, 'valor')), data = fv(f, 'data');
+      if (!(v > 0)) { toast('Informe o valor pago.', true); return false; }
+      if (v > p.saldo) { toast(`O valor passa do que falta pagar (${brl(p.saldo)}).`, true); return false; }
+      if (!data) { toast('Informe a data.', true); return false; }
+      const anexos = await uploadFiles(f.elements.files.files, cp.credorId);
+      const pagamentos = [...(cp.pagamentos || []), { data, valor: v, forma: fv(f, 'forma'), anexos, em: nowIso(), por: S.meId || null }];
+      await upd('contas_pagar', cp.id, { pagamentos, atualizadoEm: nowIso() });
+      await audit('pagamento', 'conta a pagar', cp.id, `${cp.favorecido}: pago ${brl(v)} em ${fd(data)}`, { credorId: cp.credorId });
+      toast(v >= p.saldo ? 'Conta paga.' : `Pagamento registrado. Falta ${brl(p.saldo - v)}.`);
+    }
+  });
+  return form;
+};
+ACT.estornarPagar = async el => {
+  if (!needWrite()) return;
+  const cp = S.contas_pagar.find(x => x.id === el.dataset.id); const i = +el.dataset.i; const pg = cp.pagamentos[i];
+  const j = await confirmBox('Estornar pagamento', `Estornar o pagamento de <b class="num">${brl(pg.valor)}</b> de ${fd(pg.data)}? Ele fica no histórico como estornado.`, 'Estornar', true, justField('Motivo'));
+  if (!j) return;
+  const pagamentos = cp.pagamentos.map((x, k) => k === i ? { ...x, estornado: true, motivo: j, estornadoEm: nowIso() } : x);
+  try { await upd('contas_pagar', cp.id, { pagamentos, atualizadoEm: nowIso() }); await audit('estorno', 'conta a pagar', cp.id, `${cp.favorecido}: estorno de ${brl(pg.valor)} (${j})`, { credorId: cp.credorId }); toast('Pagamento estornado.'); }
+  catch (e) { toast(errMsg(e), true); }
+};
+ACT.editarPagar = el => {
+  if (!needWrite()) return;
+  const cp = S.contas_pagar.find(x => x.id === el.dataset.id);
+  openModal({
+    title: 'Editar conta', ok: 'Salvar', body: formPagar(cp),
+    onSubmit: async f => {
+      const valor = parseBRL(fv(f, 'valor')), venc = fv(f, 'vencimento'), fav = fv(f, 'favorecido');
+      if (!fav || !(valor > 0) || !venc) { toast('Preencha a quem pagar, valor e vencimento.', true); return false; }
+      const novos = await uploadFiles(f.elements.files.files, cp.credorId);
+      const dados = { favorecido: fav, descricao: fv(f, 'descricao'), valor, categoria: fv(f, 'categoria'), obs: fv(f, 'obs') };
+      await put('contas_pagar', cp.id, stamp(clean({ ...cp, ...dados, credorId: fv(f, 'credorId') || cp.credorId, vencimento: venc, anexos: [...(cp.anexos || []), ...novos] }), false));
+      if (cp.grupo && fv(f, 'futuras')) {
+        const dia = venc.slice(8, 10);
+        for (const x of S.contas_pagar.filter(x => x.grupo === cp.grupo && x.id !== cp.id && !x.cancelada && x.vencimento > cp.vencimento && !posPagar(x).pago)) {
+          await upd('contas_pagar', x.id, { ...dados, vencimento: comDia(x.vencimento, dia), atualizadoEm: nowIso() });
+        }
+      }
+      await audit('edição', 'conta a pagar', cp.id, `${fav}: ${brl(valor)}, vencimento ${fd(venc)}`, { credorId: cp.credorId });
+      toast('Conta atualizada.');
+    }
+  });
+};
+ACT.cancelarPagar = async el => {
+  if (!needWrite()) return;
+  const cp = S.contas_pagar.find(x => x.id === el.dataset.id);
+  const futuras = cp.grupo ? S.contas_pagar.filter(x => x.grupo === cp.grupo && !x.cancelada && x.vencimento > cp.vencimento && !posPagar(x).pago) : [];
+  const ok = await confirmBox('Excluir conta', `Excluir <b>${esc(cp.favorecido)}</b> de ${fd(cp.vencimento)} (${brl(cp.valor)})? Ela fica no histórico como cancelada.${futuras.length ? `<br><br><label class="flex" style="font-weight:500"><input type="checkbox" id="cp-fut"> Excluir também as ${futuras.length} seguintes ainda não pagas${cp.recorrente && cp.recorrente.fim === 'sem' ? ' e encerrar a recorrência' : ''}</label>` : ''}`, 'Excluir', true);
+  if (!ok) return;
+  const alvo = [cp, ...((document.getElementById('cp-fut') || {}).checked ? futuras : [])];
+  try {
+    const encerra = alvo.length > 1 || (cp.grupo && !futuras.length);
+    for (const x of alvo) await upd('contas_pagar', x.id, { cancelada: true, canceladaEm: nowIso(), ...(encerra && cp.grupo ? { encerra: true } : {}) });
+    await audit('cancelamento', 'conta a pagar', cp.id, `${cp.favorecido}: ${alvo.length} conta(s) excluída(s)`, { credorId: cp.credorId });
+    toast('Conta excluída.');
+  } catch (e) { toast(errMsg(e), true); }
+};
+
+/* recorrência */
+function proxVenc(inicio, freq, i) { return freq === 'anual' ? Eng.addMonths(inicio, 12 * i) : Eng.addMonths(inicio, i); }
+function horizonte(freq, inicio) {
+  const lim = Eng.addMonths(X.t, freq === 'anual' ? 24 : 12);
+  let n = 1; while (proxVenc(inicio, freq, n) <= lim && n < 400) n++;
+  return Math.max(n, freq === 'anual' ? 2 : 12);
+}
+function comDia(data, dia) {
+  const [y, m] = data.split('-').map(Number);
+  const ult = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return data.slice(0, 8) + String(Math.min(+dia, ult)).padStart(2, '0');
+}
+let estendendo = false;
+async function estenderRecorrentes() {
+  if (estendendo || !S.canWrite || !db || !S.ready) return;
+  estendendo = true;
+  try {
+    const grupos = {};
+    for (const x of S.contas_pagar) if (x.grupo && x.recorrente && x.recorrente.fim === 'sem') (grupos[x.grupo] ||= []).push(x);
+    for (const [g, itens] of Object.entries(grupos)) {
+      if (itens.some(x => x.encerra)) continue;
+      const ult = itens.reduce((a, b) => (b.seq ?? 0) > (a.seq ?? 0) ? b : a);
+      const { freq, inicio } = ult.recorrente;
+      const alvo = horizonte(freq, inicio);
+      for (let i = (ult.seq ?? 0) + 1; i < alvo; i++) {
+        const id = g + '-' + i;
+        if (S.contas_pagar.some(x => x.id === id)) continue;
+        await put('contas_pagar', id, stamp({ credorId: ult.credorId, favorecido: ult.favorecido, descricao: ult.descricao, valor: ult.valor, categoria: ult.categoria, obs: ult.obs, vencimento: comDia(proxVenc(inicio, freq, i), ult.vencimento.slice(8, 10)), anexos: [], pagamentos: [], cancelada: false, grupo: g, seq: i, recorrente: ult.recorrente, parcela: 'Recorrente' }, true));
+      }
+    }
+  } catch (e) { console.warn('recorrência', e); }
+  finally { estendendo = false; }
+}
 
 /* ================= CONEXÃO SUPABASE (substitui o banco do Claude) ================= */
 const CFG_OK = !/COLE_AQUI/.test(SUPABASE_URL + SUPABASE_KEY);
