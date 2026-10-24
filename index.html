@@ -59,8 +59,11 @@ a{color:var(--accent)}
 @media (max-width:860px){
   .app{grid-template-columns:1fr}
   .side{display:none}
-  .main{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px));padding-top:16px}
-  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+  :root{padding-bottom:0!important}
+  html,body{height:100%;overflow:hidden}
+  .app{height:100%;display:flex;flex-direction:column;min-height:0}
+  .main{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:24px;padding-top:16px}
+  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:relative;flex:none;z-index:30;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
   .tabbar button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);padding:4px 0;cursor:pointer}
   .tabbar button svg{width:22px;height:22px}
   .tabbar button.on{color:var(--accent);font-weight:700}
@@ -203,6 +206,8 @@ fieldset{border:0;padding:0;margin:0}
 .kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere}
 .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;padding:0 10px}
 .tabs button{border:0;background:none;padding:11px 12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs.sticky{position:sticky;top:0;z-index:5;background:var(--bg)}
+@media (min-width:861px){.tabs.sticky{top:0}}
 .tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
 .notice{padding:12px 14px;border-radius:8px;background:var(--warn-soft);color:var(--ink);font-size:14px;border:1px solid color-mix(in srgb,var(--warn) 35%,transparent)}
 .notice.info{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
@@ -593,7 +598,7 @@ function requestRender() {
 function go(view, p = {}) {
   S.view = view; S.p = p; S.dirty = false; S.pending = false;
   try { history.replaceState(null, '', '#' + view); } catch { }
-  closeModal(); render(); window.scrollTo(0, 0);
+  closeModal(); render(); window.scrollTo(0, 0); const mn = document.querySelector('.main'); if (mn) mn.scrollTop = 0;
 }
 const ACT = {};
 document.addEventListener('click', e => {
@@ -1591,7 +1596,7 @@ VIEWS.vencimentos = () => {
 /* ================= VENCIMENTOS E COBRANÇAS (juntos) ================= */
 VIEWS.agenda = () => {
   const aba = S.p.aba === 'cob' ? 'cob' : 'venc';
-  return `<div class="tabs" style="padding:0;border-bottom:1px solid var(--line)"><button class="${aba === 'venc' ? 'on' : ''}" data-act="abaAgenda" data-a="venc">Vencimentos</button><button class="${aba === 'cob' ? 'on' : ''}" data-act="abaAgenda" data-a="cob">Cobranças</button></div>` + (aba === 'cob' ? VIEWS.cobrancas() : VIEWS.vencimentos());
+  return `<div class="tabs sticky" style="padding:0;border-bottom:1px solid var(--line)"><button class="${aba === 'venc' ? 'on' : ''}" data-act="abaAgenda" data-a="venc">Vencimentos</button><button class="${aba === 'cob' ? 'on' : ''}" data-act="abaAgenda" data-a="cob">Cobranças</button></div>` + (aba === 'cob' ? VIEWS.cobrancas() : VIEWS.vencimentos());
 };
 ACT.abaAgenda = el => { S.p.aba = el.dataset.a; render(); };
 /* ================= COBRANÇAS ================= */
