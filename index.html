@@ -147,6 +147,8 @@ td .s{display:block;font-size:12px;color:var(--muted)}
 .chip.pf::before{background:var(--pf)} .chip.pj::before{background:var(--pj)}
 .kpi.pf{box-shadow:inset 0 3px 0 var(--pf)} .kpi.pf .v{color:var(--pf)}
 .kpi.pj{box-shadow:inset 0 3px 0 var(--pj)} .kpi.pj .v{color:var(--pj)}
+.kpi.pfs{box-shadow:inset 0 3px 0 var(--pf)} .kpi.pjs{box-shadow:inset 0 3px 0 var(--pj)}
+.kpi.span-all{grid-column:1/-1}
 .stamp{display:inline-block;font:700 11px var(--f-num);letter-spacing:.14em;color:var(--legal);border:1.5px solid var(--legal);padding:2px 6px;border-radius:3px;transform:rotate(-2deg)}
 
 /* ---- listas ---- */
@@ -743,6 +745,9 @@ VIEWS.painel = () => {
 
   const kp = (l, v, h, cls = '', lead, extra = '') => `<div class="kpi ${lead ? 'lead' : ''} ${extra}"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
   const vazio = !S.dividas.length;
+  const abPF = ab.filter(isPF), abPJ = ab.filter(d => !isPF(d));
+  const vencPF = sum(abPF, d => X.C[d.id].vencido), vencPJ = sum(abPJ, d => X.C[d.id].vencido);
+  const nVencPF = abPF.filter(d => X.C[d.id].situacao === 'vencida').length, nVencPJ = abPJ.filter(d => X.C[d.id].situacao === 'vencida').length;
   const pag30 = (() => {
     if (typeof pfCarteiras !== 'function') return null;
     const pfs = pfCarteiras(); if (!pfs.length) return null;
@@ -773,11 +778,12 @@ VIEWS.painel = () => {
   ${carteiraChips()}
   ${vazio ? onboarding() : `
   <div class="kpis" style="grid-template-columns:repeat(var(--kc,3),minmax(0,1fr))">
-    ${kp('Total a receber', brl(total), totPrev ? `${brl(total - totPrev)} confirmado · ${brl(totPrev)} previsto` : `${ab.length} dívida${ab.length !== 1 ? 's' : ''} em aberto`, '', true)}
+    ${kp('Total a receber', brl(total), totPrev ? `${brl(total - totPrev)} confirmado · ${brl(totPrev)} previsto` : `${ab.length} dívida${ab.length !== 1 ? 's' : ''} em aberto`, '', true, 'span-all')}
     ${kp('Pessoa física', brl(pf), 'Carteira PF', '', false, 'pf')}
+    ${kp('Vencido · PF', brl(vencPF), nVencPF ? `${nVencPF} dívida${nVencPF > 1 ? 's' : ''} em atraso` : 'Nada em atraso', vencPF ? 'crit' : '', false, 'pfs')}
     ${pag30 ? kp('Contas a pagar (30 dias)', brl(pag30.total), pag30.venc ? `<span class="crit">${brl(pag30.venc)} vencido</span>` : `${pag30.n} conta${pag30.n !== 1 ? 's' : ''}`, '', false, 'pf') : ''}
     ${kp('Pessoa jurídica', brl(pj), 'Todas as empresas', '', false, 'pj')}
-    ${kp('Vencido', brl(venc), nVenc ? `${nVenc} dívida${nVenc > 1 ? 's' : ''} em atraso` : 'Nada em atraso', venc ? 'crit' : '')}
+    ${kp('Vencido · PJ', brl(vencPJ), nVencPJ ? `${nVencPJ} dívida${nVencPJ > 1 ? 's' : ''} em atraso` : 'Nada em atraso', vencPJ ? 'crit' : '', false, 'pjs')}
     ${kp('A vencer', brl(aVenc), 'Saldo ainda no prazo')}
   </div>
   <div class="grid2" style="align-items:start">${quemSec}${typeof resumoPagarDash === 'function' ? resumoPagarDash() : ''}</div>
