@@ -526,7 +526,9 @@ function statusCob(d) {
   if (c.situacao === 'parcial') return 'parcial';
   return 'aberto';
 }
-const sitPill = d => { const s = SIT[X.C[d.id].situacao]; return `<span class="pill ${s[1]}">${s[0]}</span>`; };
+const prevista = d => d.confirmacao === 'prevista';
+const confPill = d => prevista(d) ? '<span class="pill" style="border:1px dashed var(--muted)">Prevista</span>' : '';
+const sitPill = d => { const s = SIT[X.C[d.id].situacao]; return `<span class="pill ${s[1]}">${s[0]}</span>${prevista(d) ? ' ' + confPill(d) : ''}`; };
 const cobPill = k => { const c = COB[k]; return c ? `<span class="pill ${c[2]}">${c[1]}</span>` : `<span class="pill">Cancelada</span>`; };
 const nomeUser = id => !id ? 'Sistema' : (S.names[id] || (id === S.meId ? 'Você' : 'Usuário'));
 async function resolveNames(ids) {
@@ -558,7 +560,9 @@ const upd = (col, id, data) => withRetry(() => db.doc(col + '/' + id).update(dat
 const nowIso = () => new Date().toISOString();
 const clean = o => { const r = {}; for (const [k, v] of Object.entries(o)) if (k !== 'id' && v !== undefined) r[k] = v; return r; };
 async function audit(acao, entidade, entidadeId, resumo, extra) {
-  try { await put('auditoria', newId('auditoria'), { em: nowIso(), por: S.meId || null, acao, entidade, entidadeId, resumo, ...(extra || {}) }); }
+  const div = X && X.div[(extra && extra.dividaId) || entidadeId];
+  const credorId = (extra && extra.credorId) || (div && div.credorId) || (entidade === 'credor' ? entidadeId : null);
+  try { await put('auditoria', newId('auditoria'), { em: nowIso(), por: S.meId || null, acao, entidade, entidadeId, resumo, ...(extra || {}), ...(credorId ? { credorId } : {}) }); }
   catch (e) { console.warn('auditoria', e); }
 }
 function stamp(o, novo) { const t = nowIso(); return novo ? { ...o, criadoEm: t, criadoPor: S.meId || null, atualizadoEm: t } : { ...o, atualizadoEm: t, atualizadoPor: S.meId || null }; }
@@ -704,6 +708,7 @@ VIEWS.painel = () => {
     const c = X.C[d.id]; x.saldo += c.saldo; x.venc += c.vencido; x.n++; x.creds.add(d.credorId);
     if (c.proxima && c.proxima.venc !== SEM && (!x.prox || c.proxima.venc < x.prox)) x.prox = c.proxima.venc;
     if (d.juridico && d.juridico.ativo) x.jur = true;
+    if (prevista(d)) x.prev = (x.prev || 0) + c.saldo;
   }
   const quem = Object.entries(devMap).sort((a, b) => b[1].saldo - a[1].saldo);
   const maxS = quem.length ? quem[0][1].saldo : 0;
@@ -711,12 +716,13 @@ VIEWS.painel = () => {
     <div class="list">${quem.length ? quem.map(([id, x]) => {
       const v = X.dev[id] || { nome: '(devedor removido)' };
       return `<button class="row compact" data-act="go" data-v="devedor" data-id="${id}">
-        <div class="t">${x.venc ? '<span class="dot crit" title="Tem valor vencido"></span>' : '<span class="dot"></span>'}${esc(v.nome)}${x.prox ? ` <span class="num sm ${x.prox < X.t ? 'crit' : ''}">${ddmm(x.prox)}</span>` : ''}${x.jur ? ' <span class="tag" style="color:var(--legal)">JUR</span>' : ''}<span class="muted sm">${[...x.creds].map(c => esc(credCurto(X.cred[c]))).join(' · ')} · ${x.n} dívida${x.n !== 1 ? 's' : ''}</span>${x.venc ? `<span class="crit sm">vencido ${brl(x.venc)}</span>` : ''}</div>
+        <div class="t">${x.venc ? '<span class="dot crit" title="Tem valor vencido"></span>' : '<span class="dot"></span>'}${esc(v.nome)}${x.prox ? ` <span class="num sm ${x.prox < X.t ? 'crit' : ''}">${ddmm(x.prox)}</span>` : ''}${x.jur ? ' <span class="tag" style="color:var(--legal)">JUR</span>' : ''}${x.prev ? ` <span class="tag" title="Inclui ${brl(x.prev)} previsto">${x.prev === x.saldo ? 'PREVISTA' : 'PARTE PREVISTA'}</span>` : ''}<span class="muted sm">${[...x.creds].map(c => esc(credCurto(X.cred[c]))).join(' · ')} · ${x.n} dívida${x.n !== 1 ? 's' : ''}</span>${x.venc ? `<span class="crit sm">vencido ${brl(x.venc)}</span>` : ''}</div>
         <div class="v">${brl(x.saldo)}</div></button>`;
     }).join('') : `<div class="empty">Ninguém com saldo em aberto nesta seleção.</div>`}</div></section>`;
 
   const kp = (l, v, h, cls = '', lead) => `<div class="kpi ${lead ? 'lead' : ''}"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
   const vazio = !S.dividas.length;
+  const totPrev = ab.filter(prevista).reduce((s, d) => s + X.C[d.id].saldo, 0);
 
   let porCarteira = '';
   if (S.cart === 'all' && !vazio) {
@@ -735,7 +741,7 @@ VIEWS.painel = () => {
   ${carteiraChips()}
   ${vazio ? onboarding() : `
   <div class="kpis" style="grid-template-columns:repeat(var(--kc,3),minmax(0,1fr))">
-    ${kp('Total a receber', brl(total), `${ab.length} dívida${ab.length !== 1 ? 's' : ''} em aberto`, '', true)}
+    ${kp('Total a receber', brl(total), totPrev ? `${brl(total - totPrev)} confirmado · ${brl(totPrev)} previsto` : `${ab.length} dívida${ab.length !== 1 ? 's' : ''} em aberto`, '', true)}
     ${kp('Pessoa física', brl(pf), 'Carteira PF')}
     ${kp('Pessoa jurídica', brl(pj), 'Todas as empresas')}
     ${kp('Vencido', brl(venc), nVenc ? `${nVenc} dívida${nVenc > 1 ? 's' : ''} em atraso` : 'Nada em atraso', venc ? 'crit' : '')}
@@ -947,7 +953,7 @@ ACT.receberDe = el => go('recebimentos', { devedorId: el.dataset.id });
 
 /* ================= ANEXOS ================= */
 const blobUrl = id => '/_blob/' + id;
-async function uploadFiles(files) {
+async function uploadFiles(files, credorId) {
   const list = [...(files || [])];
   if (!list.length) return [];
   if (!AS) { toast('Envio de documentos indisponível para o seu acesso.', true); return []; }
@@ -955,7 +961,7 @@ async function uploadFiles(files) {
   for (const f of list) {
     if (f.size > 20 * 1024 * 1024) { toast(`${f.name}: arquivo acima de 20 MB.`, true); continue; }
     try {
-      const r = await AS.upload(f);
+      const r = await AS.upload(f, { credorId });
       out.push({ id: r.id, nome: f.name, tipo: r.contentType || f.type, tam: f.size, em: nowIso(), por: S.meId || null });
     } catch (e) { console.error(e); toast(`${f.name}: tipo de arquivo não aceito ou falha no envio. Use PDF ou imagem.`, true); }
   }
@@ -985,6 +991,7 @@ VIEWS.nova = () => {
     <div class="f"><label for="nd-valor">Valor original (R$) <span class="req">*</span></label><input type="text" class="money-in" inputmode="decimal" id="nd-valor" name="valor" value="${toInput(d.valor)}" placeholder="0,00"></div>
     <div class="f"><label for="nd-data">Data da operação <span class="req">*</span></label><input type="date" id="nd-data" name="dataOperacao" value="${d.dataOperacao || X.t}"></div>
     <div class="f full"><label for="nd-desc">Motivo ou descrição <span class="req">*</span></label><input type="text" id="nd-desc" name="descricao" value="${esc(d.descricao)}" placeholder="Ex.: Empréstimo para capital de giro"></div>
+    <div class="f full"><span class="lb">Esta dívida está</span><div class="seg" data-seg="confirmacao"><button type="button" class="${d.confirmacao !== 'prevista' ? 'on' : ''}" data-val="confirmada">Confirmada</button><button type="button" class="${d.confirmacao === 'prevista' ? 'on' : ''}" data-val="prevista">Prevista</button></div><input type="hidden" name="confirmacao" value="${d.confirmacao === 'prevista' ? 'prevista' : 'confirmada'}"></div>
     <div class="f full"><span class="lb">Vencimento</span><div class="seg" data-seg="livre"><button type="button" class="${!d.livre ? 'on' : ''}" data-val="0">Com data de vencimento</button><button type="button" class="${d.livre ? 'on' : ''}" data-val="1">Sem data de vencimento</button></div><input type="hidden" name="livre" value="${d.livre ? 1 : 0}"><span class="hint" id="hint-livre" ${d.livre ? '' : 'hidden'}>A dívida fica em aberto sem data. Ela nunca fica "vencida".</span></div>
     <div class="f" id="wrap-venc" ${d.livre ? 'hidden' : ''}><label for="nd-venc">Data prevista para pagamento <span class="req">*</span></label><input type="date" id="nd-venc" name="vencimento" value="${d.vencimento && d.vencimento !== SEM ? d.vencimento : ''}"><span class="hint">Com parcelas, é o vencimento da 1ª parcela.</span></div>
     <div class="f" id="wrap-parc" ${d.livre ? 'hidden' : ''}><label for="nd-parc">Quantidade de parcelas</label><input type="number" min="1" max="360" id="nd-parc" name="parcelas" value="${d.parcelas || 1}"></div>
@@ -1026,7 +1033,7 @@ function readDividaForm(f) {
   return {
     credorId: f.elements.credorId.value, devedorId: f.elements.devedorId.value, valor, dataOperacao: fv(f, 'dataOperacao'),
     descricao: fv(f, 'descricao'), vencimento: livre ? SEM : fv(f, 'vencimento'), parcelas: livre ? 1 : parcelas, livre, numero: fv(f, 'numero'), categoria: fv(f, 'categoria'),
-    formaPagamento: fv(f, 'formaPagamento'), amortizacao: fv(f, 'amortizacao'), obs: fv(f, 'obs'),
+    confirmacao: fv(f, 'confirmacao') === 'prevista' ? 'prevista' : 'confirmada', formaPagamento: fv(f, 'formaPagamento'), amortizacao: fv(f, 'amortizacao'), obs: fv(f, 'obs'),
     juros: jAtivo ? { ativo: true, taxa, periodo: fv(f, 'periodo'), tipo: fv(f, 'jtipo'), inicio: fv(f, 'inicio') || '' } : { ativo: false },
     multa: mAtivo ? { ativo: true, pct: mpct } : { ativo: false }
   };
@@ -1073,11 +1080,11 @@ AFTER.nova = () => {
     const err = validaDivida(x); if (err) { toast(err, true); return; }
     btn.disabled = true;
     try {
-      const novos = await uploadFiles(f.elements.files.files);
+      const novos = await uploadFiles(f.elements.files.files, x.credorId);
       if (ed) {
         const mudouCron = ed.valor !== x.valor || (ed.parcelas || 1) !== x.parcelas || ed.vencimento !== x.vencimento;
         const doc = clean({ ...ed, ...x, numero: x.numero || ed.numero, cronograma: mudouCron ? Eng.gerarCronograma(x.valor, x.parcelas, x.vencimento) : ed.cronograma, anexos: [...(ed.anexos || []), ...novos] });
-        const campos = ['credorId', 'devedorId', 'valor', 'dataOperacao', 'descricao', 'vencimento', 'parcelas', 'numero', 'categoria', 'formaPagamento', 'amortizacao', 'obs'];
+        const campos = ['confirmacao', 'credorId', 'devedorId', 'valor', 'dataOperacao', 'descricao', 'vencimento', 'parcelas', 'numero', 'categoria', 'formaPagamento', 'amortizacao', 'obs'];
         const diffs = campos.filter(k => String(ed[k] ?? '') !== String(doc[k] ?? '')).map(k => `${k}: ${k === 'valor' ? brl(ed[k]) : (ed[k] ?? '—')} → ${k === 'valor' ? brl(doc[k]) : (doc[k] ?? '—')}`);
         if (JSON.stringify(ed.juros || {}) !== JSON.stringify(x.juros)) diffs.push('condições de juros alteradas');
         if (JSON.stringify(ed.multa || {}) !== JSON.stringify(x.multa)) diffs.push('condições de multa alteradas');
@@ -1152,7 +1159,7 @@ VIEWS.divida = () => {
   <div class="ph"><div><div class="eyebrow">${credTag(cr)} ${esc(credNome(cr))} · ${esc(divNum(d))}${d.categoria ? ' · ' + esc(d.categoria) : ''}</div>
     <h1>${esc(d.descricao || 'Dívida')}</h1>
     <div class="sub flex" style="margin-top:6px">${d.cancelada ? '<span class="pill">Cancelada</span>' : sitPill(d)} ${d.cancelada ? '' : cobPill(cob)} ${jur.ativo ? '<span class="stamp">JURÍDICO</span>' : ''}${d.livre && X.C[d.id].proxima && X.C[d.id].proxima.venc === SEM ? '<span class="pill acc">Sem vencimento</span>' : ''}<span>Operação em ${fd(d.dataOperacao)} · devedor <a href="#devedor" data-act="go" data-v="devedor" data-id="${d.devedorId}">${esc(dv.nome)}</a></span></div></div>
-    ${S.canWrite && !d.cancelada ? `<div class="acts">${c.saldo > 0 ? `<button class="btn pri" data-act="pagar" data-id="${d.id}">Registrar pagamento</button>` : ''}<button class="btn" data-act="acoes" data-id="${d.id}">Mais ações</button></div>` : ''}${d.cancelada && S.canWrite ? `<div class="acts"><button class="btn" data-act="reativar" data-id="${d.id}">Reativar dívida</button></div>` : ''}</div>
+    ${S.canWrite && !d.cancelada ? `<div class="acts"><div class="seg" role="group" aria-label="Previsão"><button type="button" class="${!prevista(d) ? 'on' : ''}" data-act="setConf" data-id="${d.id}" data-c="confirmada">Confirmada</button><button type="button" class="${prevista(d) ? 'on' : ''}" data-act="setConf" data-id="${d.id}" data-c="prevista">Prevista</button></div>${c.saldo > 0 ? `<button class="btn pri" data-act="pagar" data-id="${d.id}">Registrar pagamento</button>` : ''}<button class="btn" data-act="acoes" data-id="${d.id}">Mais ações</button></div>` : ''}${d.cancelada && S.canWrite ? `<div class="acts"><button class="btn" data-act="reativar" data-id="${d.id}">Reativar dívida</button></div>` : ''}</div>
   ${d.cancelada ? `<div class="notice crit">Dívida cancelada em ${fd(d.canceladaEm)}: ${esc(d.motivoCancelamento || '')}. Ela não entra nos saldos, mas o histórico foi preservado.</div>` : ''}
   ${nova ? `<div class="notice info">Esta dívida foi renegociada. O saldo passou para <a href="#divida" data-act="go" data-v="divida" data-id="${nova.id}">${esc(divNum(nova))}</a>.</div>` : ''}
   ${orig ? `<div class="notice info">Originada da renegociação de <a href="#divida" data-act="go" data-v="divida" data-id="${orig.id}">${esc(divNum(orig))}</a>, cujo histórico permanece intacto.</div>` : ''}
@@ -1175,6 +1182,13 @@ AFTER.divida = () => {
     try { await upd('dividas', d.id, { statusCobranca: sel.value, atualizadoEm: nowIso() }); await audit('cobrança', 'divida', d.id, `Situação de cobrança: ${COB[d.statusCobranca || 'aberto']?.[1] || '—'} → ${COB[sel.value][1]}`); toast('Situação atualizada.'); }
     catch (e) { toast(errMsg(e), true); }
   });
+};
+ACT.setConf = async el => {
+  if (!needWrite()) return;
+  const d = X.div[el.dataset.id], v = el.dataset.c;
+  if ((d.confirmacao === 'prevista' ? 'prevista' : 'confirmada') === v) return;
+  try { await upd('dividas', d.id, { confirmacao: v, atualizadoEm: nowIso() }); await audit('edição', 'divida', d.id, `Dívida marcada como ${v}`); toast(v === 'prevista' ? 'Marcada como prevista.' : 'Marcada como confirmada.'); }
+  catch (e) { toast(errMsg(e), true); }
 };
 ACT.dtab = el => { S.p.tab = el.dataset.t; render(); };
 ACT.acoes = el => {
@@ -1241,7 +1255,7 @@ function openPagamento(d, tipo = 'recebimento') {
         toast(`Já existe um pagamento de ${brl(valor)} em ${fd(data)} nesta dívida. Toque de novo em salvar para confirmar que é outro pagamento.`, true);
         return false;
       }
-      const anexos = isAb ? [] : await uploadFiles(f.elements.files.files);
+      const anexos = isAb ? [] : await uploadFiles(f.elements.files.files, d.credorId);
       const id = newId('pagamentos');
       await put('pagamentos', id, stamp({ dividaId: d.id, credorId: d.credorId, devedorId: d.devedorId, data, valor, tipo, forma: isAb ? '' : fv(f, 'forma'), conta: isAb ? '' : fv(f, 'conta'), obs: fv(f, 'obs'), anexos, cancelado: false }, true));
       await audit('criação', 'pagamento', id, `${isAb ? 'Abatimento' : 'Recebimento'} de ${brl(valor)} em ${fd(data)} · ${divNum(d)} (${credNome(cr)})`, { dividaId: d.id });
@@ -1459,7 +1473,7 @@ ACT.anexar = el => {
   openModal({
     title: 'Anexar documentos', ok: 'Enviar', body: `<div class="form">${fileInput('ax-files')}</div>`,
     onSubmit: async f => {
-      const n = await uploadFiles(f.elements.files.files);
+      const n = await uploadFiles(f.elements.files.files, d.credorId);
       if (!n.length) { toast('Selecione ao menos um arquivo.', true); return false; }
       await upd('dividas', d.id, { anexos: [...(d.anexos || []), ...n], atualizadoEm: nowIso() });
       await audit('documento', 'divida', d.id, `${n.length} documento(s) anexado(s): ${n.map(x => x.nome).join(', ')}`);
@@ -1486,7 +1500,7 @@ ACT.juridico = el => {
       ${j.ativo ? `<div class="f full"><button type="button" class="btn danger" id="jr-end">Encerrar acompanhamento jurídico</button></div>` : ''}
     </div>`,
     onSubmit: async f => {
-      const n = await uploadFiles(f.elements.files.files);
+      const n = await uploadFiles(f.elements.files.files, d.credorId);
       const nj = { ...j, ativo: true, advogado: fv(f, 'advogado'), dataEnc: fv(f, 'dataEnc') || X.t, processo: fv(f, 'processo'), fase: fv(f, 'fase'), proxima: fv(f, 'proxima'), prazo: fv(f, 'prazo'), acordos: fv(f, 'acordos'), obs: fv(f, 'obs'), anexos: [...(j.anexos || []), ...n] };
       await upd('dividas', d.id, { juridico: nj, statusCobranca: 'judicial', atualizadoEm: nowIso() });
       await audit('jurídico', 'divida', d.id, j.ativo ? `Dados jurídicos atualizados · fase: ${nj.fase}` : `Encaminhada ao jurídico (${nj.advogado || 'advogado não informado'})`);
@@ -1821,6 +1835,7 @@ VIEWS.config = () => {
   </div>
   <section class="sheet"><header><h2>Acesso e segurança</h2><button class="btn sm" data-act="sair">Sair</button></header><div class="body" style="display:flex;flex-direction:column;gap:10px;font-size:14px">
     <p style="margin:0">O acesso é feito com e-mail e senha. Só e-mails autorizados na tabela <b>usuarios</b> do Supabase entram no sistema.</p>
+    <p style="margin:0">Cada pessoa vê apenas as carteiras a que tem acesso: a própria pessoa física e as empresas em que foi incluída como sócia (em Configurações → empresa → Sócios com acesso). A separação é aplicada pelo banco de dados.</p>
     <dl class="kv"><dt>Editor</dt><dd>Consulta e altera tudo, inclusive documentos.</dd><dt>Consulta</dt><dd>Vê saldos e relatórios, sem alterar.</dd></dl>
     <p style="margin:0" class="muted">Para dar acesso a outra pessoa: no Supabase, cadastre o e-mail na tabela usuarios (papel editor ou consulta) e crie o login em Authentication → Users → Add user. Seu acesso atual: <b>${S.canWrite ? 'editor' : 'consulta'}</b>.</p>
     <p style="margin:0" class="muted">Nenhum dado demonstrativo foi incluído: tudo o que aparece aqui foi cadastrado por você.</p>
@@ -1845,13 +1860,14 @@ function credorModal(c, tipo) {
   if (!needWrite()) return;
   tipo = c ? c.tipo : tipo;
   const temDiv = c && S.dividas.some(d => d.credorId === c.id);
-  openModal({
+  const form = openModal({
     title: c ? 'Editar credor' : tipo === 'PF' ? 'Credor pessoa física' : 'Nova empresa credora', ok: c ? 'Salvar' : 'Cadastrar',
     body: `<div class="form">
       <div class="f ${tipo === 'PF' ? 'full' : ''}"><label for="cr-nome">${tipo === 'PF' ? 'Nome completo' : 'Nome da empresa'} <span class="req">*</span></label><input type="text" id="cr-nome" name="nome" value="${esc(c ? c.nome : '')}"></div>
       ${tipo === 'PJ' ? `<div class="f"><label for="cr-razao">Razão social</label><input type="text" id="cr-razao" name="razao" value="${esc(c ? c.razao : '')}"></div>` : ''}
       <div class="f"><label for="cr-doc">${tipo === 'PF' ? 'CPF' : 'CNPJ'}</label><input type="text" inputmode="numeric" id="cr-doc" name="doc" value="${esc(c ? fmtDoc(c.doc) : '')}"></div>
       <div class="f full"><label for="cr-contas">Contas bancárias de recebimento</label><textarea id="cr-contas" name="contas" placeholder="Uma por linha. Ex.: Itaú ag. 0000 c/c 00000-0 · Pix CNPJ">${esc(c ? (c.contas || []).join('\n') : '')}</textarea></div>
+      ${c && tipo === 'PJ' && typeof Supa !== 'undefined' ? `<div class="f full"><label for="cr-soc">Sócios com acesso a esta empresa</label><textarea id="cr-soc" name="socios" placeholder="E-mail de cada sócio, um por linha" disabled>Carregando…</textarea><span class="hint" id="cr-soc-h">Eles verão e lançarão as dívidas desta empresa. Suas dívidas de pessoa física continuam só suas.</span></div>` : ''}
       ${c ? `<div class="f full"><label class="flex" style="font-weight:500"><input type="checkbox" name="ativo" ${c.ativo !== false ? 'checked' : ''}> Credor ativo (aparece nas novas dívidas)</label>${temDiv ? '<span class="hint">Credores com dívidas não podem ser excluídos; desative se não usar mais.</span>' : ''}</div>` : ''}
     </div>`,
     onSubmit: async f => {
@@ -1860,10 +1876,26 @@ function credorModal(c, tipo) {
       if (!data.nome) { toast('Informe o nome.', true); return false; }
       if (doc && (tipo === 'PF' ? doc.length !== 11 : doc.length !== 14)) { toast(tipo === 'PF' ? 'O CPF deve ter 11 dígitos.' : 'O CNPJ deve ter 14 dígitos.', true); return false; }
       if (doc && S.credores.some(x => x.doc === doc && (!c || x.id !== c.id))) { toast('Já existe um credor com este documento.', true); return false; }
-      if (c) { await put('credores', c.id, stamp(clean({ ...c, ...data }), false)); await audit('edição', 'credor', c.id, `Credor ${data.nome} alterado`); toast('Credor atualizado.'); }
+      if (c) {
+        await put('credores', c.id, stamp(clean({ ...c, ...data }), false)); await audit('edição', 'credor', c.id, `Credor ${data.nome} alterado`);
+        const ta = f.elements.socios;
+        if (ta && !ta.disabled) {
+          const emails = ta.value.split(/[\s,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+          const r = await Supa.acessos.definir(c.id, emails);
+          if (r.erros.length) { toast(`Não foi possível dar acesso a: ${r.erros.join(', ')}. O e-mail precisa estar cadastrado como usuário do sistema.`, true); }
+          if (r.mudou) await audit('acesso', 'credor', c.id, `Sócios com acesso a ${data.nome}: ${emails.join(', ') || 'nenhum'}`);
+        }
+        toast('Credor atualizado.');
+      }
       else { const id = newId('credores'); await put('credores', id, stamp(data, true)); await audit('criação', 'credor', id, `Credor ${data.nome} (${tipo}) cadastrado`); toast('Credor cadastrado.'); }
     }
   });
+  const ta = form.querySelector('#cr-soc');
+  if (ta) Supa.acessos.listar(c.id).then(r => {
+    if (!ta.isConnected) return;
+    if (!r.dono) { ta.value = r.emails.join('\n') || '—'; $('#cr-soc-h').textContent = 'Só quem cadastrou a empresa pode alterar os acessos.'; return; }
+    ta.value = r.emails.join('\n'); ta.disabled = false;
+  }).catch(() => { if (ta.isConnected) { ta.value = ''; $('#cr-soc-h').textContent = 'Não foi possível carregar os acessos.'; } });
 }
 ACT.novoCredor = () => credorModal(null, 'PJ');
 ACT.novoCredorPF = () => credorModal(null, 'PF');
@@ -2033,9 +2065,9 @@ const Supa = (() => {
     }
   };
   const assets = {
-    async upload(file) {
+    async upload(file, opts = {}) {
       const nome = file.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.\-]+/g, '_').slice(-80);
-      const path = `${new Date().getFullYear()}/${genId()}-${nome}`;
+      const path = `${opts.credorId || 'geral'}/${new Date().getFullYear()}/${genId()}-${nome}`;
       const { error } = await SB.storage.from('anexos').upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
       if (error) throw mapErr(error);
       return { id: path, url: '', contentType: file.type, sizeBytes: file.size };
@@ -2062,7 +2094,31 @@ const Supa = (() => {
     window.claude = { use: async n => ({ db, user, assets, downloads }[n] || null) };
     return true;
   }
-  return { entrar, assets, perfil: () => perfil, sessao: () => sessao };
+  const acessos = {
+    async listar(cid) {
+      const meu = (sessao?.user?.email || '').toLowerCase();
+      const { data, error } = await SB.from('acessos').select('email').eq('credor_id', cid);
+      if (error) throw mapErr(error);
+      const { data: dono } = await SB.rpc('sou_dono_credor', { cid });
+      return { dono: !!dono, emails: (data || []).map(r => r.email.toLowerCase()).filter(e => e !== meu) };
+    },
+    async definir(cid, emails) {
+      const meu = (sessao?.user?.email || '').toLowerCase();
+      const atual = (await this.listar(cid)).emails;
+      const quer = [...new Set(emails.filter(e => e && e !== meu))];
+      const erros = []; let mudou = false;
+      for (const e of quer.filter(e => !atual.includes(e))) {
+        const { error } = await SB.from('acessos').insert({ email: e, credor_id: cid });
+        if (error) erros.push(e); else mudou = true;
+      }
+      for (const e of atual.filter(e => !quer.includes(e))) {
+        const { error } = await SB.from('acessos').delete().eq('credor_id', cid).eq('email', e);
+        if (!error) mudou = true;
+      }
+      return { erros, mudou };
+    }
+  };
+  return { entrar, assets, acessos, perfil: () => perfil, sessao: () => sessao };
 })();
 
 /* ================= TELA DE LOGIN ================= */
@@ -2124,7 +2180,7 @@ ACT.abrirAnexo = async el => {
 };
 async function iniciar() {
   if (!CFG_OK) { telaLogin(); return; }
-  let recovery = /type=recovery/.test(location.hash);
+  let recovery = /type=(recovery|invite)/.test(location.hash);
   SB.auth.onAuthStateChange(ev => { if (ev === 'PASSWORD_RECOVERY') { recovery = true; telaLogin('nova'); } });
   const { data } = await SB.auth.getSession();
   if (recovery) { telaLogin('nova'); return; }
