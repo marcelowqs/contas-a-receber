@@ -750,8 +750,7 @@ VIEWS.painel = () => {
     ${kp('A vencer', brl(aVenc), 'Saldo ainda no prazo')}
     ${kp('Previsto no mês', brl(prevMes), 'Parcelas com vencimento no mês')}
   </div>
-  ${quemSec}
-  ${typeof resumoPagarDash === 'function' ? resumoPagarDash() : ''}
+  <div class="grid2" style="align-items:start">${quemSec}${typeof resumoPagarDash === 'function' ? resumoPagarDash() : ''}</div>
   <div class="grid2">
     <section class="sheet"><header><h2>Dívidas em atraso</h2><span class="meta">${atrasadas.length ? brl(venc) : ''}</span></header>
       <div class="list">${atrasadas.length ? atrasadas.slice(0, 8).map(d => divRow(d, 'atraso')).join('') : `<div class="empty">Nenhuma dívida vencida nesta seleção.</div>`}
