@@ -708,7 +708,7 @@ VIEWS.painel = () => {
     <div class="list">${quem.length ? quem.map(([id, x]) => {
       const v = X.dev[id] || { nome: '(devedor removido)' };
       return `<button class="row compact" data-act="go" data-v="devedor" data-id="${id}">
-        <div class="t">${x.venc ? '<span class="dot crit" title="Tem valor vencido"></span>' : '<span class="dot"></span>'}${esc(v.nome)}${x.jur ? ' <span class="tag" style="color:var(--legal)">JUR</span>' : ''}${x.venc ? ` <span class="crit sm">vencido ${brl(x.venc)}</span>` : ''}</div>
+        <div class="t">${x.venc ? '<span class="dot crit" title="Tem valor vencido"></span>' : '<span class="dot"></span>'}${esc(v.nome)}${x.jur ? ' <span class="tag" style="color:var(--legal)">JUR</span>' : ''}<span class="muted sm">${[...x.creds].map(c => esc(credNome(X.cred[c]))).join(' · ')} · ${x.n} dívida${x.n !== 1 ? 's' : ''}</span>${x.venc ? `<span class="crit sm">vencido ${brl(x.venc)}</span>` : ''}</div>
         <div class="v">${brl(x.saldo)}</div></button>`;
     }).join('') : `<div class="empty">Ninguém com saldo em aberto nesta seleção.</div>`}</div></section>`;
 
