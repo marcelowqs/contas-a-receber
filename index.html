@@ -200,6 +200,14 @@ td .s{display:block;font-size:12px;color:var(--muted)}
 .v .prev-lbl{margin:2px 0 0}
 .ok-btn{color:var(--ok)!important}
 .ok-btn svg{width:18px;height:18px}
+.pg-txt{display:flex;flex-direction:column;gap:1px;min-width:0}
+.pg-nome{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pg-sub{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.pg-sub .pill{font-size:11px;padding:0 7px}
+.rowpg-main .v{font-weight:600;white-space:nowrap}
+.meses3{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+@media (min-width:1280px){.meses3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.dcol .pg-nome{font-size:13px}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
 .dot.crit{background:var(--crit)}
 .row:hover{background:var(--sunk)}
@@ -1034,7 +1042,7 @@ function ledgerTable(rows, opts = {}) {
   const deb = rows.reduce((s, r) => s + r.debito, 0), cred = rows.reduce((s, r) => s + r.credito, 0);
   return `<div class="tw"><table class="ledger"><thead><tr><th>Data</th><th>Descrição</th><th class="r">Débito</th><th class="r">Crédito</th><th class="r">Saldo</th></tr></thead><tbody>
   ${rows.map(r => `<tr class="t-${r.tipo}${opts.click !== false ? ' click' : ''}" ${opts.click !== false ? `data-act="go" data-v="divida" data-id="${r.d.id}"` : ''}><td class="num" style="white-space:nowrap">${fd(r.data)}</td>
-    <td>${esc(r.tipo === 'principal' ? (r.d.origemRenegociacao ? 'Renegociação · nova dívida' : 'Dívida / empréstimo') : r.desc)}<span class="s">${esc(divNum(r.d))}${r.tipo === 'principal' ? ' · ' + esc(r.d.descricao || '') + (r.d.criadoPor ? ' · por ' + esc(nomeUser(r.d.criadoPor)) : '') : ''}${r.pagId ? (g => g && g.criadoPor ? ' · por ' + esc(nomeUser(g.criadoPor)) : '')(S.pagamentos.find(p => p.id === r.pagId)) : ''}${r.parts && (r.parts.juros || r.parts.multa) ? ` · amortizou ${brl(r.parts.principal)} principal, ${brl(r.parts.juros)} juros${r.parts.multa ? ', ' + brl(r.parts.multa) + ' multa' : ''}` : ''}</span></td>
+    <td>${esc(r.tipo === 'principal' ? (r.d.descricao || (r.d.origemRenegociacao ? 'Renegociação' : 'Dívida')) : r.desc)}<span class="s">${esc(divNum(r.d))}${r.tipo === 'principal' ? (r.d.categoria ? ' · ' + esc(r.d.categoria) : '') + (r.d.criadoPor ? ' · por ' + esc(nomeUser(r.d.criadoPor)) : '') : ''}${r.pagId ? (g => g && g.criadoPor ? ' · por ' + esc(nomeUser(g.criadoPor)) : '')(S.pagamentos.find(p => p.id === r.pagId)) : ''}${r.parts && (r.parts.juros || r.parts.multa) ? ` · amortizou ${brl(r.parts.principal)} principal, ${brl(r.parts.juros)} juros${r.parts.multa ? ', ' + brl(r.parts.multa) + ' multa' : ''}` : ''}</span></td>
     <td class="m deb">${r.debito ? brl(r.debito) : '—'}</td><td class="m cred">${r.credito ? brl(r.credito) : '—'}</td>
     <td class="m sal">${brl(Math.abs(r.saldo))}<span class="dc ${r.saldo >= 0 ? 'd' : 'c'}">${r.saldo >= 0 ? 'D' : 'C'}</span></td></tr>`).join('')}
   </tbody><tfoot><tr><td></td><td>Totais</td><td class="m">${brl(deb)}</td><td class="m">${brl(cred)}</td><td class="m">${brl(deb - cred)}</td></tr></tfoot></table></div>`;
@@ -1987,7 +1995,7 @@ function relatorio(k, f) {
     cols = ['Credor', 'Data', 'Descrição', 'Dívida', 'Débito', 'Crédito', 'Saldo'];
     for (const cid of creds) {
       const cc = contaCorrente(f.dev, cid).filter(r => inP(r.data));
-      for (const r of cc) rows.push([credNome(X.cred[cid]), D(r.data), r.tipo === 'principal' ? 'Dívida / empréstimo · ' + (r.d.descricao || '') : r.desc, divNum(r.d), M(r.debito || null), M(r.credito || null), M(r.saldo)]);
+      for (const r of cc) rows.push([credNome(X.cred[cid]), D(r.data), r.tipo === 'principal' ? (r.d.descricao || 'Dívida') : r.desc, divNum(r.d), M(r.debito || null), M(r.credito || null), M(r.saldo)]);
     }
     nota = 'O saldo é acumulado separadamente para cada credor.';
   } else if (k === 'hist') {
@@ -2101,7 +2109,7 @@ ACT.extratoPdf = el => runExport(async () => {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text(`Credor: ${credNome(cr)}${cr.doc ? ' · ' + fmtDoc(cr.doc) : ''} (${cr.tipo === 'PF' ? 'pessoa física' : 'pessoa jurídica'})`, 40, y);
     doc.autoTable({
       startY: y + 8, head: [['Data', 'Descrição', 'Dívida', 'Débito', 'Crédito', 'Saldo']],
-      body: rows.map(r => [fd(r.data), r.tipo === 'principal' ? 'Dívida / empréstimo · ' + (r.d.descricao || '') : r.desc, divNum(r.d), r.debito ? brl(r.debito) : '', r.credito ? brl(r.credito) : '', brl(r.saldo)]),
+      body: rows.map(r => [fd(r.data), r.tipo === 'principal' ? (r.d.descricao || 'Dívida') : r.desc, divNum(r.d), r.debito ? brl(r.debito) : '', r.credito ? brl(r.credito) : '', brl(r.saldo)]),
       foot: [['', 'Saldo devedor', '', '', '', brl(rows.length ? rows[rows.length - 1].saldo : 0)]],
       styles: { fontSize: 8, cellPadding: 4 }, headStyles: { fillColor: [30, 62, 112] }, footStyles: { fillColor: [232, 235, 229], textColor: 20, fontStyle: 'bold' },
       columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } }, margin: { left: 40, right: 40 }
@@ -2273,8 +2281,9 @@ function rowPagar({ cp, p }, pfs, noDash) {
   const stripe = p.st === 'vencida' ? 'stripe-crit' : p.st === 'paga' ? 'stripe-ok' : p.st === 'parcial' ? 'stripe-warn' : 'stripe-acc';
   return `<div class="row compact rowpg ${stripe}">
     <button type="button" class="rowpg-main" data-act="verPagar" data-id="${cp.id}">
-      <span class="t"><span class="num sm ${p.st === 'vencida' ? 'crit' : 'muted'}">${ddmm(cp.vencimento)}</span>${esc(cp.favorecido || cp.descricao)}${cp.favorecido && cp.descricao ? `<span class="muted sm">${esc(cp.descricao)}</span>` : ''}${cp.parcela && !(noDash && cp.parcela === 'Recorrente') ? `<span class="muted sm">${esc(cp.parcela)}</span>` : ''}${pfs.length > 1 ? `<span class="tag">${esc(credNome(X.cred[cp.credorId]))}</span>` : ''}${p.st !== 'aberta' ? pillPagar(p.st) : ''}</span>
-      <span class="v">${brl(p.st === 'paga' ? cp.valor : p.saldo)}</span></button>
+      <span class="pg-txt"><span class="pg-nome">${esc(cp.favorecido || cp.descricao)}</span>
+        <span class="pg-sub"><span class="num ${p.st === 'vencida' ? 'crit' : ''}">${ddmm(cp.vencimento)}</span>${cp.favorecido && cp.descricao ? ` · ${esc(cp.descricao)}` : ''}${cp.parcela && !(noDash && cp.parcela === 'Recorrente') ? ` · ${esc(cp.parcela)}` : ''}${pfs.length > 1 ? ` · ${esc(credNome(X.cred[cp.credorId]))}` : ''}${p.st !== 'aberta' ? ' ' + pillPagar(p.st) : ''}</span></span>
+      <span class="v num">${brl(p.st === 'paga' ? cp.valor : p.saldo)}</span></button>
     ${S.canWrite ? `<span class="rowpg-acts">${p.saldo > 0 && !cp.cancelada ? `<button type="button" class="btn ghost sm ok-btn" data-act="pagarConta" data-id="${cp.id}" aria-label="Marcar como paga" title="Marcar pagamento">${IC.check}</button>` : ''}<button type="button" class="btn ghost sm" data-act="editarPagar" data-id="${cp.id}" aria-label="Editar">${IC.edit}</button><button type="button" class="btn ghost sm" style="color:var(--crit)" data-act="cancelarPagar" data-id="${cp.id}" aria-label="Apagar">${IC.trash}</button></span>` : ''}
   </div>`;
 }
@@ -2323,7 +2332,7 @@ VIEWS.pagar = () => {
   </div>
   ${vencidas.length ? `<section class="sheet"><header><h2>Vencidas</h2><span class="meta">${brl(totVenc)}</span></header><div class="list">${vencidas.map(row).join('')}</div></section>` : ''}
   <div class="flex" style="justify-content:space-between"><button class="btn sm" data-act="mesPagar" data-m="${ym(-1)}">‹ Mês anterior</button><span class="eyebrow">Próximos 3 meses</span><button class="btn sm" data-act="mesPagar" data-m="${ym(1)}">Próximo mês ›</button></div>
-  <div class="grid3" style="align-items:start">${[0, 1, 2].map(k => {
+  <div class="meses3">${[0, 1, 2].map(k => {
     const mk = ym(k); const [yy, mm] = mk.split('-').map(Number);
     const a0 = mk + '-01', a1 = mk + '-' + String(new Date(Date.UTC(yy, mm, 0)).getUTCDate()).padStart(2, '0');
     const its = comPos.filter(x => x.cp.vencimento >= a0 && x.cp.vencimento <= a1).sort((a, b) => a.cp.vencimento < b.cp.vencimento ? -1 : a.cp.vencimento > b.cp.vencimento ? 1 : 0);
