@@ -198,6 +198,8 @@ td .s{display:block;font-size:12px;color:var(--muted)}
 .v .prev-val{display:block}
 .prev-lbl{display:inline-block;font:600 10px var(--f-ui);font-style:normal;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px dashed var(--muted);border-radius:4px;padding:0 4px;margin-left:6px}
 .v .prev-lbl{margin:2px 0 0}
+.ok-btn{color:var(--ok)!important}
+.ok-btn svg{width:18px;height:18px}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
 .dot.crit{background:var(--crit)}
 .row:hover{background:var(--sunk)}
@@ -539,6 +541,7 @@ const IC = {
   relatorios: I('<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 15.5h7M9 9h3"/>'),
   config: I('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>'),
   refresh: I('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>'),
+  check: I('<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16.5 9.5"/>'),
   edit: I('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
   trash: I('<path d="M4 7h16M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
   whats: I('<path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/><path d="M9 9.5c.3 2 2 4 4.5 4.6l1-1.1 1.8.8-.3 1.5c-3.6.4-7.3-3.2-7-6.9l1.5-.3.8 1.8z"/>'),
@@ -1111,7 +1114,7 @@ function colunaDash(TIPO) {
       ${pag}
     </div>
     <section class="sheet"><header><h2>A receber ${TIPO}</h2><span class="meta">${prev ? `<b>${brl(saldo - prev)}</b> confirmado · <span class="prev-val">${brl(prev)} previsto</span>` : quem.length}</span></header><div class="list">${quemHtml}</div></section>
-    <section class="sheet"><header><h2>Próximos 30 dias</h2><span class="meta">${prox.length ? brl(prox.reduce((s, x) => s + x.p.valor - x.p.pago, 0)) : ''}</span></header><div class="list">${prox.length ? prox.slice(0, 6).map(x => { const pv = prevista(x.d); return `<button class="row compact" data-act="go" data-v="divida" data-id="${x.d.id}"><div class="t ${pv ? 'prev-val' : ''}"><span class="num sm muted">${ddmm(x.p.venc)}</span>${esc(devOf(x.d).nome)}${pv ? '<small class="prev-lbl">previsto</small>' : ''}</div><div class="v ${pv ? 'prev-val' : ''}">${brl(x.p.valor - x.p.pago)}</div></button>`; }).join('') : '<div class="empty">Nada nos próximos 30 dias.</div>'}</div></section>
+    <section class="sheet"><header><h2>Próximos 30 dias</h2><span class="meta">${prox.length ? brl(prox.reduce((s, x) => s + x.p.valor - x.p.pago, 0)) : ''}</span></header><div class="list">${prox.length ? prox.slice(0, 6).map(x => { const pv = prevista(x.d); return `<div class="row compact rowpg"><button type="button" class="rowpg-main" data-act="go" data-v="divida" data-id="${x.d.id}"><span class="t ${pv ? 'prev-val' : ''}"><span class="num sm muted">${ddmm(x.p.venc)}</span>${esc(devOf(x.d).nome)}${pv ? '<small class="prev-lbl">previsto</small>' : ''}</span><span class="v ${pv ? 'prev-val' : ''}">${brl(x.p.valor - x.p.pago)}</span></button>${S.canWrite ? `<span class="rowpg-acts"><button type="button" class="btn ghost sm ok-btn" data-act="pagar" data-id="${x.d.id}" aria-label="Registrar recebimento" title="Registrar recebimento">${IC.check}</button></span>` : ''}</div>`; }).join('') : '<div class="empty">Nada nos próximos 30 dias.</div>'}</div></section>
     ${TIPO === 'PF' && typeof resumoPagarDash === 'function' ? resumoPagarDash() : ''}
   </div>`;
 }
@@ -2204,7 +2207,7 @@ function rowPagar({ cp, p }, pfs, noDash) {
     <button type="button" class="rowpg-main" data-act="verPagar" data-id="${cp.id}">
       <span class="t"><span class="num sm ${p.st === 'vencida' ? 'crit' : 'muted'}">${ddmm(cp.vencimento)}</span>${esc(cp.favorecido || cp.descricao)}${cp.favorecido && cp.descricao ? `<span class="muted sm">${esc(cp.descricao)}</span>` : ''}${cp.parcela && !(noDash && cp.parcela === 'Recorrente') ? `<span class="muted sm">${esc(cp.parcela)}</span>` : ''}${pfs.length > 1 ? `<span class="tag">${esc(credNome(X.cred[cp.credorId]))}</span>` : ''}${p.st !== 'aberta' ? pillPagar(p.st) : ''}</span>
       <span class="v">${brl(p.st === 'paga' ? cp.valor : p.saldo)}</span></button>
-    ${S.canWrite ? `<span class="rowpg-acts"><button type="button" class="btn ghost sm" data-act="editarPagar" data-id="${cp.id}" aria-label="Editar">${IC.edit}</button><button type="button" class="btn ghost sm" style="color:var(--crit)" data-act="cancelarPagar" data-id="${cp.id}" aria-label="Apagar">${IC.trash}</button></span>` : ''}
+    ${S.canWrite ? `<span class="rowpg-acts">${p.saldo > 0 && !cp.cancelada ? `<button type="button" class="btn ghost sm ok-btn" data-act="pagarConta" data-id="${cp.id}" aria-label="Marcar como paga" title="Marcar pagamento">${IC.check}</button>` : ''}<button type="button" class="btn ghost sm" data-act="editarPagar" data-id="${cp.id}" aria-label="Editar">${IC.edit}</button><button type="button" class="btn ghost sm" style="color:var(--crit)" data-act="cancelarPagar" data-id="${cp.id}" aria-label="Apagar">${IC.trash}</button></span>` : ''}
   </div>`;
 }
 function resumoPagarDash() {
@@ -2330,12 +2333,12 @@ ACT.pagarConta = el => {
   if (!needWrite()) return;
   const cp = S.contas_pagar.find(x => x.id === el.dataset.id); const p = posPagar(cp);
   const form = openModal({
-    title: 'Registrar pagamento', ok: 'Registrar',
+    title: 'Confirmar pagamento', ok: 'Confirmar pagamento',
     body: `<div class="notice info" style="font-size:13px"><b>${esc(cp.favorecido)}</b>${cp.descricao ? ' · ' + esc(cp.descricao) : ''} · falta pagar <b class="num">${brl(p.saldo)}</b></div>
     <div class="form">
       <div class="f"><label for="pp-data">Data do pagamento</label><input type="date" id="pp-data" name="data" value="${X.t}"></div>
       <div class="f"><label for="pp-val">Valor pago (R$)</label><input type="text" class="money-in" inputmode="decimal" id="pp-val" name="valor" value="${toInput(p.saldo)}"><span class="hint">Pode ser só uma parte.</span></div>
-      <div class="f"><label for="pp-forma">Forma</label><select id="pp-forma" name="forma">${FORMAS.map(x => `<option>${x}</option>`).join('')}</select></div>
+      <div class="f"><label for="pp-forma">Como foi pago</label><select id="pp-forma" name="forma">${FORMAS.map(x => `<option>${x}</option>`).join('')}</select></div>
       ${fileInput('pp-files', 'Comprovante')}
     </div>`,
     onSubmit: async f => {
