@@ -2604,7 +2604,7 @@ function abrirWhats(dv, ds) {
     <div class="seg" data-seg="tipoMsg"><button type="button" class="${tipo === 'lembrete' ? 'on' : ''}" data-val="lembrete">Lembrete</button><button type="button" class="${tipo === 'cobranca' ? 'on' : ''}" data-val="cobranca">Cobrança</button></div><input type="hidden" name="tipoMsg" value="${tipo}">
     <div class="f"><label for="wa-txt">Mensagem (pode editar antes de enviar)</label><textarea id="wa-txt" name="txt" style="min-height:180px">${esc(preencher(M[tipo], ctx))}</textarea></div>
     ${ds.length === 1 && S.canWrite ? `<label class="flex" style="font-weight:500"><input type="checkbox" name="registrar" checked> Registrar este contato no histórico de cobrança</label>` : ''}
-    <div class="flex" style="justify-content:flex-end;border-top:1px solid var(--line);padding-top:14px"><button type="button" class="btn" data-close>Cancelar</button>${fone ? `<a class="btn" id="wa-normal" target="_blank" rel="noopener" href="#" title="Abre o WhatsApp comum ou o WhatsApp Web">WhatsApp comum</a><a class="btn pri" id="wa-go" href="#">Abrir no WhatsApp Business</a>` : ''}</div>
+    <div class="flex" style="justify-content:flex-end;border-top:1px solid var(--line);padding-top:14px"><button type="button" class="btn" data-close>Cancelar</button>${fone ? `<a class="btn pri" id="wa-normal" target="_blank" rel="noopener" href="#">Abrir no WhatsApp</a>` : ''}</div>
     <p class="hint muted" style="margin:0;font-size:12px">Para mudar os textos padrão e a assinatura: Configurações → Mensagens de WhatsApp.</p>`
   });
   form.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
@@ -2617,7 +2617,6 @@ function abrirWhats(dv, ds) {
     if (isIOS) return `whatsapp-business://send?phone=${fone}&text=${t}`;
     return `https://web.whatsapp.com/send?phone=${fone}&text=${t}`;
   };
-  if (go && !isAndroid && !isIOS) { go.textContent = 'Abrir no WhatsApp Web'; go.target = '_blank'; go.rel = 'noopener'; }
   const sync = () => { if (go) go.href = linkBusiness(ta.value); if (normal) normal.href = `https://wa.me/${fone}?text=${encodeURIComponent(ta.value)}`; };
   form.addEventListener('change', e => { if (e.target.name === 'tipoMsg') { ta.value = preencher(M[e.target.value], ctx); sync(); } });
   ta.addEventListener('input', sync); sync();
