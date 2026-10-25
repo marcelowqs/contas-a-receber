@@ -1130,20 +1130,12 @@ function catPagar() {
 function visaoCategorias() {
   const mesNomeAtual = MESES[+X.t.slice(5, 7) - 1];
   const pagar = catPagar();
-  return `<div class="eyebrow" style="margin-top:10px">Visão financeira por categoria</div>
-  <div class="dash2">
-    <div class="dcol pf">
-      <section class="sheet"><header><h2>A receber por categoria · PF</h2><span class="meta">saldo em aberto</span></header><div class="body">${barrasCategoria(catReceber('PF'), 'pf', 'Nenhuma dívida PF em aberto.')}</div></section>
-      ${typeof pfCarteiras === 'function' && pfCarteiras().length ? `<section class="sheet"><header><h2>A pagar por categoria · PF</h2><span class="meta">${mesNomeAtual} + vencidas</span></header><div class="body">${barrasCategoria(pagar, 'crit', 'Nenhuma conta a pagar neste mês.')}</div></section>` : ''}
-    </div>
-    <div class="dcol pj">
-      <section class="sheet"><header><h2>A receber por categoria · PJ</h2><span class="meta">saldo em aberto</span></header><div class="body">${barrasCategoria(catReceber('PJ'), 'pj', 'Nenhuma dívida PJ em aberto.')}</div></section>
-    </div>
-  </div>`;
+  return `<div class="eyebrow" style="margin-top:10px;color:var(--pj)">Visão financeira por categoria · Pessoa jurídica</div>
+  <section class="sheet" style="border-top:3px solid var(--pj)"><header><h2>A receber por categoria · PJ</h2><span class="meta">saldo em aberto</span></header><div class="body">${barrasCategoria(catReceber('PJ'), 'pj', 'Nenhuma dívida PJ em aberto.')}</div></section>`;
 }
 {
   const base = VIEWS.painel;
-  VIEWS.painel = () => base() + (S.dividas.length || S.contas_pagar.length ? visaoCategorias() : '');
+  VIEWS.painel = () => base() + (S.dividas.length ? visaoCategorias() : '');
   VIEWS.painelPF = VIEWS.painel; VIEWS.painelPJ = VIEWS.painel;
 }
 
