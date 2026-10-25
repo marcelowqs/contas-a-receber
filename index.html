@@ -802,7 +802,6 @@ function painelTipo(TIPO) {
   }
 
   return `
-  <div class="dash-switch" role="tablist" aria-label="Dashboard"><button role="tab" class="pf ${TIPO === 'PF' ? 'on' : ''}" data-act="go" data-v="painelPF">Pessoa física</button><button role="tab" class="pj ${TIPO === 'PJ' ? 'on' : ''}" data-act="go" data-v="painelPJ">Pessoa jurídica</button></div>
   <div class="ph"><div><div class="eyebrow" style="color:var(--${TIPO === 'PF' ? 'pf' : 'pj'})">${TIPO === 'PF' ? 'Dashboard · Pessoa física' : 'Dashboard · Pessoa jurídica'}${empSel ? ' · ' + esc(credNome(X.cred[empSel])) : ''}</div><h1>Contas a receber ${TIPO}</h1><div class="sub">Posição atualizada em ${fd(t)}, com juros e multas calculados até hoje.</div></div>
     <div class="acts"><button class="btn" data-act="atualizar" aria-label="Atualizar">${IC.refresh} Atualizar</button><button class="btn" data-act="go" data-v="recebimentos">Registrar recebimento</button><button class="btn pri" data-act="go" data-v="nova">${IC.nova} Nova dívida</button></div></div>
   ${TIPO === 'PJ' ? empChips(empSel) : ''}
@@ -835,8 +834,6 @@ function empChips(sel) {
   if (pj.length < 2) return '';
   return `<div class="carteiras">${[['', 'Todas as empresas'], ...pj.map(c => [c.id, c.nome])].map(([k, l]) => `<button class="chip pj ${sel === k ? 'on' : ''}" data-act="empPJ" data-e="${esc(k)}">${esc(l)}</button>`).join('')}</div>`;
 }
-VIEWS.painelPF = () => painelTipo('PF');
-VIEWS.painelPJ = () => painelTipo('PJ');
 ACT.empPJ = el => { S.p.emp = el.dataset.e; render(); };
 AFTER.painel = () => {
   const fm = document.querySelector('form[data-filters=painel]'); if (!fm) return;
@@ -1079,6 +1076,10 @@ VIEWS.painel = () => `
   <div class="ph"><div><div class="eyebrow">Dashboard</div><h1>Contas a receber</h1><div class="sub">Pessoa física e pessoa jurídica, sem somar. Posição em ${fd(X.t)}.</div></div>
     <div class="acts"><button class="btn sm" data-act="atualizar">${IC.refresh} Atualizar</button><button class="btn sm" data-act="go" data-v="recebimentos">Registrar recebimento</button><button class="btn sm pri" data-act="go" data-v="nova">${IC.nova} Nova dívida</button></div></div>
   ${!S.dividas.length ? onboarding() : `<div class="dash2">${colunaDash('PF')}${colunaDash('PJ')}</div>`}`;
+
+// telas separadas desativadas: qualquer link antigo abre o dashboard único
+VIEWS.painelPF = VIEWS.painel;
+VIEWS.painelPJ = VIEWS.painel;
 
 /* ================= ANEXOS ================= */
 const blobUrl = id => '/_blob/' + id;
@@ -2064,7 +2065,7 @@ async function restaurar(file) {
 async function boot() {
   try { const c = localStorage.getItem('gcr.cart'); if (c) S.cart = c; } catch { }
   const h = (location.hash || '').slice(1);
-  if (VIEWS[h] && !['divida', 'devedor'].includes(h)) S.view = h;
+  if (VIEWS[h] && !['divida', 'devedor', 'painelPF', 'painelPJ'].includes(h)) S.view = h;
   build(); renderShell();
   if (typeof window.claude === 'undefined' || !window.claude.use) { S.offline = true; render(); return; }
   [db, U, AS, DL] = await Promise.all(['db', 'user', 'assets', 'downloads'].map(n => window.claude.use(n).catch(() => null)));
