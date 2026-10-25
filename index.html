@@ -167,6 +167,11 @@ td .s{display:block;font-size:12px;color:var(--muted)}
 .rowpg-acts{display:flex;gap:2px}
 .rowpg-acts .btn{padding:5px 7px}
 .autor{font-size:12px;color:var(--muted);font-style:italic}
+.dash-switch{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--sunk);padding:5px;border-radius:12px}
+.dash-switch button{border:0;border-radius:9px;padding:11px 8px;font-weight:700;font-size:15px;cursor:pointer;background:none;color:var(--muted)}
+.dash-switch button.pf.on{background:var(--pf);color:#fff}
+.dash-switch button.pj.on{background:var(--pj);color:#fff}
+.dash-switch button:not(.on):hover{color:var(--ink)}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
 .dot.crit{background:var(--crit)}
 .row:hover{background:var(--sunk)}
@@ -781,6 +786,7 @@ function painelTipo(TIPO) {
   }
 
   return `
+  <div class="dash-switch" role="tablist" aria-label="Dashboard"><button role="tab" class="pf ${TIPO === 'PF' ? 'on' : ''}" data-act="go" data-v="painelPF">Pessoa física</button><button role="tab" class="pj ${TIPO === 'PJ' ? 'on' : ''}" data-act="go" data-v="painelPJ">Pessoa jurídica</button></div>
   <div class="ph"><div><div class="eyebrow" style="color:var(--${TIPO === 'PF' ? 'pf' : 'pj'})">${TIPO === 'PF' ? 'Dashboard · Pessoa física' : 'Dashboard · Pessoa jurídica'}${empSel ? ' · ' + esc(credNome(X.cred[empSel])) : ''}</div><h1>Contas a receber ${TIPO}</h1><div class="sub">Posição atualizada em ${fd(t)}, com juros e multas calculados até hoje.</div></div>
     <div class="acts"><button class="btn" data-act="atualizar" aria-label="Atualizar">${IC.refresh} Atualizar</button><button class="btn" data-act="go" data-v="recebimentos">Registrar recebimento</button><button class="btn pri" data-act="go" data-v="nova">${IC.nova} Nova dívida</button></div></div>
   ${TIPO === 'PJ' ? empChips(empSel) : ''}
