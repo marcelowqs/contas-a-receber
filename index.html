@@ -584,8 +584,15 @@ function build() {
     try { C[d.id] = Eng.calcular(d, pagsBy[d.id] || [], ajsBy[d.id] || [], t); }
     catch (e) { console.error('cálculo', d.id, e); C[d.id] = Eng.calcular({ ...d, juros: null, multa: null }, [], [], t); }
   }
+  // recorrentes: conta só as vencidas/de hoje e a PRÓXIMA; as demais futuras ficam fora dos saldos
+  const futRec = new Set(), grupos = {};
+  for (const d of S.dividas) if (d.grupo && !d.cancelada) (grupos[d.grupo] ||= []).push(d);
+  for (const arr of Object.values(grupos)) {
+    const fut = arr.filter(d => C[d.id] && C[d.id].saldo > 0 && d.vencimento > t).sort((a, b) => a.vencimento < b.vencimento ? -1 : a.vencimento > b.vencimento ? 1 : 0);
+    for (const d of fut.slice(1)) futRec.add(d.id);
+  }
   X = {
-    t, pagsBy, ajsBy, C,
+    t, pagsBy, ajsBy, C, futRec,
     cred: Object.fromEntries(S.credores.map(c => [c.id, c])),
     dev: Object.fromEntries(S.devedores.map(v => [v.id, v])),
     div: Object.fromEntries(S.dividas.map(d => [d.id, d]))
@@ -605,7 +612,7 @@ function inCart(d, cart = S.cart) {
   if (cart === 'PJ') return c && c.tipo === 'PJ';
   return d.credorId === cart;
 }
-const ativa = d => !d.cancelada && X.C[d.id] && X.C[d.id].saldo > 0;
+const ativa = d => !d.cancelada && X.C[d.id] && X.C[d.id].saldo > 0 && !X.futRec.has(d.id);
 function statusCob(d) {
   const c = X.C[d.id];
   if (d.cancelada) return 'cancelada';
@@ -618,7 +625,7 @@ function statusCob(d) {
 }
 const prevista = d => d.confirmacao === 'prevista';
 const confPill = d => prevista(d) ? '<span class="pill" style="border:1px dashed var(--muted)">Prevista</span>' : '';
-const sitPill = d => { const s = SIT[X.C[d.id].situacao]; return `<span class="pill ${s[1]}">${s[0]}</span>${prevista(d) ? ' ' + confPill(d) : ''}`; };
+const sitPill = d => { if (X.futRec && X.futRec.has(d.id)) return `<span class="pill" title="Recorrente: entra nos saldos quando for a próxima">Futura · ${fd(d.vencimento)}</span>${prevista(d) ? ' ' + confPill(d) : ''}`; const s = SIT[X.C[d.id].situacao]; return `<span class="pill ${s[1]}">${s[0]}</span>${prevista(d) ? ' ' + confPill(d) : ''}`; };
 const cobPill = k => { const c = COB[k]; return c ? `<span class="pill ${c[2]}">${c[1]}</span>` : `<span class="pill">Cancelada</span>`; };
 const porQuem = o => o && o.criadoPor ? `<span class="autor">por ${esc(nomeUser(o.criadoPor))}</span>` : '';
 const nomeUser = id => !id ? 'Sistema' : (S.names[id] || (id === S.meId ? 'Você' : 'Usuário'));
@@ -1011,7 +1018,7 @@ ACT.delDevedor = async el => {
 
 /* conta corrente de um devedor com um credor */
 function contaCorrente(devId, credId, ate) {
-  const ds = S.dividas.filter(d => d.devedorId === devId && d.credorId === credId && !d.cancelada);
+  const ds = S.dividas.filter(d => d.devedorId === devId && d.credorId === credId && !d.cancelada && !X.futRec.has(d.id));
   const ORD = { principal: 0, juros: 1, multa: 2, ajuste: 3 };
   const rows = [];
   let seq = 0;
@@ -1985,7 +1992,7 @@ function relatorio(k, f) {
     nota = 'O saldo é acumulado separadamente para cada credor.';
   } else if (k === 'hist') {
     cols = ['Data', 'Tipo', 'Devedor', 'Credor', 'Dívida', 'Valor'];
-    for (const d of S.dividas) if (inCart(d, f.cart) && (!f.dev || d.devedorId === f.dev) && inP(d.dataOperacao)) rows.push([D(d.dataOperacao), d.cancelada ? 'Dívida (cancelada)' : d.origemRenegociacao ? 'Dívida por renegociação' : 'Empréstimo / dívida', devOf(d).nome, credNome(credOf(d)), divNum(d) + ' · ' + d.descricao, M(d.valor)]);
+    for (const d of S.dividas) if (!X.futRec.has(d.id) && inCart(d, f.cart) && (!f.dev || d.devedorId === f.dev) && inP(d.dataOperacao)) rows.push([D(d.dataOperacao), d.cancelada ? 'Dívida (cancelada)' : d.origemRenegociacao ? 'Dívida por renegociação' : 'Empréstimo / dívida', devOf(d).nome, credNome(credOf(d)), divNum(d) + ' · ' + d.descricao, M(d.valor)]);
     for (const g of S.pagamentos) { const d = X.div[g.dividaId]; if (!d || !inCart(d, f.cart) || (f.dev && g.devedorId !== f.dev) || !inP(g.data)) continue; rows.push([D(g.data), g.cancelado ? 'Pagamento estornado' : g.tipo === 'recebimento' ? 'Pagamento recebido' : g.tipo === 'renegociacao' ? 'Baixa por renegociação' : 'Abatimento', devOf(d).nome, credNome(credOf(d)), divNum(d), M(g.valor)]); }
     rows.sort((a, b) => a[0].v < b[0].v ? -1 : a[0].v > b[0].v ? 1 : 0);
   }
