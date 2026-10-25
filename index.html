@@ -468,6 +468,8 @@ const I = (p, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="curre
 const IC = {
   agenda: I('<rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M8 14h2M14 14h2M8 17.5h2"/>'),
   pagar: I('<rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19M15 15h3"/><path d="M7 15l2-2M7 15l2 2"/>'),
+  painelPF: I('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>', 'style="color:var(--pf)"'),
+  painelPJ: I('<path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 10h1M14 10h1M9 14h1M14 14h1M10 21v-3h4v3"/>', 'style="color:var(--pj)"'),
   painel: I('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
   devedores: I('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/>'),
   nova: I('<path d="M12 5v14M5 12h14"/>'),
@@ -489,7 +491,7 @@ const IC = {
   copy: I('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>')
 };
 const NAV = [
-  ['painel', 'Dashboard'], ['nova', 'Cadastrar dívida'], ['agenda', 'Vencimentos e cobranças'], ['pagar', 'Contas a pagar'], ['relatorios', 'Relatórios'], ['config', 'Configurações']
+  ['painelPF', 'Dashboard PF'], ['painelPJ', 'Dashboard PJ'], ['nova', 'Cadastrar dívida'], ['agenda', 'Vencimentos e cobranças'], ['pagar', 'Contas a pagar'], ['relatorios', 'Relatórios'], ['config', 'Configurações']
 ];
 
 /* ================= DOMÍNIO ================= */
@@ -670,16 +672,16 @@ function renderShell() {
   $('#side').innerHTML = `<div class="brand"><span>Livro de recebíveis</span><b>Gestão de Contas a Receber</b></div>
     ${NAV.map(([k, l]) => `<button class="nav-btn ${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}<span>${l}</span>${k === 'agenda' && venc ? `<span class="ct">${venc}</span>` : ''}</button>`).join('')}
     <div class="foot">${S.canWrite ? '' : '<div class="pill warn" style="margin-bottom:8px">Somente leitura</div>'}Valores em R$ · ${fd(X.t)}<div class="flex" style="margin-top:8px"><button class="btn sm" data-act="atualizar">Atualizar</button><button class="btn sm" data-act="sair">Sair</button></div></div>`;
-  const tb = [['painel', 'Painel'], ['nova', 'Cadastrar'], ['agenda', 'Agenda'], ['pagar', 'A pagar'], ['mais', 'Mais']];
+  const tb = [['painelPF', 'PF'], ['painelPJ', 'PJ'], ['nova', 'Cadastrar'], ['agenda', 'Agenda'], ['mais', 'Mais']];
   $('#tabbar').innerHTML = tb.map(([k, l]) => k === 'nova'
     ? `<button class="plus ${navOn(k) ? 'on' : ''}" data-act="go" data-v="nova"><span class="ic">${IC.nova}</span>${l}</button>`
-    : k === 'mais' ? `<button class="${['juridico', 'relatorios', 'config'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
+    : k === 'mais' ? `<button class="${['pagar', 'juridico', 'relatorios', 'config'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
       : `<button class="${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('');
 }
-const navOn = k => S.view === k || (k === 'agenda' && ['vencimentos', 'cobrancas'].includes(S.view)) || (k === 'painel' && ['devedor', 'devedores', 'divida', 'recebimentos'].includes(S.view));
+const navOn = k => S.view === k || (k === 'agenda' && ['vencimentos', 'cobrancas'].includes(S.view)) || (k === 'painelPF' && S.view === 'painel');
 ACT.maisMenu = () => openModal({
   title: 'Menu', noFoot: true,
-  body: `<div class="sheetmenu">${NAV.filter(n => !['painel', 'nova', 'agenda', 'pagar'].includes(n[0])).map(([k, l]) => `<button type="button" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('')}<button type="button" data-act="atualizar">${IC.refresh}Atualizar</button></div>`
+  body: `<div class="sheetmenu">${NAV.filter(n => !['painelPF', 'painelPJ', 'nova', 'agenda'].includes(n[0])).map(([k, l]) => `<button type="button" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('')}<button type="button" data-act="atualizar">${IC.refresh}Atualizar</button></div>`
 });
 
 function carteiraChips() {
@@ -702,10 +704,11 @@ function render() {
 const VIEWS = {}, AFTER = {};
 
 /* ================= DASHBOARD ================= */
-VIEWS.painel = () => {
+function painelTipo(TIPO) {
   const f = S.p.f || (S.p.f = { dev: '', de: '', ate: '', sit: '' });
   const t = X.t;
-  const base = S.dividas.filter(d => !d.cancelada && inCart(d) && (!f.dev || d.devedorId === f.dev) && (!f.de || d.dataOperacao >= f.de) && (!f.ate || d.dataOperacao <= f.ate) && (!f.sit || statusCob(d) === f.sit));
+  const empSel = TIPO === 'PJ' && X.cred[S.p.emp] && X.cred[S.p.emp].tipo === 'PJ' ? S.p.emp : '';
+  const base = S.dividas.filter(d => !d.cancelada && (credOf(d).tipo === 'PF') === (TIPO === 'PF') && (!empSel || d.credorId === empSel) && (!f.dev || d.devedorId === f.dev) && (!f.de || d.dataOperacao >= f.de) && (!f.ate || d.dataOperacao <= f.ate) && (!f.sit || statusCob(d) === f.sit));
   const ab = base.filter(ativa);
   const sum = (arr, fn) => arr.reduce((s, x) => s + fn(x), 0);
   const isPF = d => credOf(d).tipo === 'PF';
@@ -764,34 +767,32 @@ VIEWS.painel = () => {
     return { total, venc: vencP, n };
   })();
   const totPrevPF = abPF.filter(prevista).reduce((s, d) => s + X.C[d.id].saldo, 0), totPrevPJ = abPJ.filter(prevista).reduce((s, d) => s + X.C[d.id].saldo, 0);
-  const mostraPF = S.cart === 'all' || S.cart === 'PF', mostraPJ = S.cart !== 'PF';
+  const mostraPF = TIPO === 'PF', mostraPJ = TIPO === 'PJ';
 
   let porCarteira = '';
-  if (S.cart === 'all' && !vazio) {
+  if (TIPO === 'PJ' && !empSel && new Set(ab.map(d => d.credorId)).size > 1) {
     const grupos = {};
     for (const d of ab) { const k = d.credorId; (grupos[k] ||= { saldo: 0, venc: 0, n: 0 }); grupos[k].saldo += X.C[d.id].saldo; grupos[k].venc += X.C[d.id].vencido; grupos[k].n++; }
     const keys = Object.keys(grupos).sort((a, b) => (X.cred[a]?.tipo === 'PF' ? -1 : 1) - (X.cred[b]?.tipo === 'PF' ? -1 : 1) || grupos[b].saldo - grupos[a].saldo);
-    porCarteira = `<section class="sheet"><header><h2>Saldo por carteira</h2><span class="meta">Cada credor com seus próprios saldos, sem somar PF e PJ</span></header>
+    porCarteira = `<section class="sheet"><header><h2>Saldo por empresa</h2><span class="meta">Cada empresa com seus próprios saldos</span></header>
       <div class="tw"><table><thead><tr><th>Credor</th><th class="r">Dívidas em aberto</th><th class="r">Vencido</th><th class="r">Saldo a receber</th></tr></thead><tbody>
-      ${keys.length ? keys.map(k => `<tr class="click" data-act="cart" data-c="${esc(X.cred[k]?.tipo === 'PF' ? 'PF' : k)}"><td>${credTag(X.cred[k])} ${esc(credNome(X.cred[k]))}</td><td class="m">${grupos[k].n}</td><td class="m ${grupos[k].venc ? 'crit' : ''}">${brl(grupos[k].venc)}</td><td class="m"><b>${brl(grupos[k].saldo)}</b></td></tr>`).join('') : `<tr><td colspan="4" class="muted">Nenhum saldo em aberto.</td></tr>`}
+      ${keys.length ? keys.map(k => `<tr class="click" data-act="empPJ" data-e="${esc(k)}"><td>${credTag(X.cred[k])} ${esc(credNome(X.cred[k]))}</td><td class="m">${grupos[k].n}</td><td class="m ${grupos[k].venc ? 'crit' : ''}">${brl(grupos[k].venc)}</td><td class="m"><b>${brl(grupos[k].saldo)}</b></td></tr>`).join('') : `<tr><td colspan="4" class="muted">Nenhum saldo em aberto.</td></tr>`}
       </tbody></table></div></section>`;
   }
 
   return `
-  <div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Contas a receber</h1><div class="sub">Posição atualizada em ${fd(t)}, com juros e multas calculados até hoje.</div></div>
+  <div class="ph"><div><div class="eyebrow" style="color:var(--${TIPO === 'PF' ? 'pf' : 'pj'})">${TIPO === 'PF' ? 'Dashboard · Pessoa física' : 'Dashboard · Pessoa jurídica'}${empSel ? ' · ' + esc(credNome(X.cred[empSel])) : ''}</div><h1>Contas a receber ${TIPO}</h1><div class="sub">Posição atualizada em ${fd(t)}, com juros e multas calculados até hoje.</div></div>
     <div class="acts"><button class="btn" data-act="atualizar" aria-label="Atualizar">${IC.refresh} Atualizar</button><button class="btn" data-act="go" data-v="recebimentos">Registrar recebimento</button><button class="btn pri" data-act="go" data-v="nova">${IC.nova} Nova dívida</button></div></div>
-  ${carteiraChips()}
-  ${vazio ? onboarding() : `
-  ${mostraPF ? `<div class="eyebrow" style="color:var(--pf)">Pessoa física</div>
-  <div class="kpis" style="grid-template-columns:repeat(${pag30 ? 4 : 3},minmax(0,1fr))">
+  ${TIPO === 'PJ' ? empChips(empSel) : ''}
+  ${!S.dividas.length ? onboarding() : `
+  ${mostraPF ? `<div class="kpis" style="grid-template-columns:repeat(${pag30 ? 4 : 3},minmax(0,1fr))">
     ${kp('A receber · PF', brl(pf), totPrevPF ? `${brl(totPrevPF)} previsto` : `${abPF.length} dívida${abPF.length !== 1 ? 's' : ''} em aberto`, '', false, 'pf')}
     ${kp('Vencido · PF', brl(vencPF), nVencPF ? `${nVencPF} dívida${nVencPF > 1 ? 's' : ''} em atraso` : 'Nada em atraso', vencPF ? 'crit' : '', false, 'pfs')}
     ${kp('A vencer · PF', brl(pf - vencPF), 'Saldo ainda no prazo', '', false, 'pfs')}
     ${pag30 ? kp('Contas a pagar (30 dias)', brl(pag30.total), pag30.venc ? `<span class="crit">${brl(pag30.venc)} vencido</span>` : `${pag30.n} conta${pag30.n !== 1 ? 's' : ''}`, '', false, 'pf') : ''}
   </div>
   <div class="grid2" style="align-items:start">${quemBloco(abPF, 'PF')}${typeof resumoPagarDash === 'function' ? resumoPagarDash() : ''}</div>` : ''}
-  ${mostraPJ ? `<div class="eyebrow" style="color:var(--pj);margin-top:8px">Pessoa jurídica</div>
-  <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+  ${mostraPJ ? `<div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))">
     ${kp('A receber · PJ', brl(pj), totPrevPJ ? `${brl(totPrevPJ)} previsto` : `${abPJ.length} dívida${abPJ.length !== 1 ? 's' : ''} em aberto`, '', false, 'pj')}
     ${kp('Vencido · PJ', brl(vencPJ), nVencPJ ? `${nVencPJ} dívida${nVencPJ > 1 ? 's' : ''} em atraso` : 'Nada em atraso', vencPJ ? 'crit' : '', false, 'pjs')}
     ${kp('A vencer · PJ', brl(pj - vencPJ), 'Saldo ainda no prazo', '', false, 'pjs')}
@@ -806,7 +807,16 @@ VIEWS.painel = () => {
       ${prox.length > 8 ? `<button class="row" data-act="go" data-v="agenda"><span class="t">Ver agenda completa</span><span></span></button>` : ''}</div></section>
   </div>
   ${porCarteira}`}`;
-};
+}
+function empChips(sel) {
+  const pj = S.credores.filter(c => c.tipo === 'PJ' && c.ativo !== false);
+  if (pj.length < 2) return '';
+  return `<div class="carteiras">${[['', 'Todas as empresas'], ...pj.map(c => [c.id, c.nome])].map(([k, l]) => `<button class="chip pj ${sel === k ? 'on' : ''}" data-act="empPJ" data-e="${esc(k)}">${esc(l)}</button>`).join('')}</div>`;
+}
+VIEWS.painelPF = () => painelTipo('PF');
+VIEWS.painelPJ = () => painelTipo('PJ');
+VIEWS.painel = VIEWS.painelPF;
+ACT.empPJ = el => { S.p.emp = el.dataset.e; render(); };
 AFTER.painel = () => {
   const fm = document.querySelector('form[data-filters=painel]'); if (!fm) return;
   fm.addEventListener('change', () => { S.p.f = { dev: fv(fm, 'dev'), de: fv(fm, 'de'), ate: fv(fm, 'ate'), sit: fv(fm, 'sit') }; render(); });
