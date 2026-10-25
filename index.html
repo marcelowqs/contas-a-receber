@@ -1036,7 +1036,10 @@ function colunaDash(TIPO) {
   const saldo = sum(ab, d => X.C[d.id].saldo), venc = sum(ab, d => X.C[d.id].vencido);
   const nVenc = ab.filter(d => X.C[d.id].situacao === 'vencida').length;
   const prev = sum(ab.filter(prevista), d => X.C[d.id].saldo);
-  const kp = (l, v, h, cls = '') => `<div class="kpi"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
+  const kp = (l, v, h, cls = '', extra = '') => `<div class="kpi ${extra}"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
+  const lim30 = Eng.addDays(t, 30); let rec30 = 0, nRec30 = 0;
+  for (const d of ab) for (const p of X.C[d.id].parcelas) if (p.pago < p.valor && p.venc !== SEM && p.venc >= t && p.venc <= lim30) { rec30 += p.valor - p.pago; nRec30++; }
+  const receber30 = kp('A receber (30 dias)', brl(rec30), `${nRec30} vencimento${nRec30 !== 1 ? 's' : ''}`, '', TIPO === 'PJ' ? 'span-all' : '');
   let pag = '';
   if (TIPO === 'PF' && typeof pfCarteiras === 'function' && pfCarteiras().length) {
     const pfs = pfCarteiras(), lim = Eng.addDays(t, 30); let tot = 0, vp = 0, n = 0;
@@ -1065,6 +1068,7 @@ function colunaDash(TIPO) {
     <div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       ${kp('Vencido', brl(venc), nVenc ? `${nVenc} em atraso` : 'Nada em atraso', venc ? 'crit' : '')}
       ${kp('A vencer', brl(saldo - venc), prev ? `${brl(prev)} previsto` : `${ab.length} dívida${ab.length !== 1 ? 's' : ''}`)}
+      ${receber30}
       ${pag}
     </div>
     <section class="sheet"><header><h2>Quem me deve</h2><span class="meta">${quem.length}</span></header><div class="list">${quemHtml}</div></section>
