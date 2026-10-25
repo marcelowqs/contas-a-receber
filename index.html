@@ -529,6 +529,7 @@ function build() {
 const credOf = d => X.cred[d.credorId] || { nome: '(credor removido)', tipo: '?' };
 const devOf = d => X.dev[d.devedorId] || { nome: '(devedor removido)' };
 const credNome = c => c ? (c.tipo === 'PF' ? c.nome : (c.nome || c.razao)) : '—';
+const splitTot = (itens, valorFn, dividaFn) => { let pf = 0, pj = 0; for (const x of itens) { const d = dividaFn(x); if (credOf(d).tipo === 'PF') pf += valorFn(x); else pj += valorFn(x); } return [pf ? `<span class="tag pf">PF</span> ${brl(pf)}` : '', pj ? `<span class="tag pj">PJ</span> ${brl(pj)}` : ''].filter(Boolean).join(' · ') || brl(0); };
 const credCurto = c => c && c.tipo === 'PF' ? 'PF' : credNome(c);
 const credTag = c => c ? (c.tipo === 'PF' ? '<span class="tag pf">PF</span>' : '<span class="tag pj">PJ</span>') : '';
 const divNum = d => d.numero || ('#' + d.id.slice(-5).toUpperCase());
@@ -683,10 +684,10 @@ ACT.maisMenu = () => openModal({
 
 function carteiraChips() {
   const pj = S.credores.filter(c => c.tipo === 'PJ' && c.ativo !== false);
-  const opts = [['all', 'Consolidado'], ['PF', 'Pessoa Física'], ['PJ', 'Todas as empresas'], ...pj.map(c => [c.id, c.nome])];
+  const opts = [['all', 'Todas'], ['PF', 'Pessoa Física'], ['PJ', 'Todas as empresas'], ...pj.map(c => [c.id, c.nome])];
   return `<div class="carteiras" role="group" aria-label="Carteira">${opts.map(([k, l]) => `<button class="chip ${k === 'PF' ? 'pf' : k === 'all' ? '' : 'pj'} ${S.cart === k ? 'on' : ''}" data-act="cart" data-c="${esc(k)}">${esc(l)}</button>`).join('')}</div>`;
 }
-const cartLabel = () => S.cart === 'all' ? 'Visão consolidada' : S.cart === 'PF' ? 'Carteira pessoa física' : S.cart === 'PJ' ? 'Todas as empresas' : credNome(X.cred[S.cart]);
+const cartLabel = () => S.cart === 'all' ? 'Todas as carteiras' : S.cart === 'PF' ? 'Carteira pessoa física' : S.cart === 'PJ' ? 'Todas as empresas' : credNome(X.cred[S.cart]);
 
 function render() {
   build();
@@ -727,24 +728,25 @@ VIEWS.painel = () => {
   for (const d of ab) for (const p of X.C[d.id].parcelas) if (p.pago < p.valor && p.venc >= t && p.venc <= lim) prox.push({ d, p });
   prox.sort((a, b) => a.p.venc < b.p.venc ? -1 : 1);
 
-  const devMap = {};
-  for (const d of ab) {
-    const x = (devMap[d.devedorId] ||= { saldo: 0, venc: 0, n: 0, creds: new Set(), jur: false });
-    const c = X.C[d.id]; x.saldo += c.saldo; x.venc += c.vencido; x.n++; x.creds.add(d.credorId);
-    if (c.proxima && c.proxima.venc !== SEM && (!x.prox || c.proxima.venc < x.prox)) x.prox = c.proxima.venc;
-    if (d.juridico && d.juridico.ativo) x.jur = true;
-    if (prevista(d)) x.prev = (x.prev || 0) + c.saldo;
-  }
-  const quem = Object.entries(devMap).sort((a, b) => b[1].saldo - a[1].saldo);
-  const maxS = quem.length ? quem[0][1].saldo : 0;
-  const quemSec = `<section class="sheet"><header><h2>Quem me deve</h2><span class="meta">${quem.length} devedor${quem.length !== 1 ? 'es' : ''} · ${brl(total)}</span></header>
+  const quemBloco = (lista, tipo) => {
+    const devMap = {};
+    for (const d of lista) {
+      const x = (devMap[d.devedorId] ||= { saldo: 0, venc: 0, n: 0, creds: new Set(), jur: false });
+      const c = X.C[d.id]; x.saldo += c.saldo; x.venc += c.vencido; x.n++; x.creds.add(d.credorId);
+      if (c.proxima && c.proxima.venc !== SEM && (!x.prox || c.proxima.venc < x.prox)) x.prox = c.proxima.venc;
+      if (d.juridico && d.juridico.ativo) x.jur = true;
+      if (prevista(d)) x.prev = (x.prev || 0) + c.saldo;
+    }
+    const quem = Object.entries(devMap).sort((a, b) => b[1].saldo - a[1].saldo);
+    const tot = quem.reduce((s, q) => s + q[1].saldo, 0);
+    return `<section class="sheet" style="border-top:3px solid var(--${tipo === 'PF' ? 'pf' : 'pj'})"><header><h2>Quem me deve · ${tipo === 'PF' ? 'Pessoa física' : 'Pessoa jurídica'}</h2><span class="meta">${quem.length} devedor${quem.length !== 1 ? 'es' : ''} · <b class="num">${brl(tot)}</b></span></header>
     <div class="list">${quem.length ? quem.map(([id, x]) => {
       const v = X.dev[id] || { nome: '(devedor removido)' };
       return `<button class="row compact" data-act="go" data-v="devedor" data-id="${id}">
-        <div class="t">${x.venc ? '<span class="dot crit" title="Tem valor vencido"></span>' : '<span class="dot"></span>'}${esc(v.nome)}${x.prox ? ` <span class="num sm ${x.prox < X.t ? 'crit' : ''}">${ddmm(x.prox)}</span>` : ''}${x.jur ? ' <span class="tag" style="color:var(--legal)">JUR</span>' : ''}${x.prev ? ` <span class="tag" title="Inclui ${brl(x.prev)} previsto">${x.prev === x.saldo ? 'PREVISTA' : 'PARTE PREVISTA'}</span>` : ''}${[...x.creds].map(c => `<span class="tag ${X.cred[c] && X.cred[c].tipo === 'PF' ? 'pf' : 'pj'}">${esc(credCurto(X.cred[c]))}</span>`).join('')}<span class="muted sm">${x.n} dívida${x.n !== 1 ? 's' : ''}</span>${x.venc ? `<span class="crit sm">vencido ${brl(x.venc)}</span>` : ''}</div>
+        <div class="t">${x.venc ? '<span class="dot crit" title="Tem valor vencido"></span>' : '<span class="dot"></span>'}${esc(v.nome)}${x.prox ? ` <span class="num sm ${x.prox < X.t ? 'crit' : ''}">${ddmm(x.prox)}</span>` : ''}${x.jur ? ' <span class="tag" style="color:var(--legal)">JUR</span>' : ''}${x.prev ? ` <span class="tag" title="Inclui ${brl(x.prev)} previsto">${x.prev === x.saldo ? 'PREVISTA' : 'PARTE PREVISTA'}</span>` : ''}${tipo === 'PJ' ? [...x.creds].map(c => `<span class="tag pj">${esc(credCurto(X.cred[c]))}</span>`).join('') : ''}<span class="muted sm">${x.n} dívida${x.n !== 1 ? 's' : ''}</span>${x.venc ? `<span class="crit sm">vencido ${brl(x.venc)}</span>` : ''}</div>
         <div class="v">${brl(x.saldo)}</div></button>`;
-    }).join('') : `<div class="empty">Ninguém com saldo em aberto nesta seleção.</div>`}<button class="row compact" data-act="go" data-v="devedores"><span class="t muted" style="font-weight:500">Ver todos os devedores e cadastrar novo</span><span class="v muted">›</span></button></div></section>`;
-
+    }).join('') : `<div class="empty">Ninguém com saldo em aberto.</div>`}</div></section>`;
+  };
   const kp = (l, v, h, cls = '', lead, extra = '') => `<div class="kpi ${lead ? 'lead' : ''} ${extra}"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
   const vazio = !S.dividas.length;
   const abPF = ab.filter(isPF), abPJ = ab.filter(d => !isPF(d));
@@ -761,14 +763,15 @@ VIEWS.painel = () => {
     }
     return { total, venc: vencP, n };
   })();
-  const totPrev = ab.filter(prevista).reduce((s, d) => s + X.C[d.id].saldo, 0);
+  const totPrevPF = abPF.filter(prevista).reduce((s, d) => s + X.C[d.id].saldo, 0), totPrevPJ = abPJ.filter(prevista).reduce((s, d) => s + X.C[d.id].saldo, 0);
+  const mostraPF = S.cart === 'all' || S.cart === 'PF', mostraPJ = S.cart !== 'PF';
 
   let porCarteira = '';
   if (S.cart === 'all' && !vazio) {
     const grupos = {};
     for (const d of ab) { const k = d.credorId; (grupos[k] ||= { saldo: 0, venc: 0, n: 0 }); grupos[k].saldo += X.C[d.id].saldo; grupos[k].venc += X.C[d.id].vencido; grupos[k].n++; }
     const keys = Object.keys(grupos).sort((a, b) => (X.cred[a]?.tipo === 'PF' ? -1 : 1) - (X.cred[b]?.tipo === 'PF' ? -1 : 1) || grupos[b].saldo - grupos[a].saldo);
-    porCarteira = `<section class="sheet"><header><h2>Saldo por carteira</h2><span class="meta">Cada credor com seus próprios saldos</span></header>
+    porCarteira = `<section class="sheet"><header><h2>Saldo por carteira</h2><span class="meta">Cada credor com seus próprios saldos, sem somar PF e PJ</span></header>
       <div class="tw"><table><thead><tr><th>Credor</th><th class="r">Dívidas em aberto</th><th class="r">Vencido</th><th class="r">Saldo a receber</th></tr></thead><tbody>
       ${keys.length ? keys.map(k => `<tr class="click" data-act="cart" data-c="${esc(X.cred[k]?.tipo === 'PF' ? 'PF' : k)}"><td>${credTag(X.cred[k])} ${esc(credNome(X.cred[k]))}</td><td class="m">${grupos[k].n}</td><td class="m ${grupos[k].venc ? 'crit' : ''}">${brl(grupos[k].venc)}</td><td class="m"><b>${brl(grupos[k].saldo)}</b></td></tr>`).join('') : `<tr><td colspan="4" class="muted">Nenhum saldo em aberto.</td></tr>`}
       </tbody></table></div></section>`;
@@ -779,18 +782,23 @@ VIEWS.painel = () => {
     <div class="acts"><button class="btn" data-act="atualizar" aria-label="Atualizar">${IC.refresh} Atualizar</button><button class="btn" data-act="go" data-v="recebimentos">Registrar recebimento</button><button class="btn pri" data-act="go" data-v="nova">${IC.nova} Nova dívida</button></div></div>
   ${carteiraChips()}
   ${vazio ? onboarding() : `
-  <div class="kpis" style="grid-template-columns:repeat(var(--kc,3),minmax(0,1fr))">
-    ${kp('Total a receber', brl(total), totPrev ? `${brl(total - totPrev)} confirmado · ${brl(totPrev)} previsto` : `${ab.length} dívida${ab.length !== 1 ? 's' : ''} em aberto`, '', true, 'span-all')}
-    ${kp('Pessoa física', brl(pf), 'Carteira PF', '', false, 'pf')}
+  ${mostraPF ? `<div class="eyebrow" style="color:var(--pf)">Pessoa física</div>
+  <div class="kpis" style="grid-template-columns:repeat(${pag30 ? 4 : 3},minmax(0,1fr))">
+    ${kp('A receber · PF', brl(pf), totPrevPF ? `${brl(totPrevPF)} previsto` : `${abPF.length} dívida${abPF.length !== 1 ? 's' : ''} em aberto`, '', false, 'pf')}
     ${kp('Vencido · PF', brl(vencPF), nVencPF ? `${nVencPF} dívida${nVencPF > 1 ? 's' : ''} em atraso` : 'Nada em atraso', vencPF ? 'crit' : '', false, 'pfs')}
+    ${kp('A vencer · PF', brl(pf - vencPF), 'Saldo ainda no prazo', '', false, 'pfs')}
     ${pag30 ? kp('Contas a pagar (30 dias)', brl(pag30.total), pag30.venc ? `<span class="crit">${brl(pag30.venc)} vencido</span>` : `${pag30.n} conta${pag30.n !== 1 ? 's' : ''}`, '', false, 'pf') : ''}
-    ${kp('Pessoa jurídica', brl(pj), 'Todas as empresas', '', false, 'pj')}
-    ${kp('Vencido · PJ', brl(vencPJ), nVencPJ ? `${nVencPJ} dívida${nVencPJ > 1 ? 's' : ''} em atraso` : 'Nada em atraso', vencPJ ? 'crit' : '', false, 'pjs')}
-    ${kp('A vencer', brl(aVenc), 'Saldo ainda no prazo')}
   </div>
-  <div class="grid2" style="align-items:start">${quemSec}${typeof resumoPagarDash === 'function' ? resumoPagarDash() : ''}</div>
+  <div class="grid2" style="align-items:start">${quemBloco(abPF, 'PF')}${typeof resumoPagarDash === 'function' ? resumoPagarDash() : ''}</div>` : ''}
+  ${mostraPJ ? `<div class="eyebrow" style="color:var(--pj);margin-top:8px">Pessoa jurídica</div>
+  <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    ${kp('A receber · PJ', brl(pj), totPrevPJ ? `${brl(totPrevPJ)} previsto` : `${abPJ.length} dívida${abPJ.length !== 1 ? 's' : ''} em aberto`, '', false, 'pj')}
+    ${kp('Vencido · PJ', brl(vencPJ), nVencPJ ? `${nVencPJ} dívida${nVencPJ > 1 ? 's' : ''} em atraso` : 'Nada em atraso', vencPJ ? 'crit' : '', false, 'pjs')}
+    ${kp('A vencer · PJ', brl(pj - vencPJ), 'Saldo ainda no prazo', '', false, 'pjs')}
+  </div>
+  ${quemBloco(abPJ, 'PJ')}` : ''}
   <div class="grid2">
-    <section class="sheet"><header><h2>Dívidas em atraso</h2><span class="meta">${atrasadas.length ? brl(venc) : ''}</span></header>
+    <section class="sheet"><header><h2>Dívidas em atraso</h2><span class="meta">${[vencPF ? `<span class="tag pf">PF</span> ${brl(vencPF)}` : '', vencPJ ? `<span class="tag pj">PJ</span> ${brl(vencPJ)}` : ''].filter(Boolean).join(' · ')}</span></header>
       <div class="list">${atrasadas.length ? atrasadas.slice(0, 8).map(d => divRow(d, 'atraso')).join('') : `<div class="empty">Nenhuma dívida vencida nesta seleção.</div>`}
       ${atrasadas.length > 8 ? `<button class="row" data-act="go" data-v="agenda"><span class="t">Ver todas as ${atrasadas.length} em atraso</span><span></span></button>` : ''}</div></section>
     <section class="sheet"><header><h2>Próximos vencimentos</h2><span class="meta">próximos 30 dias</span></header>
@@ -853,7 +861,7 @@ VIEWS.devedores = () => {
     const ds = S.dividas.filter(d => d.devedorId === v.id && inCart(d) && !d.cancelada);
     const ab = ds.filter(ativa);
     const prox = ab.map(d => X.C[d.id].proxima).filter(p => p && p.venc !== SEM).map(p => p.venc).sort()[0] || '';
-    return { v, ds, prox, saldo: ab.reduce((s, d) => s + X.C[d.id].saldo, 0), venc: ab.reduce((s, d) => s + X.C[d.id].vencido, 0), creds: [...new Set(ab.map(d => d.credorId))], jur: ab.some(d => d.juridico && d.juridico.ativo) };
+    return { v, ds, prox, spf: ab.filter(d => credOf(d).tipo === 'PF').reduce((s, d) => s + X.C[d.id].saldo, 0), spj: ab.filter(d => credOf(d).tipo !== 'PF').reduce((s, d) => s + X.C[d.id].saldo, 0), saldo: ab.reduce((s, d) => s + X.C[d.id].saldo, 0), venc: ab.reduce((s, d) => s + X.C[d.id].vencido, 0), creds: [...new Set(ab.map(d => d.credorId))], jur: ab.some(d => d.juridico && d.juridico.ativo) };
   }).filter(r => (!q || r.v.nome.toLowerCase().includes(q) || (qd && digits(r.v.doc).includes(qd))) && (S.cart === 'all' || r.ds.length))
     .sort((a, b) => b.saldo - a.saldo || a.v.nome.localeCompare(b.v.nome, 'pt-BR'));
   return `<div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Devedores</h1><div class="sub">${S.devedores.length} cadastrado${S.devedores.length !== 1 ? 's' : ''}. Toque em um nome para abrir a conta corrente.</div></div>
@@ -864,7 +872,7 @@ VIEWS.devedores = () => {
     ${rows.length ? rows.map(r => `<button class="row ${r.jur ? 'stripe-legal' : r.venc ? 'stripe-crit' : r.saldo ? 'stripe-acc' : ''}" data-act="go" data-v="devedor" data-id="${r.v.id}">
       <div><div class="t">${esc(r.v.nome)}${r.prox ? ` <span class="num ${r.prox < X.t ? 'crit' : 'muted'}" style="font-weight:500;font-size:13px">${ddmm(r.prox)}</span>` : ''}</div><div class="s">${r.v.doc ? `<span class="num">${esc(fmtDoc(r.v.doc))}</span>` : `<span>${r.v.tipo === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física'}</span>`}
         ${r.creds.map(c => X.cred[c] && X.cred[c].tipo === 'PF' ? credTag(X.cred[c]) : `${credTag(X.cred[c])} ${esc(credNome(X.cred[c]))}`).join(' · ')}${r.venc ? ` · <span class="crit">vencido ${brl(r.venc)}</span>` : ''}${r.jur ? ' <span class="stamp">JURÍDICO</span>' : ''}</div></div>
-      <div class="v">${brl(r.saldo)}<small>${r.saldo ? 'a receber' : 'sem saldo'}</small></div></button>`).join('')
+      <div class="v">${r.spf ? `<div><span class="tag pf">PF</span> ${brl(r.spf)}</div>` : ''}${r.spj ? `<div><span class="tag pj">PJ</span> ${brl(r.spj)}</div>` : ''}${!r.saldo ? '<small>sem saldo</small>' : ''}</div></button>`).join('')
       : `<div class="empty"><b>${S.devedores.length ? 'Nenhum devedor encontrado' : 'Nenhum devedor cadastrado'}</b>${S.devedores.length ? 'Ajuste a busca ou a carteira selecionada.' : 'Cadastre a primeira pessoa ou empresa que lhe deve.'}${S.devedores.length ? '' : '<button class="btn pri" data-act="novoDevedor">Novo devedor</button>'}</div>`}
     </div></section>`;
 };
@@ -971,7 +979,7 @@ VIEWS.devedor = () => {
   const contato = (lbl, val, fmt) => val ? `<dt>${lbl}</dt><dd><span class="num">${esc(fmt ? fmt(val) : val)}</span> <button class="btn ghost sm" data-act="copy" data-t="${esc(fmt ? fmt(val) : val)}" aria-label="Copiar ${lbl}">${IC.copy}</button></dd>` : '';
   return `<div><button class="btn ghost sm" data-act="go" data-v="devedores">${IC.back} Devedores</button></div>
   <div class="ph"><div><div class="eyebrow">${v.tipo === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física'}${v.doc ? ' · ' + esc(fmtDoc(v.doc)) : ''}</div><h1>${esc(v.nome)}</h1>
-    <div class="sub">Saldo consolidado: <b class="num">${brl(totalGeral)}</b>${porCred.length > 1 ? ` em ${porCred.length} credores, controlados separadamente` : ''}</div></div>
+    <div class="sub">${[['PF', 'pf'], ['PJ', 'pj']].map(([tp, cl]) => { const v = porCred.filter(x => (X.cred[x.cid]?.tipo === 'PF') === (tp === 'PF')).reduce((s, x) => s + x.saldo, 0); return v ? `<span class="tag ${cl}">${tp}</span> <b class="num">${brl(v)}</b>` : ''; }).filter(Boolean).join(' &nbsp; ') || 'Sem saldo em aberto'}</div></div>
     <div class="acts"><button class="btn" data-act="extratoPdf" data-id="${v.id}">${IC.pdf} Extrato PDF</button><button class="btn" data-act="receberDe" data-id="${v.id}">Registrar pagamento</button><button class="btn pri" data-act="novaPara" data-id="${v.id}">${IC.nova} Novo empréstimo</button></div></div>
   ${porCred.length ? `<div class="kpis" style="grid-template-columns:repeat(${Math.min(4, porCred.length)},minmax(0,1fr))">${porCred.map(x => `<button class="kpi" style="border:0;text-align:left;cursor:pointer;${S.p.cred === x.cid ? 'box-shadow:inset 0 -3px 0 var(--accent)' : ''}" data-act="ccCred" data-c="${x.cid}"><div class="l">${credTag(X.cred[x.cid])} ${esc(credNome(X.cred[x.cid]))}</div><div class="v">${brl(x.saldo)}</div><div class="h">${x.n} em aberto${x.venc ? ` · <span class="crit">vencido ${brl(x.venc)}</span>` : ''}</div></button>`).join('')}</div>` : ''}
   <section class="sheet"><header><h2>Conta corrente${S.p.cred ? ' · ' + esc(credNome(X.cred[S.p.cred])) : ''}</h2><span class="meta">Juros e multas lançados até ${fd(X.t)}</span></header>
@@ -1568,7 +1576,7 @@ VIEWS.recebimentos = () => {
   const devsComSaldo = new Set(S.dividas.filter(d => ativa(d) && inCart(d)).map(d => d.devedorId));
   const recs = S.pagamentos.filter(g => (!f.de || g.data >= f.de) && (!f.ate || g.data <= f.ate) && X.div[g.dividaId] && inCart(X.div[g.dividaId]))
     .sort((a, b) => (b.data + (b.criadoEm || '')).localeCompare(a.data + (a.criadoEm || '')));
-  const tot = recs.filter(g => !g.cancelado && g.tipo === 'recebimento').reduce((s, g) => s + g.valor, 0);
+  const totTxt = splitTot(recs.filter(g => !g.cancelado && g.tipo === 'recebimento'), g => g.valor, g => X.div[g.dividaId]);
   return `<div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Recebimentos</h1><div class="sub">Escolha o devedor e a dívida. O credor vem da própria dívida, então nenhum valor cai na carteira errada.</div></div></div>
   ${carteiraChips()}
   <section class="sheet"><header><h2>Registrar pagamento</h2></header><div class="body">
@@ -1576,7 +1584,7 @@ VIEWS.recebimentos = () => {
   </div>
   ${devId ? (abertasDev.length ? Object.entries(porCred).map(([cid, ds]) => `<div style="border-top:1px solid var(--line)"><div class="body" style="padding-bottom:4px"><span class="eyebrow">${credTag(X.cred[cid])} Credor: ${esc(credNome(X.cred[cid]))}</span></div><div class="list">${ds.map(d => { const c = X.C[d.id]; return `<button class="row ${c.situacao === 'vencida' ? 'stripe-crit' : 'stripe-acc'}" data-act="pagar" data-id="${d.id}"><div><div class="t">${esc(divNum(d))} · ${esc(d.descricao)}</div><div class="s">${sitPill(d)}${c.proxima ? ` próximo vencimento ${fd(c.proxima.venc)}` : ''}</div></div><div class="v">${brl(c.saldo)}<small>receber →</small></div></button>`; }).join('')}</div></div>`).join('') : `<div class="empty">Este devedor não tem dívidas em aberto${S.cart !== 'all' ? ' nesta carteira' : ''}.</div>`) : ''}
   </section>
-  <section class="sheet"><header><h2>Recebimentos registrados</h2><span class="meta">Total recebido no período: <b class="num">${brl(tot)}</b></span></header>
+  <section class="sheet"><header><h2>Recebimentos registrados</h2><span class="meta">Recebido no período: ${totTxt}</span></header>
     <form class="body filters" id="rc-f"><div class="f"><label for="rc-de">De</label><input type="date" id="rc-de" name="de" value="${f.de}"></div><div class="f"><label for="rc-ate">Até</label><input type="date" id="rc-ate" name="ate" value="${f.ate}"></div></form>
     ${recs.length ? `<div class="tw"><table><thead><tr><th>Data</th><th>Devedor</th><th>Credor</th><th>Dívida</th><th>Forma / conta</th><th>Lançado por</th><th class="r">Valor</th><th></th></tr></thead><tbody>
     ${recs.map(g => { const d = X.div[g.dividaId]; return `<tr class="click" data-act="go" data-v="divida" data-id="${g.dividaId}"><td class="num">${fd(g.data)}</td><td>${esc(X.dev[g.devedorId]?.nome || '')}</td><td>${credTag(X.cred[g.credorId])} ${esc(credNome(X.cred[g.credorId]))}</td><td>${esc(divNum(d))}</td><td>${esc([g.forma, g.conta].filter(Boolean).join(' · ') || '—')}${g.anexos && g.anexos.length ? ' ' + IC.clip.replace('<svg', '<svg width="14" height="14"') : ''}</td><td>${esc(g.criadoPor ? nomeUser(g.criadoPor) : '—')}</td><td class="m" ${g.cancelado ? 'style="text-decoration:line-through"' : ''}>${brl(g.valor)}</td><td>${g.cancelado ? '<span class="pill">Estornado</span>' : g.tipo === 'recebimento' ? '<span class="pill ok">Recebido</span>' : g.tipo === 'renegociacao' ? '<span class="pill acc">Renegociação</span>' : '<span class="pill">Abatimento</span>'}</td></tr>`; }).join('')}
@@ -1603,7 +1611,7 @@ VIEWS.vencimentos = () => {
   const proms = ab.filter(d => d.promessa && d.promessa.data && !d.promessa.cumprida).sort((a, b) => a.promessa.data < b.promessa.data ? -1 : 1);
   const lim = Eng.addDays(t, -30);
   const quit = S.dividas.filter(d => !d.cancelada && inCart(d) && X.C[d.id].situacao === 'quitada').map(d => ({ d, em: (X.pagsBy[d.id] || []).reduce((m, g) => g.data > m ? g.data : m, '') })).filter(x => x.em >= lim).sort((a, b) => a.em < b.em ? 1 : -1);
-  const sec = (k, titulo, vazio, open = true) => { const it = B[k]; const tot = it.reduce((s, x) => s + x.p.valor - x.p.pago, 0); return `<section class="sheet"><header><h2>${titulo}</h2><span class="meta">${it.length ? `${it.length} · <b class="num">${brl(tot)}</b>` : ''}</span></header><div class="list">${it.length ? it.slice(0, open ? 100 : 20).map(x => parcRow(x.d, x.p)).join('') : `<div class="empty">${vazio}</div>`}</div></section>`; };
+  const sec = (k, titulo, vazio, open = true) => { const it = B[k]; const tot = splitTot(it, x => x.p.valor - x.p.pago, x => x.d); return `<section class="sheet"><header><h2>${titulo}</h2><span class="meta">${it.length ? `${it.length} · ${tot}` : ''}</span></header><div class="list">${it.length ? it.slice(0, open ? 100 : 20).map(x => parcRow(x.d, x.p)).join('') : `<div class="empty">${vazio}</div>`}</div></section>`; };
   return `<div class="ph"><div><div class="eyebrow">${esc(cartLabel())}</div><h1>Agenda de vencimentos</h1><div class="sub">Valores de principal das parcelas em aberto. Juros e multas aparecem no saldo de cada dívida.</div></div></div>
   ${carteiraChips()}
   <div class="flex" style="font-size:13px"><span class="pill crit">Vencida</span><span class="pill warn">Vence em até 7 dias / parcialmente paga</span><span class="pill acc">Em dia</span><span class="pill ok">Quitada</span></div>
@@ -1676,7 +1684,7 @@ ACT.encJur = () => {
 
 /* ================= RELATÓRIOS ================= */
 const REPS = [
-  ['pf', 'Total a receber · pessoa física'], ['pj', 'Total a receber · por empresa'], ['cons', 'Total consolidado'],
+  ['pf', 'Total a receber · pessoa física'], ['pj', 'Total a receber · por empresa'], ['cons', 'Saldo por carteira'],
   ['venc', 'Dívidas vencidas'], ['avenc', 'Dívidas a vencer'], ['recm', 'Recebimentos mensais'], ['prev', 'Previsão de recebimentos'],
   ['jur', 'Dívidas em cobrança jurídica'], ['ext', 'Extrato individual do devedor'], ['hist', 'Histórico de empréstimos e pagamentos']
 ];
@@ -1697,8 +1705,8 @@ function relatorio(k, f) {
     const ks = Object.keys(g).sort((a, b) => (X.cred[a]?.tipo === 'PF' ? -1 : 1) - (X.cred[b]?.tipo === 'PF' ? -1 : 1) || g[b].s - g[a].s);
     cols = ['Credor', k === 'cons' ? 'Tipo' : 'CNPJ', 'Dívidas', 'Principal aberto', 'Encargos', 'Vencido', 'Saldo'];
     rows = ks.map(id => { const c = X.cred[id] || {}; return [credNome(c), k === 'cons' ? (c.tipo === 'PF' ? 'Pessoa física' : 'Pessoa jurídica') : fmtDoc(c.doc), N(g[id].n), M(g[id].p), M(g[id].e), M(g[id].v), M(g[id].s)]; });
-    foot = [k === 'cons' ? 'Total consolidado' : 'Total empresas', '', N(sumCol(rows, 2)), M(sumCol(rows, 3)), M(sumCol(rows, 4)), M(sumCol(rows, 5)), M(sumCol(rows, 6))];
-    if (k === 'cons') nota = 'Cada linha é uma carteira independente. O total consolidado é apenas a soma para visão geral.';
+    foot = k === 'cons' ? null : ['Total empresas', '', N(sumCol(rows, 2)), M(sumCol(rows, 3)), M(sumCol(rows, 4)), M(sumCol(rows, 5)), M(sumCol(rows, 6))];
+    if (k === 'cons') nota = 'Cada linha é uma carteira independente. Pessoa física e pessoa jurídica não são somadas.';
   } else if (k === 'venc') {
     const ds = S.dividas.filter(d => okD(d) && ativa(d) && X.C[d.id].situacao === 'vencida' && inP(X.C[d.id].parcelas.find(p => p.status === 'vencida')?.venc || ''));
     cols = ['Devedor', 'Credor', 'Dívida', 'Vencida desde', 'Dias de atraso', 'Valor vencido', 'Saldo total'];
