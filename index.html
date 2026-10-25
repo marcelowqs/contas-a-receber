@@ -167,6 +167,13 @@ td .s{display:block;font-size:12px;color:var(--muted)}
 .rowpg-acts{display:flex;gap:2px}
 .rowpg-acts .btn{padding:5px 7px}
 .autor{font-size:12px;color:var(--muted);font-style:italic}
+.cat-list{display:flex;flex-direction:column;gap:12px}
+.cat-top{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.cat-n{font-weight:600;min-width:0;overflow-wrap:anywhere}
+.cat-v{font-weight:600;white-space:nowrap}
+.cat-v small{font:500 11px var(--f-ui);color:var(--muted);margin-left:6px}
+.cat-row .bar{height:7px;margin-top:4px}
+.cat-s{font-size:11px;color:var(--muted);margin-top:3px}
 .dash2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
 @media (max-width:860px){.dash2{grid-template-columns:minmax(0,1fr)}}
 .dcol{display:flex;flex-direction:column;gap:10px;min-width:0}
@@ -1084,6 +1091,61 @@ VIEWS.painel = () => `
 // telas separadas desativadas: qualquer link antigo abre o dashboard único
 VIEWS.painelPF = VIEWS.painel;
 VIEWS.painelPJ = VIEWS.painel;
+
+/* ================= VISÃO POR CATEGORIA (abaixo do dashboard) ================= */
+function barrasCategoria(itens, cor, rotuloVazio) {
+  if (!itens.length) return `<div class="empty">${rotuloVazio}</div>`;
+  const max = Math.max(...itens.map(x => x.valor), 1);
+  const tot = itens.reduce((s, x) => s + x.valor, 0);
+  return `<div class="cat-list">${itens.map(x => `<div class="cat-row">
+    <div class="cat-top"><span class="cat-n">${esc(x.nome)}</span><span class="num cat-v">${brl(x.valor)}<small>${tot ? Math.round(x.valor / tot * 100) : 0}%</small></span></div>
+    <div class="bar"><i style="width:${Math.max(2, Math.round(x.valor / max * 100))}%;background:var(--${cor})"></i></div>
+    ${x.sub ? `<div class="cat-s">${x.sub}</div>` : ''}</div>`).join('')}</div>`;
+}
+function catReceber(TIPO) {
+  const g = {};
+  for (const d of S.dividas) {
+    if (d.cancelada || !ativa(d) || (credOf(d).tipo === 'PF') !== (TIPO === 'PF')) continue;
+    const k = d.categoria || 'Sem categoria', c = X.C[d.id];
+    const x = (g[k] ||= { nome: k, valor: 0, venc: 0, n: 0 }); x.valor += c.saldo; x.venc += c.vencido; x.n++;
+  }
+  return Object.values(g).sort((a, b) => b.valor - a.valor).map(x => ({ ...x, sub: `${x.n} dívida${x.n !== 1 ? 's' : ''}${x.venc ? ` · <span class="crit">vencido ${brl(x.venc)}</span>` : ''}` }));
+}
+function catPagar() {
+  if (typeof pfCarteiras !== 'function') return [];
+  const pfs = pfCarteiras(); const [m0, m1] = monthBounds(X.t); const g = {};
+  for (const cp of S.contas_pagar) {
+    if (cp.cancelada || !pfs.some(c => c.id === cp.credorId)) continue;
+    const p = posPagar(cp); const k = cp.categoria || 'Sem categoria';
+    const noMes = cp.vencimento >= m0 && cp.vencimento <= m1;
+    let pagoMes = 0; for (const pg of (cp.pagamentos || [])) if (!pg.estornado && pg.data >= m0 && pg.data <= m1) pagoMes += pg.valor;
+    if (!noMes && !pagoMes && !(p.st === 'vencida')) continue;
+    const x = (g[k] ||= { nome: k, valor: 0, pago: 0, venc: 0 });
+    if (noMes || p.st === 'vencida') x.valor += p.saldo;
+    if (p.st === 'vencida') x.venc += p.saldo;
+    x.pago += pagoMes;
+  }
+  return Object.values(g).filter(x => x.valor || x.pago).sort((a, b) => (b.valor + b.pago) - (a.valor + a.pago)).map(x => ({ ...x, sub: [x.pago ? `<span class="ok">pago no mês ${brl(x.pago)}</span>` : '', x.venc ? `<span class="crit">vencido ${brl(x.venc)}</span>` : ''].filter(Boolean).join(' · ') }));
+}
+function visaoCategorias() {
+  const mesNomeAtual = MESES[+X.t.slice(5, 7) - 1];
+  const pagar = catPagar();
+  return `<div class="eyebrow" style="margin-top:10px">Visão financeira por categoria</div>
+  <div class="dash2">
+    <div class="dcol pf">
+      <section class="sheet"><header><h2>A receber por categoria · PF</h2><span class="meta">saldo em aberto</span></header><div class="body">${barrasCategoria(catReceber('PF'), 'pf', 'Nenhuma dívida PF em aberto.')}</div></section>
+      ${typeof pfCarteiras === 'function' && pfCarteiras().length ? `<section class="sheet"><header><h2>A pagar por categoria · PF</h2><span class="meta">${mesNomeAtual} + vencidas</span></header><div class="body">${barrasCategoria(pagar, 'crit', 'Nenhuma conta a pagar neste mês.')}</div></section>` : ''}
+    </div>
+    <div class="dcol pj">
+      <section class="sheet"><header><h2>A receber por categoria · PJ</h2><span class="meta">saldo em aberto</span></header><div class="body">${barrasCategoria(catReceber('PJ'), 'pj', 'Nenhuma dívida PJ em aberto.')}</div></section>
+    </div>
+  </div>`;
+}
+{
+  const base = VIEWS.painel;
+  VIEWS.painel = () => base() + (S.dividas.length || S.contas_pagar.length ? visaoCategorias() : '');
+  VIEWS.painelPF = VIEWS.painel; VIEWS.painelPJ = VIEWS.painel;
+}
 
 /* ================= ANEXOS ================= */
 const blobUrl = id => '/_blob/' + id;
