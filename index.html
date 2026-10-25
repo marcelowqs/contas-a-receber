@@ -1096,8 +1096,8 @@ function colunaDash(TIPO) {
   const quem = Object.entries(devMap).sort((a, b) => b[1].saldo - a[1].saldo);
   const multiEmp = TIPO === 'PJ' && new Set(ab.map(d => d.credorId)).size > 1;
   const quemHtml = quem.length ? quem.map(([id, x]) => `<button class="row compact" data-act="go" data-v="devedor" data-id="${id}">
-      <div class="t"><span class="dot ${x.venc ? 'crit' : ''}"></span>${esc((X.dev[id] || {}).nome || '—')}${x.prox ? `<span class="num sm ${x.prox < t ? 'crit' : 'muted'}">${ddmm(x.prox)}</span>` : ''}${multiEmp ? [...x.creds].map(c => `<span class="tag pj">${esc(credCurto(X.cred[c]))}</span>`).join('') : ''}${x.prevVal && TIPO !== 'PJ' ? '<span class="tag">PREV.</span>' : ''}${x.jur ? '<span class="tag" style="color:var(--legal)">JUR</span>' : ''}</div>
-      <div class="v">${TIPO === 'PJ' && x.prevVal ? (x.prevVal >= x.saldo ? `<span class="prev-val">${brl(x.saldo)}</span><small class="prev-lbl">previsto</small>` : `${brl(x.saldo - x.prevVal)}<small class="prev-val">+ ${brl(x.prevVal)} previsto</small>`) : brl(x.saldo)}${x.venc ? `<small class="crit">venc. ${brl(x.venc)}</small>` : ''}</div></button>`).join('') : `<div class="empty">Ninguém com saldo em aberto.</div>`;
+      <div class="t"><span class="dot ${x.venc ? 'crit' : ''}"></span>${esc((X.dev[id] || {}).nome || '—')}${x.prox ? `<span class="num sm ${x.prox < t ? 'crit' : 'muted'}">${ddmm(x.prox)}</span>` : ''}${multiEmp ? [...x.creds].map(c => `<span class="tag pj">${esc(credCurto(X.cred[c]))}</span>`).join('') : ''}${x.jur ? '<span class="tag" style="color:var(--legal)">JUR</span>' : ''}</div>
+      <div class="v">${x.prevVal ? (x.prevVal >= x.saldo ? `<span class="prev-val">${brl(x.saldo)}</span><small class="prev-lbl">previsto</small>` : `${brl(x.saldo - x.prevVal)}<small class="prev-val">+ ${brl(x.prevVal)} previsto</small>`) : brl(x.saldo)}${x.venc ? `<small class="crit">venc. ${brl(x.venc)}</small>` : ''}</div></button>`).join('') : `<div class="empty">Ninguém com saldo em aberto.</div>`;
   const prox = [];
   const lim = Eng.addDays(t, 30);
   for (const d of ab) for (const p of X.C[d.id].parcelas) if (p.pago < p.valor && p.venc !== SEM && p.venc >= t && p.venc <= lim) prox.push({ d, p });
@@ -1110,8 +1110,8 @@ function colunaDash(TIPO) {
       ${receber30}
       ${pag}
     </div>
-    <section class="sheet"><header><h2>A receber ${TIPO}</h2><span class="meta">${TIPO === 'PJ' && prev ? `<b>${brl(saldo - prev)}</b> confirmado · <span class="prev-val">${brl(prev)} previsto</span>` : quem.length}</span></header><div class="list">${quemHtml}</div></section>
-    <section class="sheet"><header><h2>Próximos 30 dias</h2><span class="meta">${prox.length ? brl(prox.reduce((s, x) => s + x.p.valor - x.p.pago, 0)) : ''}</span></header><div class="list">${prox.length ? prox.slice(0, 6).map(x => { const pv = TIPO === 'PJ' && prevista(x.d); return `<button class="row compact" data-act="go" data-v="divida" data-id="${x.d.id}"><div class="t ${pv ? 'prev-val' : ''}"><span class="num sm muted">${ddmm(x.p.venc)}</span>${esc(devOf(x.d).nome)}${pv ? '<small class="prev-lbl">previsto</small>' : ''}</div><div class="v ${pv ? 'prev-val' : ''}">${brl(x.p.valor - x.p.pago)}</div></button>`; }).join('') : '<div class="empty">Nada nos próximos 30 dias.</div>'}</div></section>
+    <section class="sheet"><header><h2>A receber ${TIPO}</h2><span class="meta">${prev ? `<b>${brl(saldo - prev)}</b> confirmado · <span class="prev-val">${brl(prev)} previsto</span>` : quem.length}</span></header><div class="list">${quemHtml}</div></section>
+    <section class="sheet"><header><h2>Próximos 30 dias</h2><span class="meta">${prox.length ? brl(prox.reduce((s, x) => s + x.p.valor - x.p.pago, 0)) : ''}</span></header><div class="list">${prox.length ? prox.slice(0, 6).map(x => { const pv = prevista(x.d); return `<button class="row compact" data-act="go" data-v="divida" data-id="${x.d.id}"><div class="t ${pv ? 'prev-val' : ''}"><span class="num sm muted">${ddmm(x.p.venc)}</span>${esc(devOf(x.d).nome)}${pv ? '<small class="prev-lbl">previsto</small>' : ''}</div><div class="v ${pv ? 'prev-val' : ''}">${brl(x.p.valor - x.p.pago)}</div></button>`; }).join('') : '<div class="empty">Nada nos próximos 30 dias.</div>'}</div></section>
     ${TIPO === 'PF' && typeof resumoPagarDash === 'function' ? resumoPagarDash() : ''}
   </div>`;
 }
