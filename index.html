@@ -487,6 +487,7 @@ const IC = {
   refresh: I('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>'),
   edit: I('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
   trash: I('<path d="M4 7h16M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
+  whats: I('<path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/><path d="M9 9.5c.3 2 2 4 4.5 4.6l1-1.1 1.8.8-.3 1.5c-3.6.4-7.3-3.2-7-6.9l1.5-.3.8 1.8z"/>'),
   mais: I('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'),
   back: I('<path d="M15 5l-7 7 7 7"/>'),
   x: I('<path d="M6 6l12 12M18 6 6 18"/>'),
@@ -996,7 +997,7 @@ VIEWS.devedor = () => {
   return `<div><button class="btn ghost sm" data-act="go" data-v="devedores">${IC.back} Devedores</button></div>
   <div class="ph"><div><div class="eyebrow">${v.tipo === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física'}${v.doc ? ' · ' + esc(fmtDoc(v.doc)) : ''}</div><h1>${esc(v.nome)}</h1>
     <div class="sub">${[['PF', 'pf'], ['PJ', 'pj']].map(([tp, cl]) => { const v = porCred.filter(x => (X.cred[x.cid]?.tipo === 'PF') === (tp === 'PF')).reduce((s, x) => s + x.saldo, 0); return v ? `<span class="tag ${cl}">${tp}</span> <b class="num">${brl(v)}</b>` : ''; }).filter(Boolean).join(' &nbsp; ') || 'Sem saldo em aberto'}</div></div>
-    <div class="acts"><button class="btn" data-act="extratoPdf" data-id="${v.id}">${IC.pdf} Extrato PDF</button><button class="btn" data-act="receberDe" data-id="${v.id}">Registrar pagamento</button><button class="btn pri" data-act="novaPara" data-id="${v.id}">${IC.nova} Novo empréstimo</button></div></div>
+    <div class="acts"><button class="btn" data-act="whatsDev" data-id="${v.id}" data-c="${S.p.cred || ''}">${IC.whats} WhatsApp</button><button class="btn" data-act="extratoPdf" data-id="${v.id}">${IC.pdf} Extrato PDF</button><button class="btn" data-act="receberDe" data-id="${v.id}">Registrar pagamento</button><button class="btn pri" data-act="novaPara" data-id="${v.id}">${IC.nova} Novo empréstimo</button></div></div>
   ${porCred.length ? `<div class="kpis" style="grid-template-columns:repeat(${Math.min(4, porCred.length)},minmax(0,1fr))">${porCred.map(x => `<button class="kpi" style="border:0;text-align:left;cursor:pointer;${S.p.cred === x.cid ? 'box-shadow:inset 0 -3px 0 var(--accent)' : ''}" data-act="ccCred" data-c="${x.cid}"><div class="l">${credTag(X.cred[x.cid])} ${esc(credNome(X.cred[x.cid]))}</div><div class="v">${brl(x.saldo)}</div><div class="h">${x.n} em aberto${x.venc ? ` · <span class="crit">vencido ${brl(x.venc)}</span>` : ''}</div></button>`).join('')}</div>` : ''}
   <section class="sheet"><header><h2>Conta corrente${S.p.cred ? ' · ' + esc(credNome(X.cred[S.p.cred])) : ''}</h2><span class="meta">Juros e multas lançados até ${fd(X.t)}</span></header>
     ${credIds.length > 1 ? `<div class="tabs">${credIds.map(c => `<button class="${S.p.cred === c ? 'on' : ''}" data-act="ccCred" data-c="${c}">${esc(credNome(X.cred[c]))}</button>`).join('')}</div>` : ''}
@@ -1224,7 +1225,7 @@ VIEWS.divida = () => {
   <div class="ph"><div><div class="eyebrow">${credTag(cr)} ${esc(credNome(cr))} · ${esc(divNum(d))}${d.categoria ? ' · ' + esc(d.categoria) : ''}</div>
     <h1>${esc(d.descricao || 'Dívida')}</h1>
     <div class="sub flex" style="margin-top:6px">${d.cancelada ? '<span class="pill">Cancelada</span>' : sitPill(d)} ${d.cancelada ? '' : cobPill(cob)} ${jur.ativo ? '<span class="stamp">JURÍDICO</span>' : ''}${d.livre && X.C[d.id].proxima && X.C[d.id].proxima.venc === SEM ? '<span class="pill acc">Sem vencimento</span>' : ''}<span>Operação em ${fd(d.dataOperacao)} · devedor <a href="#devedor" data-act="go" data-v="devedor" data-id="${d.devedorId}">${esc(dv.nome)}</a>${d.criadoPor ? ` · lançada por <b>${esc(nomeUser(d.criadoPor))}</b>` : ''}</span></div></div>
-    ${S.canWrite && !d.cancelada ? `<div class="acts"><div class="seg" role="group" aria-label="Previsão"><button type="button" class="${!prevista(d) ? 'on' : ''}" data-act="setConf" data-id="${d.id}" data-c="confirmada">Confirmada</button><button type="button" class="${prevista(d) ? 'on' : ''}" data-act="setConf" data-id="${d.id}" data-c="prevista">Prevista</button></div>${c.saldo > 0 ? `<button class="btn pri" data-act="pagar" data-id="${d.id}">Registrar pagamento</button>` : ''}<button class="btn" data-act="acoes" data-id="${d.id}">Mais ações</button></div>` : ''}${d.cancelada && S.canWrite ? `<div class="acts"><button class="btn" data-act="reativar" data-id="${d.id}">Reativar dívida</button></div>` : ''}</div>
+    ${S.canWrite && !d.cancelada ? `<div class="acts"><div class="seg" role="group" aria-label="Previsão"><button type="button" class="${!prevista(d) ? 'on' : ''}" data-act="setConf" data-id="${d.id}" data-c="confirmada">Confirmada</button><button type="button" class="${prevista(d) ? 'on' : ''}" data-act="setConf" data-id="${d.id}" data-c="prevista">Prevista</button></div>${c.saldo > 0 ? `<button class="btn" data-act="whatsDiv" data-id="${d.id}">${IC.whats} WhatsApp</button><button class="btn pri" data-act="pagar" data-id="${d.id}">Registrar pagamento</button>` : ''}<button class="btn" data-act="acoes" data-id="${d.id}">Mais ações</button></div>` : ''}${d.cancelada && S.canWrite ? `<div class="acts"><button class="btn" data-act="reativar" data-id="${d.id}">Reativar dívida</button></div>` : ''}</div>
   ${d.cancelada ? `<div class="notice crit">Dívida cancelada em ${fd(d.canceladaEm)}: ${esc(d.motivoCancelamento || '')}. Ela não entra nos saldos, mas o histórico foi preservado.</div>` : ''}
   ${nova ? `<div class="notice info">Esta dívida foi renegociada. O saldo passou para <a href="#divida" data-act="go" data-v="divida" data-id="${nova.id}">${esc(divNum(nova))}</a>.</div>` : ''}
   ${orig ? `<div class="notice info">Originada da renegociação de <a href="#divida" data-act="go" data-v="divida" data-id="${orig.id}">${esc(divNum(orig))}</a>, cujo histórico permanece intacto.</div>` : ''}
@@ -1904,6 +1905,7 @@ VIEWS.config = () => {
       <p style="margin:0;font-size:13px" class="muted">${S.dividas.length} dívidas · ${S.pagamentos.length} lançamentos de pagamento · ${S.devedores.length} devedores · ${S.credores.length} credores</p>
     </div></section>
   </div>
+  ${typeof configMensagens === 'function' ? configMensagens() : ''}
   <section class="sheet"><header><h2>Acesso e segurança</h2><button class="btn sm" data-act="sair">Sair</button></header><div class="body" style="display:flex;flex-direction:column;gap:10px;font-size:14px">
     <p style="margin:0">O acesso é feito com e-mail e senha. Só e-mails autorizados na tabela <b>usuarios</b> do Supabase entram no sistema.</p>
     <p style="margin:0">Cada pessoa vê apenas as carteiras a que tem acesso: a própria pessoa física e as empresas em que foi incluída como sócia (em Configurações → empresa → Sócios com acesso). A separação é aplicada pelo banco de dados.</p>
@@ -2016,7 +2018,7 @@ async function boot() {
       S[c] = snap.docs.map(x => ({ ...x.data(), id: x.id }));
       S.loaded[c] = true;
       if (c === 'credores' && !['all', 'PF', 'PJ'].includes(S.cart) && !S.credores.some(x => x.id === S.cart)) S.cart = 'all';
-      if (COLS.every(k => S.loaded[k])) { if (!S.ready) setTimeout(() => typeof estenderRecorrentes === 'function' && estenderRecorrentes(), 1500); S.ready = true; }
+      if (COLS.every(k => S.loaded[k])) { if (!S.ready) setTimeout(() => { typeof estenderRecorrentes === 'function' && estenderRecorrentes(); typeof iniciarMensagens === 'function' && iniciarMensagens(); }, 1500); S.ready = true; }
       requestRender();
     }, err => { console.error(c, err); toast('Falha ao carregar ' + c + '. Recarregue a página.', true); });
   }
@@ -2283,6 +2285,103 @@ async function estenderRecorrentes() {
   } catch (e) { console.warn('recorrência', e); }
   finally { estendendo = false; }
 }
+
+/* ================= WHATSAPP (mensagem pronta para o devedor) ================= */
+const MSG_PADRAO = {
+  lembrete: 'Olá, {nome}! Tudo bem?\nPassando para lembrar do pagamento de {valor} referente a {descricao}, com vencimento em {vencimento}.\nQualquer dúvida, estou à disposição.\n{assinatura}',
+  cobranca: 'Olá, {nome}.\nConsta em aberto o valor de {vencido}, referente a {descricao}, vencido em {vencimento} ({dias} dias).\nSaldo total atualizado: {valor}.\nPodemos combinar o pagamento?\n{assinatura}'
+};
+const VARS_MSG = [['{nome}', 'nome do devedor'], ['{valor}', 'saldo atualizado'], ['{vencido}', 'valor vencido'], ['{vencimento}', 'data do vencimento'], ['{dias}', 'dias de atraso'], ['{descricao}', 'descrição da dívida'], ['{credor}', 'credor'], ['{conta}', 'conta de recebimento do credor'], ['{assinatura}', 'sua assinatura']];
+S.msg = null;
+let msgSub = null;
+function iniciarMensagens() {
+  if (msgSub || !db || !S.meId) return;
+  msgSub = db.doc('config/msg-' + S.meId).onSnapshot(s => { S.msg = s.exists ? s.data() : {}; }, () => { });
+}
+const modelos = () => ({ lembrete: (S.msg && S.msg.lembrete) || MSG_PADRAO.lembrete, cobranca: (S.msg && S.msg.cobranca) || MSG_PADRAO.cobranca, assinatura: (S.msg && S.msg.assinatura) || (S.names[S.meId] || '') });
+function foneWa(v) {
+  let d = digits(v.whatsapp || v.telefone || '');
+  if (!d) return '';
+  if (d.length === 10 || d.length === 11) d = '55' + d;
+  return d;
+}
+function preencher(txt, ctx) {
+  return txt.replace(/\{(\w+)\}/g, (m, k) => ctx[k] != null && ctx[k] !== '' ? String(ctx[k]) : (k === 'assinatura' ? '' : m)).replace(/\n{3,}/g, '\n\n').trim();
+}
+function ctxMensagem(dv, ds) {
+  const abertas = ds.filter(ativa);
+  const cr = abertas.length ? credOf(abertas[0]) : (ds[0] ? credOf(ds[0]) : {});
+  const saldo = abertas.reduce((s, d) => s + X.C[d.id].saldo, 0);
+  const vencido = abertas.reduce((s, d) => s + X.C[d.id].vencido, 0);
+  const vencs = abertas.map(d => X.C[d.id]).flatMap(c => c.parcelas.filter(p => p.pago < p.valor && p.venc !== SEM).map(p => p.venc)).sort();
+  const vencidas = vencs.filter(v => v < X.t);
+  const dataRef = vencidas[0] || vencs[0] || '';
+  return {
+    nome: (dv.nome || '').split(' ')[0], valor: brl(saldo), vencido: brl(vencido), vencimento: dataRef ? fd(dataRef) : 'sem data definida',
+    dias: vencidas[0] ? Eng.diff(vencidas[0], X.t) : 0, descricao: ds.length === 1 ? (ds[0].descricao || 'dívida') : `${abertas.length} dívidas`,
+    credor: credNome(cr), conta: (cr.contas || [])[0] || '', assinatura: modelos().assinatura, temVencido: vencido > 0
+  };
+}
+function abrirWhats(dv, ds) {
+  const fone = foneWa(dv);
+  const ctx = ctxMensagem(dv, ds);
+  const M = modelos();
+  let tipo = ctx.temVencido ? 'cobranca' : 'lembrete';
+  const form = openModal({
+    title: 'Mensagem no WhatsApp', noFoot: true,
+    body: `${fone ? `<div class="flex"><b>${esc(dv.nome)}</b><span class="num muted">${esc(fmtTel(fone.slice(2)))}</span></div>` : `<div class="notice">Este devedor não tem WhatsApp nem telefone cadastrado. Inclua o número no cadastro dele.</div>`}
+    <div class="seg" data-seg="tipoMsg"><button type="button" class="${tipo === 'lembrete' ? 'on' : ''}" data-val="lembrete">Lembrete</button><button type="button" class="${tipo === 'cobranca' ? 'on' : ''}" data-val="cobranca">Cobrança</button></div><input type="hidden" name="tipoMsg" value="${tipo}">
+    <div class="f"><label for="wa-txt">Mensagem (pode editar antes de enviar)</label><textarea id="wa-txt" name="txt" style="min-height:180px">${esc(preencher(M[tipo], ctx))}</textarea></div>
+    ${ds.length === 1 && S.canWrite ? `<label class="flex" style="font-weight:500"><input type="checkbox" name="registrar" checked> Registrar este contato no histórico de cobrança</label>` : ''}
+    <div class="flex" style="justify-content:flex-end;border-top:1px solid var(--line);padding-top:14px"><button type="button" class="btn" data-close>Cancelar</button>${fone ? `<a class="btn pri" id="wa-go" target="_blank" rel="noopener" href="#">Abrir no WhatsApp</a>` : ''}</div>
+    <p class="hint muted" style="margin:0;font-size:12px">Para mudar os textos padrão e a assinatura: Configurações → Mensagens de WhatsApp.</p>`
+  });
+  form.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
+  const ta = form.elements.txt, go = form.querySelector('#wa-go');
+  const sync = () => { if (go) go.href = `https://wa.me/${fone}?text=${encodeURIComponent(ta.value)}`; };
+  form.addEventListener('change', e => { if (e.target.name === 'tipoMsg') { ta.value = preencher(M[e.target.value], ctx); sync(); } });
+  ta.addEventListener('input', sync); sync();
+  if (go) go.addEventListener('click', () => {
+    const reg = form.elements.registrar && form.elements.registrar.checked;
+    const texto = ta.value, tp = fv(form, 'tipoMsg');
+    setTimeout(closeModal, 300);
+    if (reg && ds.length === 1) {
+      const d = ds[0];
+      put('contatos', newId('contatos'), stamp({ dividaId: d.id, devedorId: d.devedorId, credorId: d.credorId, data: X.t, canal: 'WhatsApp', responsavel: S.names[S.meId] || '', descricao: `${tp === 'cobranca' ? 'Cobrança' : 'Lembrete'} enviado por WhatsApp:\n${texto}`, proximo: '' }, true))
+        .then(() => audit('cobrança', 'contato', d.id, `Mensagem de ${tp === 'cobranca' ? 'cobrança' : 'lembrete'} por WhatsApp`, { dividaId: d.id }))
+        .catch(() => { });
+    }
+  });
+}
+ACT.whatsDiv = el => { const d = X.div[el.dataset.id]; abrirWhats(devOf(d), [d]); };
+ACT.whatsDev = el => {
+  const v = X.dev[el.dataset.id];
+  const cred = el.dataset.c;
+  const ds = S.dividas.filter(d => d.devedorId === v.id && !d.cancelada && (!cred || d.credorId === cred) && ativa(d));
+  if (!ds.length) { toast('Este devedor não tem saldo em aberto nesta carteira.', true); return; }
+  abrirWhats(v, ds);
+};
+
+/* configuração dos textos */
+function configMensagens() {
+  const M = modelos();
+  return `<section class="sheet"><header><h2>Mensagens de WhatsApp</h2><span class="meta">Seus textos (cada usuário tem os seus)</span></header><div class="body">
+  <form id="cfg-msg" class="form">
+    <div class="f full"><label for="msg-l">Lembrete (dívida em dia)</label><textarea id="msg-l" name="lembrete" style="min-height:120px">${esc(M.lembrete)}</textarea></div>
+    <div class="f full"><label for="msg-c">Cobrança (dívida vencida)</label><textarea id="msg-c" name="cobranca" style="min-height:140px">${esc(M.cobranca)}</textarea></div>
+    <div class="f"><label for="msg-a">Assinatura</label><input type="text" id="msg-a" name="assinatura" value="${esc(M.assinatura)}" placeholder="Ex.: Marcelo"></div>
+    <div class="f full"><span class="lb">Campos que você pode usar no texto</span><div class="hint">${VARS_MSG.map(([k, l]) => `<code>${k}</code> ${l}`).join(' · ')}</div></div>
+    ${S.canWrite ? '<div class="f full flex"><button type="submit" class="btn pri sm">Salvar mensagens</button><button type="button" class="btn sm" data-act="msgPadrao">Voltar ao texto padrão</button></div>' : ''}
+  </form></div></section>`;
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'cfg-msg') return;
+  e.preventDefault(); if (!needWrite()) return;
+  const f = e.target;
+  try { await withRetry(() => db.doc('config/msg-' + S.meId).set({ lembrete: f.elements.lembrete.value.trim(), cobranca: f.elements.cobranca.value.trim(), assinatura: fv(f, 'assinatura'), atualizadoEm: nowIso() })); toast('Mensagens salvas.'); }
+  catch (er) { toast(errMsg(er), true); }
+});
+ACT.msgPadrao = () => { const f = $('#cfg-msg'); if (!f) return; f.elements.lembrete.value = MSG_PADRAO.lembrete; f.elements.cobranca.value = MSG_PADRAO.cobranca; toast('Texto padrão restaurado. Toque em Salvar para manter.'); };
 
 /* ================= CONEXÃO SUPABASE (substitui o banco do Claude) ================= */
 const CFG_OK = !/COLE_AQUI/.test(SUPABASE_URL + SUPABASE_KEY);
