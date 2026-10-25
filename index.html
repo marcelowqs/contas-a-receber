@@ -166,6 +166,7 @@ td .s{display:block;font-size:12px;color:var(--muted)}
 .rowpg-main:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .rowpg-acts{display:flex;gap:2px}
 .rowpg-acts .btn{padding:5px 7px}
+.autor{font-size:12px;color:var(--muted);font-style:italic}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
 .dot.crit{background:var(--crit)}
 .row:hover{background:var(--sunk)}
@@ -553,6 +554,7 @@ const prevista = d => d.confirmacao === 'prevista';
 const confPill = d => prevista(d) ? '<span class="pill" style="border:1px dashed var(--muted)">Prevista</span>' : '';
 const sitPill = d => { const s = SIT[X.C[d.id].situacao]; return `<span class="pill ${s[1]}">${s[0]}</span>${prevista(d) ? ' ' + confPill(d) : ''}`; };
 const cobPill = k => { const c = COB[k]; return c ? `<span class="pill ${c[2]}">${c[1]}</span>` : `<span class="pill">Cancelada</span>`; };
+const porQuem = o => o && o.criadoPor ? `<span class="autor">por ${esc(nomeUser(o.criadoPor))}</span>` : '';
 const nomeUser = id => !id ? 'Sistema' : (S.names[id] || (id === S.meId ? 'Você' : 'Usuário'));
 async function resolveNames(ids) {
   if (!U) return;
@@ -694,7 +696,7 @@ function render() {
   try { html = V(); } catch (e) { console.error(e); html = `<div class="notice crit">Erro ao montar a tela: ${esc(e.message)}</div>`; }
   $('#main').innerHTML = (S.offline ? `<div class="notice crit">O banco de dados não está disponível nesta visualização. Verifique a conexão com a internet e recarregue a página.</div>` : '') + html;
   const after = AFTER[S.view]; if (after) after();
-  resolveNames(S.auditoria.slice(0, 60).map(a => a.por).concat(S.pagamentos.map(p => p.criadoPor)));
+  resolveNames(S.auditoria.slice(0, 60).map(a => a.por).concat(S.pagamentos.map(p => p.criadoPor), S.dividas.map(d => d.criadoPor)));
 }
 const VIEWS = {}, AFTER = {};
 
@@ -828,8 +830,9 @@ function divRow(d, mode) {
   const sub = mode === 'atraso'
     ? `<span class="crit">${c.diasAtraso} dia${c.diasAtraso !== 1 ? 's' : ''} de atraso</span> · ${credTag(cr)} ${esc(credNome(cr))}`
     : `${credTag(cr)} ${esc(credNome(cr))} · ${esc(d.descricao || '')}`;
+  const subA = sub + ' ' + porQuem(d);
   return `<button class="row ${stripe ? 'stripe-' + stripe : ''}" data-act="go" data-v="divida" data-id="${d.id}">
-    <div><div class="t">${esc(dv.nome)} <span class="muted" style="font-weight:400">· ${esc(divNum(d))}</span></div><div class="s">${sub}${d.juridico && d.juridico.ativo ? ' <span class="stamp">JURÍDICO</span>' : ''}</div></div>
+    <div><div class="t">${esc(dv.nome)} <span class="muted" style="font-weight:400">· ${esc(divNum(d))}</span></div><div class="s">${subA}${d.juridico && d.juridico.ativo ? ' <span class="stamp">JURÍDICO</span>' : ''}</div></div>
     <div class="v">${brl(mode === 'atraso' ? c.vencido : c.saldo)}<small>${mode === 'atraso' ? 'vencido' : 'saldo'}</small></div></button>`;
 }
 function parcRow(d, p) {
@@ -946,7 +949,7 @@ function ledgerTable(rows, opts = {}) {
   const deb = rows.reduce((s, r) => s + r.debito, 0), cred = rows.reduce((s, r) => s + r.credito, 0);
   return `<div class="tw"><table class="ledger"><thead><tr><th>Data</th><th>Descrição</th><th class="r">Débito</th><th class="r">Crédito</th><th class="r">Saldo</th></tr></thead><tbody>
   ${rows.map(r => `<tr class="t-${r.tipo}${opts.click !== false ? ' click' : ''}" ${opts.click !== false ? `data-act="go" data-v="divida" data-id="${r.d.id}"` : ''}><td class="num" style="white-space:nowrap">${fd(r.data)}</td>
-    <td>${esc(r.tipo === 'principal' ? (r.d.origemRenegociacao ? 'Renegociação · nova dívida' : 'Dívida / empréstimo') : r.desc)}<span class="s">${esc(divNum(r.d))}${r.tipo === 'principal' ? ' · ' + esc(r.d.descricao || '') : ''}${r.parts && (r.parts.juros || r.parts.multa) ? ` · amortizou ${brl(r.parts.principal)} principal, ${brl(r.parts.juros)} juros${r.parts.multa ? ', ' + brl(r.parts.multa) + ' multa' : ''}` : ''}</span></td>
+    <td>${esc(r.tipo === 'principal' ? (r.d.origemRenegociacao ? 'Renegociação · nova dívida' : 'Dívida / empréstimo') : r.desc)}<span class="s">${esc(divNum(r.d))}${r.tipo === 'principal' ? ' · ' + esc(r.d.descricao || '') + (r.d.criadoPor ? ' · por ' + esc(nomeUser(r.d.criadoPor)) : '') : ''}${r.pagId ? (g => g && g.criadoPor ? ' · por ' + esc(nomeUser(g.criadoPor)) : '')(S.pagamentos.find(p => p.id === r.pagId)) : ''}${r.parts && (r.parts.juros || r.parts.multa) ? ` · amortizou ${brl(r.parts.principal)} principal, ${brl(r.parts.juros)} juros${r.parts.multa ? ', ' + brl(r.parts.multa) + ' multa' : ''}` : ''}</span></td>
     <td class="m deb">${r.debito ? brl(r.debito) : '—'}</td><td class="m cred">${r.credito ? brl(r.credito) : '—'}</td>
     <td class="m sal">${brl(Math.abs(r.saldo))}<span class="dc ${r.saldo >= 0 ? 'd' : 'c'}">${r.saldo >= 0 ? 'D' : 'C'}</span></td></tr>`).join('')}
   </tbody><tfoot><tr><td></td><td>Totais</td><td class="m">${brl(deb)}</td><td class="m">${brl(cred)}</td><td class="m">${brl(deb - cred)}</td></tr></tfoot></table></div>`;
@@ -977,7 +980,7 @@ VIEWS.devedor = () => {
   </section>
   <div class="grid2">
   <section class="sheet"><header><h2>Dívidas</h2><span class="meta">${ds.length} registrada${ds.length !== 1 ? 's' : ''}</span></header><div class="list">
-    ${listaDiv.length ? listaDiv.map(d => { const c = X.C[d.id]; return `<button class="row" data-act="go" data-v="divida" data-id="${d.id}"><div><div class="t">${esc(d.descricao || 'Dívida')} <span class="muted" style="font-weight:400">· ${esc(divNum(d))}</span></div><div class="s">${credTag(credOf(d))} ${esc(credNome(credOf(d)))} · ${fd(d.dataOperacao)} · ${d.cancelada ? '<span class="pill">Cancelada</span>' : sitPill(d)}</div></div><div class="v">${brl(d.cancelada ? 0 : c.saldo)}<small>de ${brl(d.valor)}</small></div></button>`; }).join('') : `<div class="empty">Nenhuma dívida.</div>`}
+    ${listaDiv.length ? listaDiv.map(d => { const c = X.C[d.id]; return `<button class="row" data-act="go" data-v="divida" data-id="${d.id}"><div><div class="t">${esc(d.descricao || 'Dívida')} <span class="muted" style="font-weight:400">· ${esc(divNum(d))}</span></div><div class="s">${credTag(credOf(d))} ${esc(credNome(credOf(d)))} · ${fd(d.dataOperacao)} · ${d.cancelada ? '<span class="pill">Cancelada</span>' : sitPill(d)} ${porQuem(d)}</div></div><div class="v">${brl(d.cancelada ? 0 : c.saldo)}<small>de ${brl(d.valor)}</small></div></button>`; }).join('') : `<div class="empty">Nenhuma dívida.</div>`}
   </div></section>
   <section class="sheet"><header><h2>Cadastro</h2><div class="flex"><button class="btn sm" data-act="editDevedor" data-id="${v.id}">Editar</button>${ds.length ? '' : `<button class="btn sm danger" data-act="delDevedor" data-id="${v.id}">Excluir</button>`}</div></header><div class="body">
     <dl class="kv">${v.doc ? `<dt>${digits(v.doc).length === 14 ? 'CNPJ' : 'CPF'}</dt><dd class="num">${esc(fmtDoc(v.doc))}</dd>` : ''}${contato('Telefone', v.telefone, fmtTel)}${contato('WhatsApp', v.whatsapp, fmtTel)}${contato('E-mail', v.email)}${v.endereco ? `<dt>Endereço</dt><dd>${esc(v.endereco)}</dd>` : ''}${v.obs ? `<dt>Observações</dt><dd style="white-space:pre-wrap">${esc(v.obs)}</dd>` : ''}
@@ -1174,7 +1177,7 @@ VIEWS.divida = () => {
   if (tab === 'mov') body = `${ledgerTable(led, { click: false })}
     <div class="body" style="border-top:1px solid var(--line)"><div class="grid2">
       <div><div class="eyebrow" style="margin-bottom:8px">Pagamentos e baixas</div>${pags.length ? `<div class="timeline">${pags.map(g => `<div class="tl"><div class="d">${fd(g.data)}</div><div><div class="flex"><b class="num" ${g.cancelado ? 'style="text-decoration:line-through"' : ''}>${brl(g.valor)}</b><span class="pill ${g.cancelado ? '' : g.tipo === 'recebimento' ? 'ok' : 'acc'}">${g.cancelado ? 'Estornado' : g.tipo === 'recebimento' ? 'Recebido' : g.tipo === 'renegociacao' ? 'Renegociação' : 'Abatimento'}</span>${!g.cancelado && S.canWrite ? `<button class="btn ghost sm right" data-act="estornar" data-id="${g.id}">Estornar</button>` : ''}</div>
-        <div class="muted" style="font-size:13px">${[g.forma, g.conta, g.obs].filter(Boolean).map(esc).join(' · ')}${g.cancelado ? ` · Estorno: ${esc(g.motivoCancelamento || '')}` : ''}</div>${fileList(g.anexos)}</div></div>`).join('')}</div>` : '<div class="muted">Nenhum pagamento registrado.</div>'}</div>
+        <div class="muted" style="font-size:13px">${[g.forma, g.conta, g.obs, g.criadoPor ? 'lançado por ' + nomeUser(g.criadoPor) : ''].filter(Boolean).map(esc).join(' · ')}${g.cancelado ? ` · Estorno: ${esc(g.motivoCancelamento || '')}` : ''}</div>${fileList(g.anexos)}</div></div>`).join('')}</div>` : '<div class="muted">Nenhum pagamento registrado.</div>'}</div>
       <div><div class="eyebrow" style="margin-bottom:8px">Ajustes manuais de juros e multa</div>${ajs.length ? `<div class="timeline">${ajs.map(a => `<div class="tl"><div class="d">${fd(a.data)}</div><div><div class="flex"><b class="num" ${a.cancelado ? 'style="text-decoration:line-through"' : ''}>${a.valor > 0 ? '+' : '−'}${brl(Math.abs(a.valor))}</b><span class="pill">${a.tipo === 'multa' ? 'Multa' : 'Juros'}</span>${!a.cancelado && S.canWrite ? `<button class="btn ghost sm right" data-act="cancAjuste" data-id="${a.id}">Cancelar</button>` : ''}</div><div class="muted" style="font-size:13px">${esc(a.justificativa)}${a.cancelado ? ' · cancelado' : ''}</div></div></div>`).join('')}</div>` : '<div class="muted">Nenhum ajuste.</div>'}</div>
     </div></div>`;
   if (tab === 'parc') body = `<div class="tw"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th class="r">Valor</th><th class="r">Pago</th><th class="r">Restante</th><th>Situação</th><th></th></tr></thead><tbody>
@@ -1196,7 +1199,7 @@ VIEWS.divida = () => {
   return `<div class="flex"><button class="btn ghost sm" data-act="go" data-v="devedor" data-id="${d.devedorId}">${IC.back} ${esc(dv.nome)}</button></div>
   <div class="ph"><div><div class="eyebrow">${credTag(cr)} ${esc(credNome(cr))} · ${esc(divNum(d))}${d.categoria ? ' · ' + esc(d.categoria) : ''}</div>
     <h1>${esc(d.descricao || 'Dívida')}</h1>
-    <div class="sub flex" style="margin-top:6px">${d.cancelada ? '<span class="pill">Cancelada</span>' : sitPill(d)} ${d.cancelada ? '' : cobPill(cob)} ${jur.ativo ? '<span class="stamp">JURÍDICO</span>' : ''}${d.livre && X.C[d.id].proxima && X.C[d.id].proxima.venc === SEM ? '<span class="pill acc">Sem vencimento</span>' : ''}<span>Operação em ${fd(d.dataOperacao)} · devedor <a href="#devedor" data-act="go" data-v="devedor" data-id="${d.devedorId}">${esc(dv.nome)}</a></span></div></div>
+    <div class="sub flex" style="margin-top:6px">${d.cancelada ? '<span class="pill">Cancelada</span>' : sitPill(d)} ${d.cancelada ? '' : cobPill(cob)} ${jur.ativo ? '<span class="stamp">JURÍDICO</span>' : ''}${d.livre && X.C[d.id].proxima && X.C[d.id].proxima.venc === SEM ? '<span class="pill acc">Sem vencimento</span>' : ''}<span>Operação em ${fd(d.dataOperacao)} · devedor <a href="#devedor" data-act="go" data-v="devedor" data-id="${d.devedorId}">${esc(dv.nome)}</a>${d.criadoPor ? ` · lançada por <b>${esc(nomeUser(d.criadoPor))}</b>` : ''}</span></div></div>
     ${S.canWrite && !d.cancelada ? `<div class="acts"><div class="seg" role="group" aria-label="Previsão"><button type="button" class="${!prevista(d) ? 'on' : ''}" data-act="setConf" data-id="${d.id}" data-c="confirmada">Confirmada</button><button type="button" class="${prevista(d) ? 'on' : ''}" data-act="setConf" data-id="${d.id}" data-c="prevista">Prevista</button></div>${c.saldo > 0 ? `<button class="btn pri" data-act="pagar" data-id="${d.id}">Registrar pagamento</button>` : ''}<button class="btn" data-act="acoes" data-id="${d.id}">Mais ações</button></div>` : ''}${d.cancelada && S.canWrite ? `<div class="acts"><button class="btn" data-act="reativar" data-id="${d.id}">Reativar dívida</button></div>` : ''}</div>
   ${d.cancelada ? `<div class="notice crit">Dívida cancelada em ${fd(d.canceladaEm)}: ${esc(d.motivoCancelamento || '')}. Ela não entra nos saldos, mas o histórico foi preservado.</div>` : ''}
   ${nova ? `<div class="notice info">Esta dívida foi renegociada. O saldo passou para <a href="#divida" data-act="go" data-v="divida" data-id="${nova.id}">${esc(divNum(nova))}</a>.</div>` : ''}
@@ -1575,8 +1578,8 @@ VIEWS.recebimentos = () => {
   </section>
   <section class="sheet"><header><h2>Recebimentos registrados</h2><span class="meta">Total recebido no período: <b class="num">${brl(tot)}</b></span></header>
     <form class="body filters" id="rc-f"><div class="f"><label for="rc-de">De</label><input type="date" id="rc-de" name="de" value="${f.de}"></div><div class="f"><label for="rc-ate">Até</label><input type="date" id="rc-ate" name="ate" value="${f.ate}"></div></form>
-    ${recs.length ? `<div class="tw"><table><thead><tr><th>Data</th><th>Devedor</th><th>Credor</th><th>Dívida</th><th>Forma / conta</th><th class="r">Valor</th><th></th></tr></thead><tbody>
-    ${recs.map(g => { const d = X.div[g.dividaId]; return `<tr class="click" data-act="go" data-v="divida" data-id="${g.dividaId}"><td class="num">${fd(g.data)}</td><td>${esc(X.dev[g.devedorId]?.nome || '')}</td><td>${credTag(X.cred[g.credorId])} ${esc(credNome(X.cred[g.credorId]))}</td><td>${esc(divNum(d))}</td><td>${esc([g.forma, g.conta].filter(Boolean).join(' · ') || '—')}${g.anexos && g.anexos.length ? ' ' + IC.clip.replace('<svg', '<svg width="14" height="14"') : ''}</td><td class="m" ${g.cancelado ? 'style="text-decoration:line-through"' : ''}>${brl(g.valor)}</td><td>${g.cancelado ? '<span class="pill">Estornado</span>' : g.tipo === 'recebimento' ? '<span class="pill ok">Recebido</span>' : g.tipo === 'renegociacao' ? '<span class="pill acc">Renegociação</span>' : '<span class="pill">Abatimento</span>'}</td></tr>`; }).join('')}
+    ${recs.length ? `<div class="tw"><table><thead><tr><th>Data</th><th>Devedor</th><th>Credor</th><th>Dívida</th><th>Forma / conta</th><th>Lançado por</th><th class="r">Valor</th><th></th></tr></thead><tbody>
+    ${recs.map(g => { const d = X.div[g.dividaId]; return `<tr class="click" data-act="go" data-v="divida" data-id="${g.dividaId}"><td class="num">${fd(g.data)}</td><td>${esc(X.dev[g.devedorId]?.nome || '')}</td><td>${credTag(X.cred[g.credorId])} ${esc(credNome(X.cred[g.credorId]))}</td><td>${esc(divNum(d))}</td><td>${esc([g.forma, g.conta].filter(Boolean).join(' · ') || '—')}${g.anexos && g.anexos.length ? ' ' + IC.clip.replace('<svg', '<svg width="14" height="14"') : ''}</td><td>${esc(g.criadoPor ? nomeUser(g.criadoPor) : '—')}</td><td class="m" ${g.cancelado ? 'style="text-decoration:line-through"' : ''}>${brl(g.valor)}</td><td>${g.cancelado ? '<span class="pill">Estornado</span>' : g.tipo === 'recebimento' ? '<span class="pill ok">Recebido</span>' : g.tipo === 'renegociacao' ? '<span class="pill acc">Renegociação</span>' : '<span class="pill">Abatimento</span>'}</td></tr>`; }).join('')}
     </tbody></table></div>` : `<div class="empty">Nenhum recebimento no período.</div>`}
   </section>`;
 };
