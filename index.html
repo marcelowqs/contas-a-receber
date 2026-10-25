@@ -1228,6 +1228,10 @@ VIEWS.nova = () => {
     <div class="f full"><span class="lb">Esta dívida está</span><div class="seg" data-seg="confirmacao"><button type="button" class="${d.confirmacao !== 'prevista' ? 'on' : ''}" data-val="confirmada">Confirmada</button><button type="button" class="${d.confirmacao === 'prevista' ? 'on' : ''}" data-val="prevista">Prevista</button></div><input type="hidden" name="confirmacao" value="${d.confirmacao === 'prevista' ? 'prevista' : 'confirmada'}"></div>
     <div class="f full"><span class="lb">Vencimento</span><div class="seg" data-seg="livre"><button type="button" class="${!d.livre ? 'on' : ''}" data-val="0">Com data de vencimento</button><button type="button" class="${d.livre ? 'on' : ''}" data-val="1">Sem data de vencimento</button></div><input type="hidden" name="livre" value="${d.livre ? 1 : 0}"><span class="hint" id="hint-livre" ${d.livre ? '' : 'hidden'}>A dívida fica em aberto sem data. Ela nunca fica "vencida".</span></div>
     <div class="f" id="wrap-venc" ${d.livre ? 'hidden' : ''}><label for="nd-venc">Data prevista para pagamento <span class="req">*</span></label><input type="date" id="nd-venc" name="vencimento" value="${d.vencimento && d.vencimento !== SEM ? d.vencimento : ''}"><span class="hint">Com parcelas, é o vencimento da 1ª parcela.</span></div>
+    ${ed ? '' : `<div class="f full" id="wrap-rep" ${d.livre ? 'hidden' : ''}><div class="form" style="gap:10px 18px">
+      <div class="f"><label for="nd-rep">Repete</label><select id="nd-rep" name="repete"><option value="unico">Não repete</option><option value="mensal">Mensalmente</option><option value="semanal">Semanalmente</option><option value="quinzenal">Quinzenalmente (a cada 15 dias)</option><option value="anual">Anualmente</option></select><span class="hint">Ex.: royalties, aluguéis, mensalidades.</span></div>
+      <div class="f" id="wrap-fim" hidden><label for="nd-fim">Até quando</label><select id="nd-fim" name="fimRep"><option value="sem">Sem data para terminar</option>${[2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36, 48, 60].map(n => `<option value="${n}">${n} vezes</option>`).join('')}</select><span class="hint">Cada vez vira uma dívida própria, com o mesmo status (prevista ou confirmada).</span></div>
+    </div></div>`}
     <div class="f" id="wrap-parc" ${d.livre ? 'hidden' : ''}><label for="nd-parc">Quantidade de parcelas</label><input type="number" min="1" max="360" id="nd-parc" name="parcelas" value="${d.parcelas || 1}"></div>
     <div class="section-title">Identificação</div>
     <div class="f"><label for="nd-num">Número da operação</label><input type="text" id="nd-num" name="numero" value="${esc(d.numero || '')}" placeholder="${ed ? '' : proxNumero()}"><span class="hint">${ed ? '' : 'Em branco, usa ' + proxNumero()}</span></div>
@@ -1279,7 +1283,6 @@ function validaDivida(x) {
   if (!x.dataOperacao) return 'Informe a data da operação.';
   if (!x.descricao) return 'Informe o motivo ou a descrição.';
   if (!x.vencimento) return 'Informe a data prevista para pagamento.';
-  if (x.vencimento < x.dataOperacao) return 'O vencimento não pode ser anterior à data da operação.';
   if (x.juros.ativo && !(x.juros.taxa > 0 && x.juros.taxa < 100)) return 'Informe uma taxa de juros válida (ex.: 2 para 2%).';
   if (x.juros.ativo && x.juros.inicio && x.juros.inicio < x.dataOperacao) return 'O início dos juros não pode ser anterior à operação.';
   if (x.multa.ativo && !(x.multa.pct > 0 && x.multa.pct <= 100)) return 'Informe um percentual de multa válido.';
@@ -1290,7 +1293,10 @@ AFTER.nova = () => {
   const prev = () => {
     const x = readDividaForm(f);
     $('#box-juros').hidden = !x.juros.ativo; $('#box-multa').hidden = !x.multa.ativo;
-    ['#wrap-venc', '#wrap-parc', '#wrap-multa'].forEach(s => $(s).hidden = x.livre); $('#hint-livre').hidden = !x.livre;
+    ['#wrap-venc', '#wrap-parc', '#wrap-multa', '#wrap-rep'].forEach(s => { const e = $(s); if (e) e.hidden = x.livre; }); $('#hint-livre').hidden = !x.livre;
+    const rp = f.elements.repete ? f.elements.repete.value : 'unico';
+    if ($('#wrap-fim')) $('#wrap-fim').hidden = rp === 'unico';
+    if ($('#wrap-parc')) $('#wrap-parc').hidden = x.livre || rp !== 'unico';
     const el = $('#nd-prev');
     if (x.livre) { el.innerHTML = ''; return; }
     if (!(x.valor > 0) || !x.vencimento) { el.innerHTML = ''; return; }
@@ -1327,11 +1333,25 @@ AFTER.nova = () => {
         await audit('edição', 'divida', ed.id, diffs.length ? diffs.join('; ') : 'Dívida salva sem alterações', { antes: JSON.stringify(clean(ed)).slice(0, 6000) });
         S.dirty = false; toast('Dívida atualizada.'); go('divida', { id: ed.id });
       } else {
-        const id = newId('dividas');
-        const doc = { ...x, numero: x.numero || proxNumero(), cronograma: Eng.gerarCronograma(x.valor, x.parcelas, x.vencimento), anexos: novos, statusCobranca: 'aberto', cancelada: false };
-        await put('dividas', id, stamp(doc, true));
-        await audit('criação', 'divida', id, `${doc.numero}: ${brl(x.valor)} de ${X.dev[x.devedorId]?.nome} a ${credNome(X.cred[x.credorId])}`);
-        S.dirty = false; toast('Dívida cadastrada.'); go('divida', { id });
+        const rp = !x.livre && f.elements.repete ? f.elements.repete.value : 'unico';
+        if (rp !== 'unico') {
+          const fim = f.elements.fimRep.value === 'sem' ? 'sem' : Math.max(2, parseInt(f.elements.fimRep.value) || 2);
+          const grupo = newId('dividas'), numBase = x.numero || proxNumero();
+          const recorrente = { freq: rp, fim, inicio: x.vencimento, inicioOp: x.dataOperacao };
+          const n = fim === 'sem' ? horizonte(rp, x.vencimento) : fim;
+          for (let i = 0; i < n; i++) {
+            const venc = proxVenc(x.vencimento, rp, i), op = proxVenc(x.dataOperacao, rp, i);
+            await put('dividas', grupo + '-' + i, stamp({ ...x, parcelas: 1, dataOperacao: op, vencimento: venc, numero: `${numBase}-${String(i + 1).padStart(2, '0')}`, cronograma: Eng.gerarCronograma(x.valor, 1, venc), anexos: i === 0 ? novos : [], statusCobranca: 'aberto', cancelada: false, grupo, seq: i, recorrente }, true));
+          }
+          await audit('criação', 'divida', grupo + '-0', `${numBase}: ${brl(x.valor)} ${FREQS[rp]}${fim === 'sem' ? ', sem data para terminar' : `, ${fim} vezes`} · ${X.dev[x.devedorId]?.nome} · ${x.confirmacao}`);
+          S.dirty = false; toast(fim === 'sem' ? 'Dívida recorrente cadastrada.' : `${n} dívidas cadastradas.`); go('devedor', { id: x.devedorId });
+        } else {
+          const id = newId('dividas');
+          const doc = { ...x, numero: x.numero || proxNumero(), cronograma: Eng.gerarCronograma(x.valor, x.parcelas, x.vencimento), anexos: novos, statusCobranca: 'aberto', cancelada: false };
+          await put('dividas', id, stamp(doc, true));
+          await audit('criação', 'divida', id, `${doc.numero}: ${brl(x.valor)} de ${X.dev[x.devedorId]?.nome} a ${credNome(X.cred[x.credorId])}`);
+          S.dirty = false; toast('Dívida cadastrada.'); go('divida', { id });
+        }
       }
     } catch (er) { console.error(er); toast(errMsg(er), true); }
     finally { if (btn.isConnected) btn.disabled = false; }
@@ -1478,7 +1498,6 @@ function openPagamento(d, tipo = 'recebimento') {
       const data = fv(f, 'data'), valor = parseBRL(fv(f, 'valor'));
       if (!data) { toast('Informe a data.', true); return false; }
       if (data > X.t) { toast('Não é possível registrar pagamento com data futura. Use "Promessa de pagamento".', true); return false; }
-      if (data < d.dataOperacao) { toast('A data é anterior à operação.', true); return false; }
       if (!(valor > 0)) { toast('Informe um valor maior que zero.', true); return false; }
       if (isAb && !fv(f, 'obs')) { toast('Informe o motivo do desconto.', true); return false; }
       const { r } = previewPag(d, data, valor);
@@ -1547,7 +1566,7 @@ ACT.ajuste = el => {
       const v = parseBRL(fv(f, 'valor')), j = fv(f, 'just'), data = fv(f, 'data');
       if (!(v > 0)) { toast('Informe o valor.', true); return false; }
       if (!j) { toast('A justificativa é obrigatória.', true); return false; }
-      if (!data || data > X.t || data < d.dataOperacao) { toast('Data inválida.', true); return false; }
+      if (!data || data > X.t) { toast('Data inválida.', true); return false; }
       const valor = fv(f, 'op') === '-' ? -v : v;
       const id = newId('ajustes');
       await put('ajustes', id, stamp({ dividaId: d.id, credorId: d.credorId, devedorId: d.devedorId, tipo: fv(f, 'tipo'), valor, data, justificativa: j, cancelado: false }, true));
@@ -1626,7 +1645,6 @@ ACT.novoVenc = el => {
     onSubmit: async f => {
       const n = +fv(f, 'n'), data = fv(f, 'data'), motivo = fv(f, 'motivo');
       if (!data || !motivo) { toast('Informe a nova data e o motivo.', true); return false; }
-      if (data < d.dataOperacao) { toast('A data não pode ser anterior à operação.', true); return false; }
       const cron = (d.cronograma && d.cronograma.length ? d.cronograma : Eng.gerarCronograma(d.valor, d.parcelas || 1, d.vencimento)).map(p => ({ ...p }));
       const p = cron.find(x => x.n === n); const de = p.venc; p.venc = data;
       const hist = [...(d.historicoVencimentos || []), { em: X.t, parcela: n, de, para: data, motivo }];
@@ -1688,9 +1706,16 @@ ACT.cancelarDiv = async el => {
   if (!needWrite()) return;
   const d = X.div[el.dataset.id];
   if ((X.pagsBy[d.id] || []).some(g => g.tipo === 'recebimento')) { toast('Esta dívida tem recebimentos. Estorne-os antes de cancelar.', true); return; }
-  const j = await confirmBox('Cancelar dívida', `Cancelar <b>${esc(divNum(d))}</b> (${brl(d.valor)})? Ela sai dos saldos, mas o registro e o histórico ficam preservados.`, 'Cancelar dívida', true, justField('Motivo do cancelamento'));
+  const prox = d.grupo ? S.dividas.filter(x => x.grupo === d.grupo && x.id !== d.id && !x.cancelada && x.vencimento > d.vencimento && !(X.pagsBy[x.id] || []).length) : [];
+  const j = await confirmBox('Cancelar dívida', `Cancelar <b>${esc(divNum(d))}</b> (${brl(d.valor)})? Ela sai dos saldos, mas o registro e o histórico ficam preservados.${prox.length || (d.recorrente && d.recorrente.fim === 'sem') ? `<br><br><label class="flex" style="font-weight:500"><input type="checkbox" id="cd-fut"> Cancelar também as próximas${prox.length ? ` (${prox.length})` : ''} e encerrar a recorrência</label>` : ''}`, 'Cancelar dívida', true, justField('Motivo do cancelamento'));
   if (!j) return;
-  try { await upd('dividas', d.id, { cancelada: true, canceladaEm: X.t, canceladaPor: S.meId || null, motivoCancelamento: j }); await audit('cancelamento', 'divida', d.id, `Dívida cancelada: ${j}`); toast('Dívida cancelada.'); }
+  const todas = (document.getElementById('cd-fut') || {}).checked;
+  try {
+    const alvo = [d, ...(todas ? prox : [])];
+    for (const x of alvo) await upd('dividas', x.id, { cancelada: true, canceladaEm: X.t, canceladaPor: S.meId || null, motivoCancelamento: j, ...(todas ? { encerra: true } : {}) });
+    await audit('cancelamento', 'divida', d.id, `${alvo.length > 1 ? alvo.length + ' dívidas canceladas (recorrência encerrada)' : 'Dívida cancelada'}: ${j}`);
+    toast(alvo.length > 1 ? `${alvo.length} dívidas canceladas.` : 'Dívida cancelada.');
+  }
   catch (e) { toast(errMsg(e), true); }
 };
 ACT.reativar = async el => {
@@ -1750,6 +1775,31 @@ ACT.juridico = el => {
     catch (e) { toast(errMsg(e), true); }
   });
 };
+
+/* dívidas recorrentes sem data para terminar: mantém as próximas criadas */
+let estendendoDiv = false;
+async function estenderDividasRec() {
+  if (estendendoDiv || !S.canWrite || !db || !S.ready) return;
+  estendendoDiv = true;
+  try {
+    const grupos = {};
+    for (const d of S.dividas) if (d.grupo && d.recorrente && d.recorrente.fim === 'sem') (grupos[d.grupo] ||= []).push(d);
+    for (const [g, itens] of Object.entries(grupos)) {
+      if (itens.some(d => d.encerra)) continue;
+      const ult = itens.reduce((a, b) => (b.seq ?? 0) > (a.seq ?? 0) ? b : a);
+      const { freq, inicio, inicioOp } = ult.recorrente;
+      const alvo = horizonte(freq, inicio);
+      for (let i = (ult.seq ?? 0) + 1; i < alvo; i++) {
+        const id = g + '-' + i;
+        if (S.dividas.some(d => d.id === id)) continue;
+        const venc = proxVenc(inicio, freq, i);
+        const base = clean({ ...ult }); delete base.criadoEm; delete base.atualizadoEm; delete base.criadoPor;
+        await put('dividas', id, stamp({ ...base, dataOperacao: proxVenc(inicioOp || inicio, freq, i), vencimento: venc, numero: (ult.numero || '').replace(/-\d+$/, '') + '-' + String(i + 1).padStart(2, '0'), cronograma: Eng.gerarCronograma(ult.valor, 1, venc), anexos: [], seq: i, statusCobranca: 'aberto', cancelada: false, promessa: null, juridico: null, historicoVencimentos: [], renegociadaPara: null }, true));
+      }
+    }
+  } catch (e) { console.warn('recorrência dívidas', e); }
+  finally { estendendoDiv = false; }
+}
 
 /* ================= RECEBIMENTOS ================= */
 VIEWS.recebimentos = () => {
@@ -2186,7 +2236,7 @@ async function boot() {
       S[c] = snap.docs.map(x => ({ ...x.data(), id: x.id }));
       S.loaded[c] = true;
       if (c === 'credores' && !['all', 'PF', 'PJ'].includes(S.cart) && !S.credores.some(x => x.id === S.cart)) S.cart = 'all';
-      if (COLS.every(k => S.loaded[k])) { if (!S.ready) setTimeout(() => { typeof estenderRecorrentes === 'function' && estenderRecorrentes(); typeof iniciarMensagens === 'function' && iniciarMensagens(); }, 1500); S.ready = true; }
+      if (COLS.every(k => S.loaded[k])) { if (!S.ready) setTimeout(() => { typeof estenderRecorrentes === 'function' && estenderRecorrentes(); typeof estenderDividasRec === 'function' && estenderDividasRec(); typeof iniciarMensagens === 'function' && iniciarMensagens(); }, 1500); S.ready = true; }
       requestRender();
     }, err => { console.error(c, err); toast('Falha ao carregar ' + c + '. Recarregue a página.', true); });
   }
