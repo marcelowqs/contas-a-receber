@@ -550,6 +550,7 @@ const IC = {
   config: I('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>'),
   refresh: I('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>'),
   check: I('<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16.5 9.5"/>'),
+  cadDev: I('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M17 8v6M14 11h6"/>'),
   edit: I('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
   trash: I('<path d="M4 7h16M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
   whats: I('<path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/><path d="M9 9.5c.3 2 2 4 4.5 4.6l1-1.1 1.8.8-.3 1.5c-3.6.4-7.3-3.2-7-6.9l1.5-.3.8 1.8z"/>'),
@@ -562,7 +563,7 @@ const IC = {
   copy: I('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>')
 };
 const NAV = [
-  ['painel', 'Dashboard'], ['nova', 'Cadastrar dívida'], ['agenda', 'Vencimentos e cobranças'], ['pagar', 'Contas a pagar'], ['relatorios', 'Relatórios'], ['config', 'Configurações']
+  ['painel', 'Dashboard'], ['nova', 'Cadastrar dívida'], ['agenda', 'Vencimentos e cobranças'], ['pagar', 'Contas a pagar'], ['relatorios', 'Relatórios'], ['config', 'Configurações'], ['cadDev', 'Devedores']
 ];
 
 /* ================= DOMÍNIO ================= */
@@ -753,7 +754,7 @@ function renderShell() {
   const tb = [['painel', 'Painel'], ['nova', 'Cadastrar'], ['agenda', 'Agenda'], ['pagar', 'A pagar'], ['mais', 'Mais']];
   $('#tabbar').innerHTML = tb.map(([k, l]) => k === 'nova'
     ? `<button class="plus ${navOn(k) ? 'on' : ''}" data-act="go" data-v="nova"><span class="ic">${IC.nova}</span>${l}</button>`
-    : k === 'mais' ? `<button class="${['juridico', 'relatorios', 'config'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
+    : k === 'mais' ? `<button class="${['juridico', 'relatorios', 'config', 'cadDev'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
       : `<button class="${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('');
 }
 const navOn = k => S.view === k || (k === 'agenda' && ['vencimentos', 'cobrancas'].includes(S.view)) || (k === 'painel' && ['painelPF', 'painelPJ'].includes(S.view));
@@ -1012,7 +1013,7 @@ function openDevedorModal(v, onDone) {
     }
   });
 }
-ACT.novoDevedor = () => openDevedorModal(null, id => { if (S.view === 'devedores' || S.view === 'painel') go('devedor', { id }); });
+ACT.novoDevedor = () => openDevedorModal(null, id => { if (S.view === 'devedores' || S.view === 'painel') go('devedor', { id }); else render(); });
 ACT.editDevedor = el => openDevedorModal(X.dev[el.dataset.id]);
 ACT.delDevedor = async el => {
   if (!needWrite()) return;
@@ -2267,6 +2268,36 @@ const _render = render;
 render = function () {
   if (db && !S.ready && !S.offline) { build(); renderShell(); $('#main').innerHTML = '<div class="loading">Carregando seus dados…</div>'; return; }
   _render();
+};
+
+/* ================= CADASTRO DE DEVEDORES (abaixo de Configurações) ================= */
+VIEWS.cadDev = () => {
+  const q = (S.p.q2 || '').toLowerCase(), qd = digits(q);
+  const lista = [...S.devedores].filter(v => !q || v.nome.toLowerCase().includes(q) || (qd && digits(v.doc).includes(qd)) || (qd && digits(v.whatsapp || v.telefone).includes(qd)))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  const nDiv = id => S.dividas.filter(d => d.devedorId === id && !d.cancelada).length;
+  return `<div class="ph"><div><div class="eyebrow">Cadastros</div><h1>Devedores</h1><div class="sub">${S.devedores.length} cadastrado${S.devedores.length !== 1 ? 's' : ''}. Cadastre, edite ou exclua devedores.</div></div>
+    ${S.canWrite ? `<div class="acts"><button class="btn pri" data-act="novoDevedor">${IC.nova} Novo devedor</button></div>` : ''}</div>
+  <div class="f"><label for="q-cad" class="muted" style="font-weight:500">Buscar por nome, CPF/CNPJ ou telefone</label><input type="search" id="q-cad" value="${esc(S.p.q2 || '')}" placeholder="Digite para filtrar…"></div>
+  <section class="sheet">${lista.length ? `<div class="tw"><table><thead><tr><th>Nome</th><th>CPF / CNPJ</th><th>WhatsApp / telefone</th><th>E-mail</th><th class="r">Dívidas</th><th></th></tr></thead><tbody>
+    ${lista.map(v => { const n = nDiv(v.id); return `<tr><td><b>${esc(v.nome)}</b><span class="s">${v.tipo === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física'}${v.criadoPor ? ' · cadastrado por ' + esc(nomeUser(v.criadoPor)) : ''}</span></td>
+      <td class="num">${esc(fmtDoc(v.doc) || '—')}</td><td class="num">${esc(fmtTel(v.whatsapp || v.telefone) || '—')}</td><td>${esc(v.email || '—')}</td><td class="m">${n}</td>
+      <td class="r" style="white-space:nowrap"><button class="btn ghost sm" data-act="go" data-v="devedor" data-id="${v.id}" title="Abrir conta corrente">Abrir</button>${S.canWrite ? `<button class="btn ghost sm" data-act="editDevedor" data-id="${v.id}" aria-label="Editar">${IC.edit}</button>${n ? '' : `<button class="btn ghost sm" style="color:var(--crit)" data-act="delDevedorCad" data-id="${v.id}" aria-label="Excluir">${IC.trash}</button>`}` : ''}</td></tr>`; }).join('')}
+  </tbody></table></div>` : `<div class="empty"><b>${S.devedores.length ? 'Nenhum devedor encontrado' : 'Nenhum devedor cadastrado'}</b>${S.devedores.length ? 'Ajuste a busca.' : ''}${S.canWrite && !S.devedores.length ? '<button class="btn pri" data-act="novoDevedor">Novo devedor</button>' : ''}</div>`}</section>
+  <p class="muted" style="margin:0;font-size:12px">Só é possível excluir devedores sem dívidas registradas. Os demais podem ser editados a qualquer momento.</p>`;
+};
+AFTER.cadDev = () => {
+  const i = $('#q-cad'); if (!i) return;
+  i.addEventListener('input', () => { S.p.q2 = i.value; const pos = i.selectionStart; render(); const j = $('#q-cad'); j.focus(); try { j.setSelectionRange(pos, pos); } catch { } });
+};
+ACT.delDevedorCad = async el => {
+  if (!needWrite()) return;
+  const v = X.dev[el.dataset.id];
+  if (S.dividas.some(d => d.devedorId === v.id)) { toast('Este devedor tem dívidas registradas e não pode ser excluído.', true); return; }
+  const ok = await confirmBox('Excluir devedor', `Excluir o cadastro de <b>${esc(v.nome)}</b>?`, 'Excluir', true);
+  if (!ok) return;
+  try { await withRetry(() => db.doc('devedores/' + v.id).delete()); await audit('exclusão', 'devedor', v.id, `Devedor ${v.nome} excluído (sem dívidas)`); toast('Devedor excluído.'); render(); }
+  catch (e) { toast(e && e.code === 'invalid_argument' ? 'Só quem cadastrou este devedor pode excluí-lo.' : errMsg(e), true); }
 };
 
 /* ================= CONTAS A PAGAR (pessoa física) ================= */
