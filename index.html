@@ -2198,11 +2198,11 @@ function posPagar(cp, t = X.t) {
 const ST_PAGAR = { aberta: ['A pagar', 'acc'], parcial: ['Paga em parte', 'warn'], vencida: ['Vencida', 'crit'], paga: ['Paga', 'ok'], cancelada: ['Cancelada', ''] };
 const pillPagar = st => `<span class="pill ${ST_PAGAR[st][1]}">${ST_PAGAR[st][0]}</span>`;
 
-function rowPagar({ cp, p }, pfs) {
+function rowPagar({ cp, p }, pfs, noDash) {
   const stripe = p.st === 'vencida' ? 'stripe-crit' : p.st === 'paga' ? 'stripe-ok' : p.st === 'parcial' ? 'stripe-warn' : 'stripe-acc';
   return `<div class="row compact rowpg ${stripe}">
     <button type="button" class="rowpg-main" data-act="verPagar" data-id="${cp.id}">
-      <span class="t"><span class="num sm ${p.st === 'vencida' ? 'crit' : 'muted'}">${ddmm(cp.vencimento)}</span>${esc(cp.favorecido || cp.descricao)}${cp.favorecido && cp.descricao ? `<span class="muted sm">${esc(cp.descricao)}</span>` : ''}${cp.parcela ? `<span class="muted sm">${esc(cp.parcela)}</span>` : ''}${pfs.length > 1 ? `<span class="tag">${esc(credNome(X.cred[cp.credorId]))}</span>` : ''}${p.st !== 'aberta' ? pillPagar(p.st) : ''}</span>
+      <span class="t"><span class="num sm ${p.st === 'vencida' ? 'crit' : 'muted'}">${ddmm(cp.vencimento)}</span>${esc(cp.favorecido || cp.descricao)}${cp.favorecido && cp.descricao ? `<span class="muted sm">${esc(cp.descricao)}</span>` : ''}${cp.parcela && !(noDash && cp.parcela === 'Recorrente') ? `<span class="muted sm">${esc(cp.parcela)}</span>` : ''}${pfs.length > 1 ? `<span class="tag">${esc(credNome(X.cred[cp.credorId]))}</span>` : ''}${p.st !== 'aberta' ? pillPagar(p.st) : ''}</span>
       <span class="v">${brl(p.st === 'paga' ? cp.valor : p.saldo)}</span></button>
     ${S.canWrite ? `<span class="rowpg-acts"><button type="button" class="btn ghost sm" data-act="editarPagar" data-id="${cp.id}" aria-label="Editar">${IC.edit}</button><button type="button" class="btn ghost sm" style="color:var(--crit)" data-act="cancelarPagar" data-id="${cp.id}" aria-label="Apagar">${IC.trash}</button></span>` : ''}
   </div>`;
@@ -2219,7 +2219,7 @@ function resumoPagarDash() {
   const soma = a => a.reduce((s, x) => s + x.p.saldo, 0);
   const lista = [...venc, ...semana].sort((a, b) => a.cp.vencimento < b.cp.vencimento ? -1 : 1);
   return `<section class="sheet"><header><h2>Contas a pagar</h2><span class="meta">${venc.length ? `<span class="crit">vencidas ${brl(soma(venc))}</span> · ` : ''}próximos 60 dias ${brl(soma(semana))}</span></header>
-    <div class="list">${lista.length ? lista.slice(0, 15).map(x => rowPagar(x, pfs)).join('') : `<div class="empty">Nada vencido nem vencendo nos próximos 60 dias.</div>`}
+    <div class="list">${lista.length ? lista.slice(0, 15).map(x => rowPagar(x, pfs, true)).join('') : `<div class="empty">Nada vencido nem vencendo nos próximos 60 dias.</div>`}
     <button class="row compact" data-act="go" data-v="pagar"><span class="t muted" style="font-weight:500">${lista.length > 15 ? `Ver todas (${lista.length})` : 'Abrir contas a pagar'}</span><span class="v muted">›</span></button></div></section>`;
 }
 VIEWS.pagar = () => {
