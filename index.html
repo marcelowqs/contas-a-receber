@@ -167,6 +167,21 @@ td .s{display:block;font-size:12px;color:var(--muted)}
 .rowpg-acts{display:flex;gap:2px}
 .rowpg-acts .btn{padding:5px 7px}
 .autor{font-size:12px;color:var(--muted);font-style:italic}
+.dash2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.dash2{grid-template-columns:minmax(0,1fr)}}
+.dcol{display:flex;flex-direction:column;gap:10px;min-width:0}
+.dcol-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:10px 14px;border-radius:10px;color:#fff;font-weight:700;font-size:14px}
+.dcol-h b{font-size:20px;font-weight:600}
+.dcol.pf .dcol-h{background:var(--pf)} .dcol.pj .dcol-h{background:var(--pj)}
+:root[data-theme="dark"] .dcol-h{color:#0f1312}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dcol-h{color:#0f1312}}
+.dcol .kpi{padding:10px 12px;gap:2px}
+.dcol .kpi .l{font-size:11px} .dcol .kpi .v{font-size:16px} .dcol .kpi .h{font-size:11px}
+.dcol .sheet>header{padding:9px 12px} .dcol .sheet>header h2{font-size:13px} .dcol .sheet>header .meta{font-size:12px}
+.dcol .row.compact{padding:6px 12px} .dcol .row.compact .t{font-size:13px;gap:6px} .dcol .row.compact .v{font-size:13px}
+.dcol .row .v small{font-size:11px}
+.dcol .empty{padding:14px 12px;font-size:13px}
+.dcol .rowpg-main .t{font-size:13px}
 .dash-switch{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--sunk);padding:5px;border-radius:12px}
 .dash-switch button{border:0;border-radius:9px;padding:11px 8px;font-weight:700;font-size:15px;cursor:pointer;background:none;color:var(--muted)}
 .dash-switch button.pf.on{background:var(--pf);color:#fff}
@@ -497,7 +512,7 @@ const IC = {
   copy: I('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>')
 };
 const NAV = [
-  ['painelPF', 'Dashboard PF'], ['painelPJ', 'Dashboard PJ'], ['nova', 'Cadastrar dívida'], ['agenda', 'Vencimentos e cobranças'], ['pagar', 'Contas a pagar'], ['relatorios', 'Relatórios'], ['config', 'Configurações']
+  ['painel', 'Dashboard'], ['nova', 'Cadastrar dívida'], ['agenda', 'Vencimentos e cobranças'], ['pagar', 'Contas a pagar'], ['relatorios', 'Relatórios'], ['config', 'Configurações']
 ];
 
 /* ================= DOMÍNIO ================= */
@@ -678,16 +693,16 @@ function renderShell() {
   $('#side').innerHTML = `<div class="brand"><span>Livro de recebíveis</span><b>Gestão de Contas a Receber</b></div>
     ${NAV.map(([k, l]) => `<button class="nav-btn ${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}<span>${l}</span>${k === 'agenda' && venc ? `<span class="ct">${venc}</span>` : ''}</button>`).join('')}
     <div class="foot">${S.canWrite ? '' : '<div class="pill warn" style="margin-bottom:8px">Somente leitura</div>'}Valores em R$ · ${fd(X.t)}<div class="flex" style="margin-top:8px"><button class="btn sm" data-act="atualizar">Atualizar</button><button class="btn sm" data-act="sair">Sair</button></div></div>`;
-  const tb = [['painelPF', 'PF'], ['painelPJ', 'PJ'], ['nova', 'Cadastrar'], ['agenda', 'Agenda'], ['mais', 'Mais']];
+  const tb = [['painel', 'Painel'], ['nova', 'Cadastrar'], ['agenda', 'Agenda'], ['pagar', 'A pagar'], ['mais', 'Mais']];
   $('#tabbar').innerHTML = tb.map(([k, l]) => k === 'nova'
     ? `<button class="plus ${navOn(k) ? 'on' : ''}" data-act="go" data-v="nova"><span class="ic">${IC.nova}</span>${l}</button>`
-    : k === 'mais' ? `<button class="${['pagar', 'juridico', 'relatorios', 'config'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
+    : k === 'mais' ? `<button class="${['juridico', 'relatorios', 'config'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
       : `<button class="${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('');
 }
-const navOn = k => S.view === k || (k === 'agenda' && ['vencimentos', 'cobrancas'].includes(S.view)) || (k === 'painelPF' && S.view === 'painel');
+const navOn = k => S.view === k || (k === 'agenda' && ['vencimentos', 'cobrancas'].includes(S.view)) || (k === 'painel' && ['painelPF', 'painelPJ'].includes(S.view));
 ACT.maisMenu = () => openModal({
   title: 'Menu', noFoot: true,
-  body: `<div class="sheetmenu">${NAV.filter(n => !['painelPF', 'painelPJ', 'nova', 'agenda'].includes(n[0])).map(([k, l]) => `<button type="button" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('')}<button type="button" data-act="atualizar">${IC.refresh}Atualizar</button></div>`
+  body: `<div class="sheetmenu">${NAV.filter(n => !['painel', 'nova', 'agenda', 'pagar'].includes(n[0])).map(([k, l]) => `<button type="button" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('')}<button type="button" data-act="atualizar">${IC.refresh}Atualizar</button></div>`
 });
 
 function carteiraChips() {
@@ -822,7 +837,6 @@ function empChips(sel) {
 }
 VIEWS.painelPF = () => painelTipo('PF');
 VIEWS.painelPJ = () => painelTipo('PJ');
-VIEWS.painel = VIEWS.painelPF;
 ACT.empPJ = el => { S.p.emp = el.dataset.e; render(); };
 AFTER.painel = () => {
   const fm = document.querySelector('form[data-filters=painel]'); if (!fm) return;
@@ -1016,6 +1030,55 @@ VIEWS.devedor = () => {
 ACT.ccCred = el => { S.p.cred = el.dataset.c; render(); };
 ACT.novaPara = el => go('nova', { devedorId: el.dataset.id });
 ACT.receberDe = el => go('recebimentos', { devedorId: el.dataset.id });
+
+/* ================= DASHBOARD ÚNICO: PF e PJ lado a lado, sem somar ================= */
+function colunaDash(TIPO) {
+  const t = X.t, cl = TIPO === 'PF' ? 'pf' : 'pj';
+  const ab = S.dividas.filter(d => !d.cancelada && (credOf(d).tipo === 'PF') === (TIPO === 'PF') && ativa(d));
+  const sum = (a, fn) => a.reduce((s, x) => s + fn(x), 0);
+  const saldo = sum(ab, d => X.C[d.id].saldo), venc = sum(ab, d => X.C[d.id].vencido);
+  const nVenc = ab.filter(d => X.C[d.id].situacao === 'vencida').length;
+  const prev = sum(ab.filter(prevista), d => X.C[d.id].saldo);
+  const kp = (l, v, h, cls = '') => `<div class="kpi"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
+  let pag = '';
+  if (TIPO === 'PF' && typeof pfCarteiras === 'function' && pfCarteiras().length) {
+    const pfs = pfCarteiras(), lim = Eng.addDays(t, 30); let tot = 0, vp = 0, n = 0;
+    for (const cp of S.contas_pagar) { if (cp.cancelada || !pfs.some(c => c.id === cp.credorId) || cp.vencimento > lim) continue; const p = posPagar(cp); if (p.saldo <= 0) continue; tot += p.saldo; n++; if (cp.vencimento < t) vp += p.saldo; }
+    pag = kp('A pagar (30 dias)', brl(tot), vp ? `<span class="crit">${brl(vp)} vencido</span>` : `${n} conta${n !== 1 ? 's' : ''}`);
+  }
+  const devMap = {};
+  for (const d of ab) {
+    const x = (devMap[d.devedorId] ||= { saldo: 0, venc: 0, n: 0, creds: new Set() });
+    const c = X.C[d.id]; x.saldo += c.saldo; x.venc += c.vencido; x.n++; x.creds.add(d.credorId);
+    if (c.proxima && c.proxima.venc !== SEM && (!x.prox || c.proxima.venc < x.prox)) x.prox = c.proxima.venc;
+    if (prevista(d)) x.prev = true;
+    if (d.juridico && d.juridico.ativo) x.jur = true;
+  }
+  const quem = Object.entries(devMap).sort((a, b) => b[1].saldo - a[1].saldo);
+  const multiEmp = TIPO === 'PJ' && new Set(ab.map(d => d.credorId)).size > 1;
+  const quemHtml = quem.length ? quem.map(([id, x]) => `<button class="row compact" data-act="go" data-v="devedor" data-id="${id}">
+      <div class="t"><span class="dot ${x.venc ? 'crit' : ''}"></span>${esc((X.dev[id] || {}).nome || '—')}${x.prox ? `<span class="num sm ${x.prox < t ? 'crit' : 'muted'}">${ddmm(x.prox)}</span>` : ''}${multiEmp ? [...x.creds].map(c => `<span class="tag pj">${esc(credCurto(X.cred[c]))}</span>`).join('') : ''}${x.prev ? '<span class="tag">PREV.</span>' : ''}${x.jur ? '<span class="tag" style="color:var(--legal)">JUR</span>' : ''}</div>
+      <div class="v">${brl(x.saldo)}${x.venc ? `<small class="crit">venc. ${brl(x.venc)}</small>` : ''}</div></button>`).join('') : `<div class="empty">Ninguém com saldo em aberto.</div>`;
+  const prox = [];
+  const lim = Eng.addDays(t, 30);
+  for (const d of ab) for (const p of X.C[d.id].parcelas) if (p.pago < p.valor && p.venc !== SEM && p.venc >= t && p.venc <= lim) prox.push({ d, p });
+  prox.sort((a, b) => a.p.venc < b.p.venc ? -1 : 1);
+  return `<div class="dcol ${cl}">
+    <div class="dcol-h"><span>${TIPO === 'PF' ? 'Pessoa física' : 'Pessoa jurídica'}</span><b class="num">${brl(saldo)}</b></div>
+    <div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      ${kp('Vencido', brl(venc), nVenc ? `${nVenc} em atraso` : 'Nada em atraso', venc ? 'crit' : '')}
+      ${kp('A vencer', brl(saldo - venc), prev ? `${brl(prev)} previsto` : `${ab.length} dívida${ab.length !== 1 ? 's' : ''}`)}
+      ${pag}
+    </div>
+    <section class="sheet"><header><h2>Quem me deve</h2><span class="meta">${quem.length}</span></header><div class="list">${quemHtml}</div></section>
+    <section class="sheet"><header><h2>Próximos 30 dias</h2><span class="meta">${prox.length ? brl(prox.reduce((s, x) => s + x.p.valor - x.p.pago, 0)) : ''}</span></header><div class="list">${prox.length ? prox.slice(0, 6).map(x => `<button class="row compact" data-act="go" data-v="divida" data-id="${x.d.id}"><div class="t"><span class="num sm muted">${ddmm(x.p.venc)}</span>${esc(devOf(x.d).nome)}</div><div class="v">${brl(x.p.valor - x.p.pago)}</div></button>`).join('') : '<div class="empty">Nada nos próximos 30 dias.</div>'}</div></section>
+    ${TIPO === 'PF' && typeof resumoPagarDash === 'function' ? resumoPagarDash() : ''}
+  </div>`;
+}
+VIEWS.painel = () => `
+  <div class="ph"><div><div class="eyebrow">Dashboard</div><h1>Contas a receber</h1><div class="sub">Pessoa física e pessoa jurídica, sem somar. Posição em ${fd(X.t)}.</div></div>
+    <div class="acts"><button class="btn sm" data-act="atualizar">${IC.refresh} Atualizar</button><button class="btn sm" data-act="go" data-v="recebimentos">Registrar recebimento</button><button class="btn sm pri" data-act="go" data-v="nova">${IC.nova} Nova dívida</button></div></div>
+  ${!S.dividas.length ? onboarding() : `<div class="dash2">${colunaDash('PF')}${colunaDash('PJ')}</div>`}`;
 
 /* ================= ANEXOS ================= */
 const blobUrl = id => '/_blob/' + id;
