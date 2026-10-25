@@ -1098,9 +1098,9 @@ function colunaDash(TIPO) {
   }
   const quem = Object.entries(devMap).sort((a, b) => b[1].saldo - a[1].saldo);
   const multiEmp = TIPO === 'PJ' && new Set(ab.map(d => d.credorId)).size > 1;
-  const quemHtml = quem.length ? quem.map(([id, x]) => `<button class="row compact" data-act="go" data-v="devedor" data-id="${id}">
+  const quemHtml = quem.length ? quem.map(([id, x]) => `<div class="row compact rowpg"><button type="button" class="rowpg-main" data-act="go" data-v="devedor" data-id="${id}">
       <div class="t"><span class="dot ${x.venc ? 'crit' : ''}"></span>${esc((X.dev[id] || {}).nome || '—')}${x.prox ? `<span class="num sm ${x.prox < t ? 'crit' : 'muted'}">${ddmm(x.prox)}</span>` : ''}${multiEmp ? [...x.creds].map(c => `<span class="tag pj">${esc(credCurto(X.cred[c]))}</span>`).join('') : ''}${x.jur ? '<span class="tag" style="color:var(--legal)">JUR</span>' : ''}</div>
-      <div class="v">${x.prevVal ? (x.prevVal >= x.saldo ? `<span class="prev-val">${brl(x.saldo)}</span><small class="prev-lbl">previsto</small>` : `${brl(x.saldo - x.prevVal)}<small class="prev-val">+ ${brl(x.prevVal)} previsto</small>`) : brl(x.saldo)}${x.venc ? `<small class="crit">venc. ${brl(x.venc)}</small>` : ''}</div></button>`).join('') : `<div class="empty">Ninguém com saldo em aberto.</div>`;
+      <div class="v">${x.prevVal ? (x.prevVal >= x.saldo ? `<span class="prev-val">${brl(x.saldo)}</span><small class="prev-lbl">previsto</small>` : `${brl(x.saldo - x.prevVal)}<small class="prev-val">+ ${brl(x.prevVal)} previsto</small>`) : brl(x.saldo)}${x.venc ? `<small class="crit">venc. ${brl(x.venc)}</small>` : ''}</div></button>${S.canWrite ? `<span class="rowpg-acts"><button type="button" class="btn ghost sm ok-btn" data-act="receberDevTipo" data-id="${id}" data-t="${TIPO}" aria-label="Registrar recebimento" title="Registrar recebimento">${IC.check}</button></span>` : ''}</div>`).join('') : `<div class="empty">Ninguém com saldo em aberto.</div>`;
   const prox = [];
   const lim = Eng.addDays(t, 30);
   for (const d of ab) for (const p of X.C[d.id].parcelas) if (p.pago < p.valor && p.venc !== SEM && p.venc >= t && p.venc <= lim) prox.push({ d, p });
@@ -1173,6 +1173,17 @@ function visaoCategorias() {
   VIEWS.painel = () => base() + (S.dividas.length ? visaoCategorias() : '');
   VIEWS.painelPF = VIEWS.painel; VIEWS.painelPJ = VIEWS.painel;
 }
+
+ACT.receberDevTipo = el => {
+  const id = el.dataset.id, tp = el.dataset.t;
+  const ds = S.dividas.filter(d => d.devedorId === id && ativa(d) && (credOf(d).tipo === 'PF') === (tp === 'PF'));
+  if (!ds.length) return;
+  if (ds.length === 1) return openPagamento(ds[0]);
+  openModal({
+    title: 'Qual dívida foi paga?', noFoot: true,
+    body: `<div class="list" style="border:1px solid var(--line);border-radius:var(--r)">${ds.sort((a, b) => (X.C[a.id].proxima?.venc || '') < (X.C[b.id].proxima?.venc || '') ? -1 : 1).map(d => { const c = X.C[d.id]; return `<button type="button" class="row compact" data-act="pagar" data-id="${d.id}"><span class="t">${c.proxima && c.proxima.venc !== SEM ? `<span class="num sm ${c.proxima.venc < X.t ? 'crit' : 'muted'}">${ddmm(c.proxima.venc)}</span>` : ''}${esc(d.descricao || divNum(d))}${prevista(d) ? '<small class="prev-lbl">previsto</small>' : ''}</span><span class="v">${brl(c.saldo)}</span></button>`; }).join('')}</div>`
+  });
+};
 
 /* ================= ANEXOS ================= */
 const blobUrl = id => '/_blob/' + id;
