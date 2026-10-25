@@ -1106,7 +1106,7 @@ function colunaDash(TIPO) {
       ${receber30}
       ${pag}
     </div>
-    <section class="sheet"><header><h2>Quem me deve</h2><span class="meta">${quem.length}</span></header><div class="list">${quemHtml}</div></section>
+    <section class="sheet"><header><h2>A receber ${TIPO}</h2><span class="meta">${quem.length}</span></header><div class="list">${quemHtml}</div></section>
     <section class="sheet"><header><h2>Próximos 30 dias</h2><span class="meta">${prox.length ? brl(prox.reduce((s, x) => s + x.p.valor - x.p.pago, 0)) : ''}</span></header><div class="list">${prox.length ? prox.slice(0, 6).map(x => `<button class="row compact" data-act="go" data-v="divida" data-id="${x.d.id}"><div class="t"><span class="num sm muted">${ddmm(x.p.venc)}</span>${esc(devOf(x.d).nome)}</div><div class="v">${brl(x.p.valor - x.p.pago)}</div></button>`).join('') : '<div class="empty">Nada nos próximos 30 dias.</div>'}</div></section>
     ${TIPO === 'PF' && typeof resumoPagarDash === 'function' ? resumoPagarDash() : ''}
   </div>`;
