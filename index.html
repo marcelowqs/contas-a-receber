@@ -24,6 +24,7 @@
 .nn-box{margin-top:6px;padding:10px;border:1px dashed var(--accent);border-radius:8px;display:grid;gap:8px;background:var(--surface)}
 .nn-lados{display:flex;flex-wrap:wrap;gap:6px} .nn-lados .chip{cursor:pointer;font-size:12px;padding:4px 10px}
 .ac-recs .chip{font-size:15px;padding:9px 22px;font-weight:600}
+.ac-recs .chip.off{opacity:.35;pointer-events:none;text-decoration:line-through}
 </style>
 <title>Gestão de Contas a Receber</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2687,7 +2688,7 @@ document.addEventListener('submit', async e => {
 ACT.msgPadrao = () => { const f = $('#cfg-msg'); if (!f) return; f.elements.lembrete.value = MSG_PADRAO.lembrete; f.elements.cobranca.value = MSG_PADRAO.cobranca; toast('Texto padrão restaurado. Toque em Salvar para manter.'); };
 
 /* ================= ACERTOS ENTRE SÓCIOS ================= */
-/* Cada lançamento: data, quem pagou → quem recebeu, descrição, valor (e destino opcional).
+/* Cada lançamento: data, quem pagou → quem recebeu, descrição, valor (e centro de custo opcional).
    Cada nome cadastrado pertence a um lado: conta do Marcelo, conta do Fábio, Empresa ou Terceiro.
    O que sai do lado de um sócio conta a favor dele (a empresa passa a dever); o que entra no lado dele conta contra.
    Resultado compensado = saldo Marcelo − saldo Fábio: a empresa deve a diferença a um dos dois. */
@@ -2753,7 +2754,7 @@ VIEWS.acertos = () => {
   const saldoTxt = s => s > 0 ? `a empresa deve ${brl(s)}` : s < 0 ? `deve ${brl(-s)} à empresa` : 'sem saldo';
   const destUsados = [...new Set(R.itens.map(a => a.destino).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   return `<div class="ph"><div><div class="eyebrow">Sócios · ${esc(credNome(emp))}</div><h1>CONTA CORRENTE MF</h1><div class="sub">Quem pagou, quem recebeu, descrição e valor, compensado entre Marcelo e Fábio. Separado do controle pessoal.</div></div>
-    <div class="acts">${R.itens.length ? `<button class="btn" data-act="acExport" data-k="pdf">${IC.pdf} PDF</button><button class="btn" data-act="acExport" data-k="xls">${IC.xls} Excel</button>` : ''}${S.canWrite ? `<button class="btn" data-act="acCadastros">${IC.edit} Nomes e destinos</button><button class="btn pri" data-act="acNovo">${IC.nova} Novo lançamento</button>` : ''}</div></div>
+    <div class="acts">${R.itens.length ? `<button class="btn" data-act="acExport" data-k="pdf">${IC.pdf} PDF</button><button class="btn" data-act="acExport" data-k="xls">${IC.xls} Excel</button>` : ''}${S.canWrite ? `<button class="btn" data-act="acCadastros">${IC.edit} Nomes e centros de custo</button><button class="btn pri" data-act="acNovo">${IC.nova} Novo lançamento</button>` : ''}</div></div>
   ${emps.length > 1 ? `<div class="carteiras">${emps.map(c => `<button class="chip pj ${c.id === emp.id ? 'on' : ''}" data-act="acEmp" data-c="${c.id}">${esc(credNome(c))}</button>`).join('')}</div>` : ''}
   <section class="sheet ac-res">
     <div class="eyebrow">Resultado da compensação</div>
@@ -2763,7 +2764,7 @@ VIEWS.acertos = () => {
   </section>
   <div class="flex" style="flex-wrap:wrap;gap:8px">
     <div class="carteiras" style="margin:0">${[['', 'Todos'], ...SOCIOS.map(s => [s[0], s[1]])].map(([k, l]) => `<button class="chip ${f.socio === k ? 'on' : ''}" data-act="acSocio" data-s="${k}">${l}</button>`).join('')}</div>
-    ${destUsados.length ? `<select id="ac-fdest" aria-label="Destino" style="width:auto"><option value="">Todos os destinos</option>${destUsados.map(d => `<option ${f.dest === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select>` : ''}
+    ${destUsados.length ? `<select id="ac-fdest" aria-label="Centro de custo" style="width:auto"><option value="">Todos os centros de custo</option>${destUsados.map(d => `<option ${f.dest === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select>` : ''}
     <input type="search" id="q-ac" value="${esc(f.q)}" placeholder="Buscar nome ou descrição…" style="flex:1;min-width:140px">
   </div>
   ${lista.length ? Object.entries(grupos).map(([ym, its]) => `<section class="sheet"><header><h2 style="text-transform:capitalize">${mesNome(ym)}</h2><span class="meta">${its.length} lançamento${its.length > 1 ? 's' : ''}</span></header><div class="list">${its.map(rowAc).join('')}</div></section>`).join('')
@@ -2797,11 +2798,11 @@ function formAc(a = {}) {
   return `<div class="form">
     ${emps.length > 1 ? `<div class="f full"><label for="ac-emp">Empresa</label><select id="ac-emp" name="credorId">${emps.map(c => `<option value="${c.id}" ${emp === c.id ? 'selected' : ''}>${esc(credNome(c))}</option>`).join('')}</select></div>` : `<input type="hidden" name="credorId" value="${emp}">`}
     <div class="f"><div class="lbl-row"><label for="ac-pag">Quem pagou <span class="req">*</span></label><button type="button" class="novo-nome" data-novo-nome>＋ Novo nome</button></div><div class="combo"><input type="text" id="ac-pag" name="pagou" value="${esc(a.pagou || '')}" placeholder="Buscar no cadastro…" autocomplete="off" role="combobox" aria-autocomplete="list"><div class="combo-list" hidden></div></div><span class="hint" id="ac-lpag"></span></div>
-    <div class="f"><label>Quem recebeu <span class="req">*</span></label><div class="nn-lados ac-recs">${SOCIOS.map(([k, n]) => `<label class="chip ${a.recebeu === n ? 'on' : ''}"><input type="radio" name="recebeu" value="${n}" ${a.recebeu === n ? 'checked' : ''} hidden>${n}</label>`).join('')}</div><span class="hint" id="ac-lrec"></span></div>
+    <div class="f"><label>Quem recebeu <span class="req" id="ac-recreq">*</span></label><div class="nn-lados ac-recs">${SOCIOS.map(([k, n]) => `<label class="chip ${a.recebeu === n ? 'on' : ''}"><input type="radio" name="recebeu" value="${n}" ${a.recebeu === n ? 'checked' : ''} hidden>${n}</label>`).join('')}</div><span class="hint" id="ac-lrec"></span></div>
+    <div class="f full"><label for="ac-dest">Centro de custo</label><select id="ac-dest" name="destino"><option value="">—</option>${destOpt.map(d => `<option ${a.destino === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></div>
     <div class="f full"><label for="ac-desc">Descrição <span class="req">*</span></label><input type="text" id="ac-desc" name="descricao" value="${esc(a.descricao)}" placeholder="Ex.: Passagem Tete"></div>
     <div class="f"><label for="ac-val">Valor (R$) <span class="req">*</span></label><input type="text" class="money-in" inputmode="decimal" id="ac-val" name="valor" value="${toInput(a.valor)}" placeholder="0,00"></div>
     <div class="f"><label for="ac-data">Data <span class="req">*</span></label><input type="date" id="ac-data" name="data" value="${a.data || X.t}"></div>
-    <div class="f full"><label for="ac-dest">Destino</label><select id="ac-dest" name="destino"><option value="">—</option>${destOpt.map(d => `<option ${a.destino === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></div>
     <div class="notice info full" id="ac-efeito" style="font-size:13px"></div>
     <div class="f full"><label for="ac-obs">Observações</label><textarea id="ac-obs" name="obs">${esc(a.obs)}</textarea></div>
     ${fileInput('ac-files', 'Comprovante')}
@@ -2815,15 +2816,25 @@ function ligarFormAc(form) {
     const nomeL2 = (n, l) => !n ? '' : cadastradoAc(n) ? nomeL(n, l) : '⚠ nome não cadastrado: escolha da lista ou cadastre';
     form.querySelector('#ac-lpag').textContent = nomeL2(pag, lp);
     form.querySelectorAll('.ac-recs label').forEach(l => l.classList.toggle('on', l.querySelector('input').checked));
+    const opc = isSocio(lp) && pag && cadastradoAc(pag);
+    form.querySelector('#ac-recreq').hidden = !!opc;
+    form.querySelectorAll('.ac-recs label').forEach(l => { const r = l.querySelector('input'), mesmo = !!opc && (SOCIOS.find(s_ => s_[1] === r.value) || [])[0] === lp; r.disabled = mesmo; if (mesmo && r.checked) { r.checked = false; l.classList.remove('on'); } l.classList.toggle('off', mesmo); });
+    form.querySelector('#ac-lrec').textContent = opc ? `Opcional: ${socioNome(lp)} pagou, então a empresa fica devendo a ele.` : '';
     const ef = efeitoAc({ ladoPag: pag ? lp : '', ladoRec: rec ? lr : '', valor: v > 0 ? v : 1 });
     const box = form.querySelector('#ac-efeito');
     const ks = Object.keys(ef);
-    box.innerHTML = !pag || !rec ? 'Informe quem pagou e quem recebeu para ver o efeito no acerto.'
+    box.innerHTML = !pag || (!rec && !isSocio(lp)) ? 'Informe quem pagou e quem recebeu para ver o efeito no acerto.'
       : !ks.length ? '<b>Sem efeito no acerto:</b> nenhum dos lados é Marcelo ou Fábio (ou é o mesmo sócio dos dois lados).'
         : '<b>Efeito:</b> ' + ks.map(k => ef[k] > 0 ? `a empresa passa a dever ${v > 0 ? brl(ef[k]) : 'o valor'} ao ${socioNome(k)}` : `abate ${v > 0 ? brl(-ef[k]) : 'o valor'} do que a empresa deve ao ${socioNome(k)}`).join('; ') + '.';
   };
   form.addEventListener('input', upd_); form.addEventListener('change', upd_); upd_();
   form.querySelectorAll('.combo').forEach(c => comboAc(c, upd_));
+  /* tocar de novo no sócio marcado desmarca (quem recebeu é opcional quando um sócio pagou) */
+  form.querySelectorAll('.ac-recs label').forEach(l => {
+    const r = l.querySelector('input'); let estava = false;
+    l.addEventListener('pointerdown', () => { estava = r.checked; });
+    l.addEventListener('click', e => { if (estava) { e.preventDefault(); r.checked = false; estava = false; upd_(); } });
+  });
 }
 /* busca no cadastro de nomes (quem pagou / quem recebeu) */
 const semAc = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
@@ -2901,9 +2912,9 @@ function lerFormAc(f) {
   x.pagou = canon(x.pagou); x.recebeu = canon(x.recebeu);
   x.ladoPag = ladoDe(x.pagou); x.ladoRec = (SOCIOS.find(s_ => s_[1] === x.recebeu) || [''])[0];
   if (!x.pagou) { toast('Informe quem pagou.', true); return null; }
-  if (!x.ladoRec) { toast('Escolha quem recebeu: Marcelo ou Fábio.', true); return null; }
+  if (!x.ladoRec && !isSocio(x.ladoPag)) { toast('Escolha quem recebeu: Marcelo ou Fábio.', true); return null; }
   for (const n of [x.pagou]) if (!cadastradoAc(n)) { toast(`"${n}" não está cadastrado. Escolha da lista ou toque em Cadastrar.`, true); return null; }
-  if (x.ladoPag === x.ladoRec) { toast(`${socioNome(x.ladoRec)} não pode pagar a ele mesmo. Em quem pagou, escolha outro nome.`, true); return null; }
+  if (x.ladoRec && x.ladoPag === x.ladoRec) { toast(`${socioNome(x.ladoRec)} não pode pagar a ele mesmo. Em quem pagou, escolha outro nome.`, true); return null; }
   if (!x.descricao) { toast('Informe a descrição.', true); return null; }
   if (!(x.valor > 0)) { toast('Informe o valor.', true); return null; }
   if (!x.data) { toast('Informe a data.', true); return null; }
@@ -2969,7 +2980,7 @@ ACT.acVer = el => {
   openModal({
     title: a.descricao || 'Lançamento', noFoot: true,
     body: `<div class="flex" style="flex-wrap:wrap">${Object.entries(ef).map(([k, v]) => `<span class="pill ${v > 0 ? 'ok' : 'crit'}">${v > 0 ? `a favor do ${socioNome(k)}` : `contra o ${socioNome(k)}`}</span>`).join('')}</div>
-    <dl class="kv"><dt>Data</dt><dd class="num">${fd(a.data)}</dd><dt>Valor</dt><dd class="num"><b>${brl(a.valor)}</b></dd><dt>Quem pagou</dt><dd>${fmtLado(a.pagou, a.ladoPag)}</dd><dt>Quem recebeu</dt><dd>${fmtLado(a.recebeu, a.ladoRec)}</dd>${a.destino ? `<dt>Destino</dt><dd>${esc(a.destino)}</dd>` : ''}<dt>Empresa</dt><dd>${esc(credNome(X.cred[a.credorId]))}</dd>${a.obs ? `<dt>Observações</dt><dd style="white-space:pre-wrap">${esc(a.obs)}</dd>` : ''}<dt>Lançado</dt><dd>${fdt(a.criadoEm)} ${porQuem(a)}</dd></dl>
+    <dl class="kv"><dt>Data</dt><dd class="num">${fd(a.data)}</dd><dt>Valor</dt><dd class="num"><b>${brl(a.valor)}</b></dd><dt>Quem pagou</dt><dd>${fmtLado(a.pagou, a.ladoPag)}</dd><dt>Quem recebeu</dt><dd>${fmtLado(a.recebeu, a.ladoRec)}</dd>${a.destino ? `<dt>Centro de custo</dt><dd>${esc(a.destino)}</dd>` : ''}<dt>Empresa</dt><dd>${esc(credNome(X.cred[a.credorId]))}</dd>${a.obs ? `<dt>Observações</dt><dd style="white-space:pre-wrap">${esc(a.obs)}</dd>` : ''}<dt>Lançado</dt><dd>${fdt(a.criadoEm)} ${porQuem(a)}</dd></dl>
     ${a.anexos && a.anexos.length ? `<div><div class="eyebrow" style="margin-bottom:6px">Comprovantes</div>${fileList(a.anexos)}</div>` : ''}
     ${S.canWrite ? `<div class="flex" style="justify-content:flex-end;border-top:1px solid var(--line);padding-top:14px"><button type="button" class="btn danger" data-act="acApagar" data-id="${a.id}">Apagar</button><button type="button" class="btn pri" data-act="acEditar" data-id="${a.id}">Editar</button></div>` : ''}`
   });
@@ -2979,11 +2990,11 @@ ACT.acCadastros = () => {
   if (!needWrite()) return;
   const ps = pessoasAc();
   openModal({
-    title: 'Nomes e destinos', ok: 'Salvar',
+    title: 'Nomes e centros de custo', ok: 'Salvar',
     body: `<p class="muted" style="margin:0;font-size:13px">Um nome por linha. O que sai de um nome da conta do Marcelo ou do Fábio conta a favor dele; o que entra conta contra. Empresa e terceiros não mudam o acerto. Nomes novos digitados num lançamento entram automaticamente como terceiros.</p>
     <div class="form">
       ${LADOS.map(([k, n]) => `<div class="f ${k === 'terceiro' ? 'full' : ''}"><label for="cad-${k}">${n}</label><textarea id="cad-${k}" name="l_${k}" rows="${k === 'terceiro' ? 6 : 3}">${esc(ps.filter(p => p.lado === k).map(p => p.nome).join('\n'))}</textarea></div>`).join('')}
-      <div class="f full"><label for="cad-dest">Destinos</label><textarea id="cad-dest" name="destinos" rows="5">${esc(destinosAc().join('\n'))}</textarea><span class="hint">Ex.: Maracanã, Salários, Mega Sena, Acordos.</span></div>
+      <div class="f full"><label for="cad-dest">Centros de custo</label><textarea id="cad-dest" name="destinos" rows="5">${esc(destinosAc().join('\n'))}</textarea><span class="hint">Ex.: Maracanã, Salários, Mega Sena, Acordos.</span></div>
     </div>`,
     onSubmit: async f => {
       const linhas = n => [...new Set(String(f.elements[n].value).split('\n').map(s => s.trim()).filter(Boolean))];
@@ -3002,11 +3013,11 @@ ACT.acExport = el => {
   const f = S.p.af || {};
   const its = filtraAc(R.itens, f).sort((a, b) => a.data < b.data ? -1 : a.data > b.data ? 1 : 0);
   if (!its.length) { toast('Nada para exportar.', true); return; }
-  const cols = ['Data', 'Quem pagou', 'Quem recebeu', 'Descrição', 'Destino', 'Valor', 'Efeito no acerto'];
+  const cols = ['Data', 'Quem pagou', 'Quem recebeu', 'Centro de custo', 'Descrição', 'Valor', 'Efeito no acerto'];
   const efTxt = a => Object.entries(efeitoAc(a)).map(([k, v]) => `${v > 0 ? 'a favor' : 'contra'} ${socioNome(k)}`).join('; ');
-  const rows = its.map(a => [{ t: 'd', v: a.data }, a.pagou || '—', a.recebeu || '—', a.descricao || '', a.destino || '', { t: 'm', v: a.valor }, efTxt(a)]);
+  const rows = its.map(a => [{ t: 'd', v: a.data }, a.pagou || '—', a.recebeu || '—', a.destino || '', a.descricao || '', { t: 'm', v: a.valor }, efTxt(a)]);
   const res = R.credor ? `Resultado: a empresa deve ${brl(R.valor)} ao ${socioNome(R.credor)}.` : 'Resultado: contas acertadas.';
-  const filtro = [f.socio ? 'só ' + socioNome(f.socio) : '', f.dest ? 'destino ' + f.dest : '', f.q ? 'busca "' + f.q + '"' : ''].filter(Boolean).join(', ');
+  const filtro = [f.socio ? 'só ' + socioNome(f.socio) : '', f.dest ? 'centro de custo ' + f.dest : '', f.q ? 'busca "' + f.q + '"' : ''].filter(Boolean).join(', ');
   const nota = `${res} ${SOCIOS.map(([k, n]) => `${n}: pagou ${brl(R.P[k].cred)}, recebeu ${brl(R.P[k].deb)}, saldo ${brl(R.P[k].saldo)}`).join(' · ')}.${filtro ? ' Lista filtrada (' + filtro + '); o resultado considera todos os lançamentos.' : ''}`;
   const titulo = 'CONTA CORRENTE MF', sub = `${credNome(emp)} · posição em ${fd(X.t)} · ${res}`;
   if (el.dataset.k === 'pdf') runExport(() => exportPdf(titulo, sub, cols, rows, null, nota));
