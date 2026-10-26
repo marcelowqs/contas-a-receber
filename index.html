@@ -10,8 +10,10 @@
 .ac-big{font-size:22px;font-weight:600;line-height:1.25}.ac-big b{color:var(--ok)}
 .ac-socios{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;font-size:13px}
 .ac-socios>div{display:grid;gap:2px;padding:10px 12px;border:1px solid var(--line);border-radius:8px}
-.ac-socios .ok{color:var(--ok)} .ac-socios .crit{color:var(--crit)} .rowpg-main .v.ok{color:var(--ok)} .rowpg-main .v.crit{color:var(--crit)}
+.rowpg .pg-sub .pill{font-size:11px;padding:1px 7px} .ac-socios .ok{color:var(--ok)} .ac-socios .crit{color:var(--crit)} .rowpg-main .v.ok{color:var(--ok)} .rowpg-main .v.crit{color:var(--crit)}
 @media (max-width:560px){.ac-socios{grid-template-columns:1fr}.ac-big{font-size:19px}}
+.ac-dash{padding:16px 18px;display:grid;gap:8px;cursor:pointer;border:2px solid var(--ok)!important;background:var(--ok-soft)}
+.ac-dash:hover{filter:brightness(.98)} .ac-dash-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 </style>
 <title>Gestão de Contas a Receber</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2673,27 +2675,46 @@ document.addEventListener('submit', async e => {
 ACT.msgPadrao = () => { const f = $('#cfg-msg'); if (!f) return; f.elements.lembrete.value = MSG_PADRAO.lembrete; f.elements.cobranca.value = MSG_PADRAO.cobranca; toast('Texto padrão restaurado. Toque em Salvar para manter.'); };
 
 /* ================= ACERTOS ENTRE SÓCIOS ================= */
-/* Cada lançamento pertence a uma empresa (credorId PJ): data, valor, pagou/recebeu, quem (nome cadastrado,
-   ligado a um dos sócios) e destino. Saldo do sócio positivo = a empresa deve a ele.
+/* Cada lançamento: data, quem pagou → quem recebeu, descrição, valor (e destino opcional).
+   Cada nome cadastrado pertence a um lado: conta do Marcelo, conta do Fábio, Empresa ou Terceiro.
+   O que sai do lado de um sócio conta a favor dele (a empresa passa a dever); o que entra no lado dele conta contra.
    Resultado compensado = saldo Marcelo − saldo Fábio: a empresa deve a diferença a um dos dois. */
 const SOCIOS = [['marcelo', 'Marcelo', 'marcelo@grupowqs.com'], ['fabio', 'Fábio', 'fabio@grupowqs.com']];
+const LADOS = [['marcelo', 'Conta do Marcelo'], ['fabio', 'Conta do Fábio'], ['empresa', 'Empresa'], ['terceiro', 'Terceiros (clientes, fornecedores, outros)']];
+const isSocio = l => l === 'marcelo' || l === 'fabio';
 const socioNome = k => (SOCIOS.find(s => s[0] === k) || [, '—'])[1];
-const MOV_AC = { pagou: ['Pagou pela empresa', 1, 'Pagou com dinheiro próprio algo da empresa: a empresa fica devendo a ele'], recebeu: ['Recebeu da empresa', -1, 'Recebeu dinheiro que era da empresa, ou a empresa pagou algo pessoal dele: abate do que a empresa deve a ele'] };
 const DEST_PADRAO = ['Maracanã', 'Salários', 'Mega Sena', 'Acordos', 'Acerto entre sócios', 'Outros'];
 const cfgAc = () => S.cfgAc || {};
-const pessoasAc = () => (cfgAc().pessoas && cfgAc().pessoas.length) ? cfgAc().pessoas : SOCIOS.map(([k, n]) => ({ nome: n, socio: k }));
+function pessoasAc() {
+  const c = cfgAc();
+  if (c.pessoas && c.pessoas.length) return c.pessoas.map(p => ({ nome: p.nome, lado: p.lado || p.socio || 'terceiro' }));
+  return [...SOCIOS.map(([k, n]) => ({ nome: n, lado: k })), ...empresasAc().map(e => ({ nome: credNome(e), lado: 'empresa' }))];
+}
+const ladoDe = nome => { const n = String(nome || '').trim().toLowerCase(); const p = pessoasAc().find(x => x.nome.toLowerCase() === n); return p ? p.lado : 'terceiro'; };
 const destinosAc = () => (cfgAc().destinos && cfgAc().destinos.length) ? cfgAc().destinos : DEST_PADRAO;
-const sinalAc = a => (MOV_AC[a.mov] || [, 1])[1];
 const empresasAc = () => S.credores.filter(c => c.tipo === 'PJ' && c.ativo !== false);
-const quemAc = a => a.quem && a.quem !== socioNome(a.socio) ? `${a.quem} (${socioNome(a.socio)})` : socioNome(a.socio);
+/* lançamentos antigos (mov/quem/socio) viram pagou/recebeu */
+function normAc(a) {
+  if (a.pagou !== undefined || a.recebeu !== undefined) return a;
+  const q = a.quem || socioNome(a.socio);
+  return a.mov === 'pagou' ? { ...a, pagou: q, ladoPag: a.socio, recebeu: '', ladoRec: '' } : { ...a, pagou: '', ladoPag: '', recebeu: q, ladoRec: a.socio };
+}
+/* efeito por sócio: + a empresa deve a ele, − abate */
+function efeitoAc(a) {
+  const e = {};
+  if (isSocio(a.ladoPag) && a.ladoPag !== a.ladoRec) e[a.ladoPag] = (e[a.ladoPag] || 0) + a.valor;
+  if (isSocio(a.ladoRec) && a.ladoRec !== a.ladoPag) e[a.ladoRec] = (e[a.ladoRec] || 0) - a.valor;
+  return e;
+}
+const fmtLado = (nome, lado) => !nome ? '<span class="muted">—</span>' : esc(nome) + (isSocio(lado) && nome !== socioNome(lado) ? ` <span class="muted">(${socioNome(lado)})</span>` : '');
 function socioPadrao() {
   const em = ((typeof Supa !== 'undefined' && Supa.sessao && Supa.sessao()?.user?.email) || '').toLowerCase();
   return (SOCIOS.find(s => s[2] === em) || SOCIOS[0])[0];
 }
 function posAcertos(empId) {
-  const itens = S.acertos.filter(a => a.credorId === empId && !a.cancelado);
+  const itens = S.acertos.filter(a => a.credorId === empId && !a.cancelado).map(normAc);
   const P = {}; for (const [k] of SOCIOS) P[k] = { cred: 0, deb: 0, saldo: 0 };
-  for (const a of itens) { const p = P[a.socio]; if (!p) continue; if (sinalAc(a) > 0) p.cred += a.valor; else p.deb += a.valor; }
+  for (const a of itens) for (const [k, v] of Object.entries(efeitoAc(a))) { if (v > 0) P[k].cred += v; else P[k].deb -= v; }
   for (const p of Object.values(P)) p.saldo = p.cred - p.deb;
   const dif = P.marcelo.saldo - P.fabio.saldo;
   return { itens, P, dif, credor: dif > 0 ? 'marcelo' : dif < 0 ? 'fabio' : null, valor: Math.abs(dif) };
@@ -2704,21 +2725,22 @@ function empAc() {
   if (!emps.some(c => c.id === S.p.emp)) S.p.emp = (emps.find(c => /plai/i.test(c.nome || c.razao || '')) || emps[0]).id;
   return X.cred[S.p.emp];
 }
+const filtraAc = (itens, f) => {
+  const q = (f.q || '').toLowerCase();
+  return itens.filter(a => (!f.socio || a.ladoPag === f.socio || a.ladoRec === f.socio) && (!f.dest || (a.destino || '') === f.dest) && (!q || [a.descricao, a.obs, a.pagou, a.recebeu, a.destino].some(t => (t || '').toLowerCase().includes(q))));
+};
 
 VIEWS.acertos = () => {
   const emp = empAc();
   if (!emp) return `<div class="ph"><div><h1>Acertos entre sócios</h1></div></div><div class="notice">Cadastre primeiro a empresa em Configurações → Empresas.</div>`;
   const R = posAcertos(emp.id);
   const f = S.p.af || (S.p.af = { socio: '', dest: '', q: '' });
-  const q = f.q.toLowerCase();
-  const lista = R.itens.filter(a => (!f.socio || a.socio === f.socio) && (!f.dest || a.destino === f.dest) && (!q || [a.descricao, a.obs, a.quem, a.destino].some(t => (t || '').toLowerCase().includes(q))))
-    .sort((a, b) => a.data < b.data ? 1 : a.data > b.data ? -1 : (a.criadoEm || '') < (b.criadoEm || '') ? 1 : -1);
+  const lista = filtraAc(R.itens, f).sort((a, b) => a.data < b.data ? 1 : a.data > b.data ? -1 : (a.criadoEm || '') < (b.criadoEm || '') ? 1 : -1);
   const grupos = {}; for (const a of lista) (grupos[a.data.slice(0, 7)] ||= []).push(a);
   const emps = empresasAc();
   const saldoTxt = s => s > 0 ? `a empresa deve ${brl(s)}` : s < 0 ? `deve ${brl(-s)} à empresa` : 'sem saldo';
-  const porDest = {}; for (const a of R.itens) { const d = porDest[a.destino || 'Sem destino'] ||= { pag: 0, rec: 0, n: 0 }; d.n++; if (sinalAc(a) > 0) d.pag += a.valor; else d.rec += a.valor; }
-  const destUsados = Object.keys(porDest).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  return `<div class="ph"><div><div class="eyebrow">Sócios · ${esc(credNome(emp))}</div><h1>Acertos entre sócios</h1><div class="sub">O que Marcelo e Fábio pagaram ou receberam pela empresa, compensado entre os dois. Separado do controle pessoal.</div></div>
+  const destUsados = [...new Set(R.itens.map(a => a.destino).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  return `<div class="ph"><div><div class="eyebrow">Sócios · ${esc(credNome(emp))}</div><h1>Acertos entre sócios</h1><div class="sub">Quem pagou, quem recebeu, descrição e valor, compensado entre Marcelo e Fábio. Separado do controle pessoal.</div></div>
     <div class="acts">${R.itens.length ? `<button class="btn" data-act="acExport" data-k="pdf">${IC.pdf} PDF</button><button class="btn" data-act="acExport" data-k="xls">${IC.xls} Excel</button>` : ''}${S.canWrite ? `<button class="btn" data-act="acCadastros">${IC.edit} Nomes e destinos</button><button class="btn pri" data-act="acNovo">${IC.nova} Novo lançamento</button>` : ''}</div></div>
   ${emps.length > 1 ? `<div class="carteiras">${emps.map(c => `<button class="chip pj ${c.id === emp.id ? 'on' : ''}" data-act="acEmp" data-c="${c.id}">${esc(credNome(c))}</button>`).join('')}</div>` : ''}
   <section class="sheet ac-res">
@@ -2727,22 +2749,23 @@ VIEWS.acertos = () => {
     <div class="ac-socios">${SOCIOS.map(([k, n]) => `<div><b>${n}</b><span>pagou <span class="num ok">${brl(R.P[k].cred)}</span> · recebeu <span class="num crit">${brl(R.P[k].deb)}</span></span><span class="muted">${saldoTxt(R.P[k].saldo)}</span></div>`).join('')}</div>
     ${R.credor && S.canWrite ? `<div><button class="btn pri sm" data-act="acNovo" data-acerto="${R.credor}" data-valor="${R.valor}">${IC.check} Registrar acerto com ${esc(socioNome(R.credor))}</button></div>` : ''}
   </section>
-  ${destUsados.length ? `<section class="sheet"><header><h2>Por destino</h2></header><div class="tw"><table><thead><tr><th>Destino</th><th class="r">Pagaram</th><th class="r">Receberam</th></tr></thead><tbody>${destUsados.map(d => `<tr><td><button class="btn ghost sm" style="padding:2px 0" data-act="acDest" data-d="${esc(d === 'Sem destino' ? '' : d)}">${esc(d)}</button> <span class="muted">${porDest[d].n}</span></td><td class="m">${porDest[d].pag ? brl(porDest[d].pag) : '—'}</td><td class="m">${porDest[d].rec ? brl(porDest[d].rec) : '—'}</td></tr>`).join('')}</tbody></table></div></section>` : ''}
   <div class="flex" style="flex-wrap:wrap;gap:8px">
     <div class="carteiras" style="margin:0">${[['', 'Todos'], ...SOCIOS.map(s => [s[0], s[1]])].map(([k, l]) => `<button class="chip ${f.socio === k ? 'on' : ''}" data-act="acSocio" data-s="${k}">${l}</button>`).join('')}</div>
-    <select id="ac-fdest" aria-label="Destino" style="width:auto"><option value="">Todos os destinos</option>${[...new Set([...destinosAc(), ...destUsados.filter(d => d !== 'Sem destino')])].map(d => `<option ${f.dest === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select>
-    <input type="search" id="q-ac" value="${esc(f.q)}" placeholder="Buscar…" style="flex:1;min-width:140px">
+    ${destUsados.length ? `<select id="ac-fdest" aria-label="Destino" style="width:auto"><option value="">Todos os destinos</option>${destUsados.map(d => `<option ${f.dest === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select>` : ''}
+    <input type="search" id="q-ac" value="${esc(f.q)}" placeholder="Buscar nome ou descrição…" style="flex:1;min-width:140px">
   </div>
   ${lista.length ? Object.entries(grupos).map(([ym, its]) => `<section class="sheet"><header><h2 style="text-transform:capitalize">${mesNome(ym)}</h2><span class="meta">${its.length} lançamento${its.length > 1 ? 's' : ''}</span></header><div class="list">${its.map(rowAc).join('')}</div></section>`).join('')
-    : `<section class="sheet"><div class="empty"><b>${R.itens.length ? 'Nenhum lançamento encontrado' : 'Nenhum lançamento ainda'}</b>${R.itens.length ? 'Ajuste os filtros ou a busca.' : 'Registre aqui o que cada sócio pagou ou recebeu em nome da empresa.'}${S.canWrite && !R.itens.length ? '<button class="btn pri" data-act="acNovo">Novo lançamento</button>' : ''}</div></section>`}`;
+    : `<section class="sheet"><div class="empty"><b>${R.itens.length ? 'Nenhum lançamento encontrado' : 'Nenhum lançamento ainda'}</b>${R.itens.length ? 'Ajuste os filtros ou a busca.' : 'Registre quem pagou, quem recebeu, a descrição e o valor.'}${S.canWrite && !R.itens.length ? '<button class="btn pri" data-act="acNovo">Novo lançamento</button>' : ''}</div></section>`}`;
 };
 function rowAc(a) {
-  const s = sinalAc(a);
-  return `<div class="row compact rowpg ${s > 0 ? 'stripe-ok' : 'stripe-crit'}">
+  const ef = efeitoAc(a), ks = Object.keys(ef);
+  const efTxt = ks.map(k => `<span class="pill ${ef[k] > 0 ? 'ok' : 'crit'}">${ef[k] > 0 ? '+' : '−'} ${socioNome(k)}</span>`).join(' ') || '<span class="pill">Sem efeito</span>';
+  return `<div class="row compact rowpg ${ks.length ? (ef[ks[0]] > 0 ? 'stripe-ok' : 'stripe-crit') : ''}">
     <button type="button" class="rowpg-main" data-act="acVer" data-id="${a.id}">
-      <span class="pg-txt"><span class="pg-nome">${esc(a.destino || 'Sem destino')}${a.descricao ? ` <span class="muted" style="font-weight:400">· ${esc(a.descricao)}</span>` : ''}</span>
-        <span class="pg-sub"><span class="num">${ddmm(a.data)}</span> · <b>${esc(quemAc(a))}</b> ${s > 0 ? 'pagou' : 'recebeu'}${a.anexos && a.anexos.length ? ' · ' + IC.clip.replace('<svg', '<svg style="width:12px;height:12px;vertical-align:-2px"') : ''}</span></span>
-      <span class="v num ${s > 0 ? 'ok' : 'crit'}">${s > 0 ? '+' : '−'} ${brl(a.valor)}</span></button>
+      <span class="pg-txt"><span class="pg-nome">${esc(a.descricao || a.destino || 'Lançamento')}</span>
+        <span class="pg-sub"><span class="num">${ddmm(a.data)}</span> · ${fmtLado(a.pagou, a.ladoPag)} → ${fmtLado(a.recebeu, a.ladoRec)}${a.destino ? ' · ' + esc(a.destino) : ''}${a.anexos && a.anexos.length ? ' · ' + IC.clip.replace('<svg', '<svg style="width:12px;height:12px;vertical-align:-2px"') : ''}</span>
+        <span class="pg-sub" style="margin-top:3px">${efTxt}</span></span>
+      <span class="v num">${brl(a.valor)}</span></button>
     ${S.canWrite ? `<span class="rowpg-acts"><button type="button" class="btn ghost sm" data-act="acEditar" data-id="${a.id}" aria-label="Editar">${IC.edit}</button><button type="button" class="btn ghost sm" style="color:var(--crit)" data-act="acApagar" data-id="${a.id}" aria-label="Apagar">${IC.trash}</button></span>` : ''}
   </div>`;
 }
@@ -2753,46 +2776,67 @@ AFTER.acertos = () => {
 };
 ACT.acEmp = el => { S.p.emp = el.dataset.c; render(); };
 ACT.acSocio = el => { S.p.af.socio = el.dataset.s; render(); };
-ACT.acDest = el => { S.p.af.dest = el.dataset.d; render(); };
 
 function formAc(a = {}) {
   const emps = empresasAc(), emp = a.credorId || S.p.emp;
-  const mov = a.mov || 'pagou';
-  const pessoas = pessoasAc();
-  const quem = a.quem || socioNome(socioPadrao());
-  const pessoasOpt = pessoas.some(p => p.nome === quem) ? pessoas : [...pessoas, { nome: quem, socio: a.socio || socioPadrao() }];
+  const pessoas = pessoasAc().slice().sort((x, y) => (isSocio(y.lado) - isSocio(x.lado)) || x.nome.localeCompare(y.nome, 'pt-BR'));
   const dests = destinosAc(), destOpt = a.destino && !dests.includes(a.destino) ? [...dests, a.destino] : dests;
+  const tagLado = l => ({ marcelo: 'conta do Marcelo', fabio: 'conta do Fábio', empresa: 'empresa', terceiro: 'terceiro' })[l] || '';
   return `<div class="form">
     ${emps.length > 1 ? `<div class="f full"><label for="ac-emp">Empresa</label><select id="ac-emp" name="credorId">${emps.map(c => `<option value="${c.id}" ${emp === c.id ? 'selected' : ''}>${esc(credNome(c))}</option>`).join('')}</select></div>` : `<input type="hidden" name="credorId" value="${emp}">`}
-    <div class="f"><label for="ac-data">Data <span class="req">*</span></label><input type="date" id="ac-data" name="data" value="${a.data || X.t}"></div>
+    <datalist id="ac-nomes">${pessoas.map(p => `<option value="${esc(p.nome)}">${tagLado(p.lado)}</option>`).join('')}</datalist>
+    <div class="f"><label for="ac-pag">Quem pagou <span class="req">*</span></label><input type="text" id="ac-pag" name="pagou" list="ac-nomes" value="${esc(a.pagou || '')}" placeholder="Ex.: Fábio, Tony, MF Plai" autocomplete="off"><span class="hint" id="ac-lpag"></span></div>
+    <div class="f"><label for="ac-rec">Quem recebeu <span class="req">*</span></label><input type="text" id="ac-rec" name="recebeu" list="ac-nomes" value="${esc(a.recebeu || '')}" placeholder="Ex.: Marcelo, fornecedor" autocomplete="off"><span class="hint" id="ac-lrec"></span></div>
+    <div class="f full"><label for="ac-desc">Descrição <span class="req">*</span></label><input type="text" id="ac-desc" name="descricao" value="${esc(a.descricao)}" placeholder="Ex.: Passagem Tete"></div>
     <div class="f"><label for="ac-val">Valor (R$) <span class="req">*</span></label><input type="text" class="money-in" inputmode="decimal" id="ac-val" name="valor" value="${toInput(a.valor)}" placeholder="0,00"></div>
-    <div class="f full"><label>Pagou ou recebeu? <span class="req">*</span></label><div class="carteiras" style="margin:0">${Object.entries(MOV_AC).map(([k, m]) => `<label class="chip ${mov === k ? 'on' : ''}" style="cursor:pointer"><input type="radio" name="mov" value="${k}" ${mov === k ? 'checked' : ''} hidden>${m[1] > 0 ? '＋' : '－'} ${m[0]}</label>`).join('')}</div><span class="hint" id="ac-hint">${esc(MOV_AC[mov][2])}</span></div>
-    <div class="f"><label for="ac-quem">Quem <span class="req">*</span></label><select id="ac-quem" name="quem">${pessoasOpt.map(p => `<option value="${esc(p.nome)}" data-socio="${p.socio}" ${p.nome === quem ? 'selected' : ''}>${esc(p.nome)}${p.nome !== socioNome(p.socio) ? ` — conta do ${socioNome(p.socio)}` : ''}</option>`).join('')}</select><span class="hint"><a href="#" data-act="acCadastros" data-reabrir="1">Cadastrar nomes</a></span></div>
-    <div class="f"><label for="ac-dest">Destino <span class="req">*</span></label><select id="ac-dest" name="destino"><option value="">Escolha…</option>${destOpt.map(d => `<option ${a.destino === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select><span class="hint"><a href="#" data-act="acCadastros" data-reabrir="1">Cadastrar destinos</a></span></div>
-    <div class="f full"><label for="ac-desc">Descrição</label><input type="text" id="ac-desc" name="descricao" value="${esc(a.descricao)}" placeholder="Ex.: Folha de outubro"></div>
+    <div class="f"><label for="ac-data">Data <span class="req">*</span></label><input type="date" id="ac-data" name="data" value="${a.data || X.t}"></div>
+    <div class="f full"><label for="ac-dest">Destino</label><select id="ac-dest" name="destino"><option value="">—</option>${destOpt.map(d => `<option ${a.destino === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></div>
+    <div class="notice info full" id="ac-efeito" style="font-size:13px"></div>
     <div class="f full"><label for="ac-obs">Observações</label><textarea id="ac-obs" name="obs">${esc(a.obs)}</textarea></div>
     ${fileInput('ac-files', 'Comprovante')}
   </div>`;
 }
 function ligarFormAc(form) {
-  form.addEventListener('change', e => {
-    if (e.target.name === 'mov') { form.querySelectorAll('input[name=mov]').forEach(r => r.closest('label').classList.toggle('on', r.checked)); const h = form.querySelector('#ac-hint'); if (h) h.textContent = MOV_AC[e.target.value][2]; }
-  });
+  const upd_ = () => {
+    const pag = fv(form, 'pagou'), rec = fv(form, 'recebeu'), v = parseBRL(fv(form, 'valor'));
+    const lp = ladoDe(pag), lr = ladoDe(rec);
+    const nomeL = (n, l) => !n ? '' : ({ marcelo: 'conta do Marcelo', fabio: 'conta do Fábio', empresa: 'empresa', terceiro: 'terceiro (nome novo é cadastrado como terceiro)' })[l];
+    form.querySelector('#ac-lpag').textContent = nomeL(pag, lp); form.querySelector('#ac-lrec').textContent = nomeL(rec, lr);
+    const ef = efeitoAc({ ladoPag: pag ? lp : '', ladoRec: rec ? lr : '', valor: v > 0 ? v : 1 });
+    const box = form.querySelector('#ac-efeito');
+    const ks = Object.keys(ef);
+    box.innerHTML = !pag || !rec ? 'Informe quem pagou e quem recebeu para ver o efeito no acerto.'
+      : !ks.length ? '<b>Sem efeito no acerto:</b> nenhum dos lados é Marcelo ou Fábio (ou é o mesmo sócio dos dois lados).'
+        : '<b>Efeito:</b> ' + ks.map(k => ef[k] > 0 ? `a empresa passa a dever ${v > 0 ? brl(ef[k]) : 'o valor'} ao ${socioNome(k)}` : `abate ${v > 0 ? brl(-ef[k]) : 'o valor'} do que a empresa deve ao ${socioNome(k)}`).join('; ') + '.';
+  };
+  form.addEventListener('input', upd_); form.addEventListener('change', upd_); upd_();
 }
 function lerFormAc(f) {
-  const qs = f.elements.quem, opt = qs && qs.selectedOptions[0];
-  const x = { credorId: fv(f, 'credorId'), mov: (f.querySelector('input[name=mov]:checked') || {}).value, quem: fv(f, 'quem'), socio: opt ? opt.dataset.socio : '', destino: fv(f, 'destino'), valor: parseBRL(fv(f, 'valor')), data: fv(f, 'data'), descricao: fv(f, 'descricao'), obs: fv(f, 'obs') };
-  if (!x.data) { toast('Informe a data.', true); return null; }
+  const x = { credorId: fv(f, 'credorId'), pagou: fv(f, 'pagou'), recebeu: fv(f, 'recebeu'), descricao: fv(f, 'descricao'), valor: parseBRL(fv(f, 'valor')), data: fv(f, 'data'), destino: fv(f, 'destino'), obs: fv(f, 'obs') };
+  const canon = n => { const p = pessoasAc().find(y => y.nome.toLowerCase() === n.toLowerCase()); return p ? p.nome : n; };
+  x.pagou = canon(x.pagou); x.recebeu = canon(x.recebeu);
+  x.ladoPag = ladoDe(x.pagou); x.ladoRec = ladoDe(x.recebeu);
+  if (!x.pagou) { toast('Informe quem pagou.', true); return null; }
+  if (!x.recebeu) { toast('Informe quem recebeu.', true); return null; }
+  if (x.pagou.toLowerCase() === x.recebeu.toLowerCase()) { toast('Quem pagou e quem recebeu não podem ser o mesmo nome.', true); return null; }
+  if (!x.descricao) { toast('Informe a descrição.', true); return null; }
   if (!(x.valor > 0)) { toast('Informe o valor.', true); return null; }
-  if (!MOV_AC[x.mov]) { toast('Informe se pagou ou recebeu.', true); return null; }
-  if (!x.quem || !SOCIOS.some(s => s[0] === x.socio)) { toast('Escolha quem pagou ou recebeu.', true); return null; }
-  if (!x.destino) { toast('Escolha o destino.', true); return null; }
+  if (!x.data) { toast('Informe a data.', true); return null; }
+  if (!Object.keys(efeitoAc(x)).length) { toast('Um dos lados precisa ser o Marcelo ou o Fábio (ou um nome ligado à conta deles).', true); return null; }
   return x;
 }
-const resumoAc = x => `${quemAc(x)} ${sinalAc(x) > 0 ? 'pagou' : 'recebeu'} ${brl(x.valor)} em ${fd(x.data)} · ${x.destino}${x.descricao ? ' · ' + x.descricao : ''}`;
+/* nomes novos digitados no lançamento entram no cadastro como terceiros */
+async function cadastrarNovosAc(x) {
+  const ps = pessoasAc(), novos = [x.pagou, x.recebeu].filter(n => !ps.some(p => p.nome.toLowerCase() === n.toLowerCase()));
+  if (!novos.length && cfgAc().pessoas) return;
+  const pessoas = [...ps, ...[...new Set(novos)].map(nome => ({ nome, lado: 'terceiro' }))];
+  try { await withRetry(() => db.doc('config/acertos').set({ ...cfgAc(), pessoas, destinos: destinosAc(), atualizadoEm: nowIso(), atualizadoPor: S.meId || null })); S.cfgAc = { ...cfgAc(), pessoas }; } catch (e) { console.warn('cadastro de nomes', e); }
+}
+const resumoAc = x => `${x.pagou || '—'} → ${x.recebeu || '—'}: ${brl(x.valor)} em ${fd(x.data)} · ${x.descricao || ''}${x.destino ? ' · ' + x.destino : ''}`;
 ACT.acNovo = el => {
   if (!needWrite()) return;
-  const pre = el.dataset.acerto ? { mov: 'recebeu', quem: socioNome(el.dataset.acerto), socio: el.dataset.acerto, valor: +el.dataset.valor, destino: 'Acerto entre sócios', descricao: 'Empresa pagou o saldo ao sócio' } : {};
+  const emp = X.cred[S.p.emp];
+  const pre = el.dataset.acerto ? { pagou: emp ? credNome(emp) : '', recebeu: socioNome(el.dataset.acerto), valor: +el.dataset.valor, destino: 'Acerto entre sócios', descricao: 'Empresa pagou o saldo ao sócio' } : {};
   const form = openModal({
     title: el.dataset.acerto ? 'Registrar acerto' : 'Novo lançamento', ok: 'Salvar', body: formAc(pre),
     onSubmit: async f => {
@@ -2800,6 +2844,7 @@ ACT.acNovo = el => {
       const anexos = await uploadFiles(f.elements.files.files, x.credorId);
       const id = newId('acertos');
       await put('acertos', id, stamp({ ...x, anexos, cancelado: false }, true));
+      await cadastrarNovosAc(x);
       await audit('criação', 'acerto entre sócios', id, resumoAc(x), { credorId: x.credorId });
       toast('Lançamento salvo.');
     }
@@ -2808,14 +2853,17 @@ ACT.acNovo = el => {
 };
 ACT.acEditar = el => {
   if (!needWrite()) return;
-  const a = S.acertos.find(x => x.id === el.dataset.id); if (!a) return;
+  const a0 = S.acertos.find(x => x.id === el.dataset.id); if (!a0) return;
+  const a = normAc(a0);
   const form = openModal({
     title: 'Editar lançamento', ok: 'Salvar', body: formAc(a),
     onSubmit: async f => {
       const x = lerFormAc(f); if (!x) return false;
       const novos = await uploadFiles(f.elements.files.files, x.credorId);
-      await put('acertos', a.id, stamp(clean({ ...a, ...x, anexos: [...(a.anexos || []), ...novos] }), false));
-      await audit('edição', 'acerto entre sócios', a.id, resumoAc(x), { credorId: x.credorId });
+      const base = { ...a0 }; delete base.mov; delete base.quem; delete base.socio;
+      await put('acertos', a0.id, stamp(clean({ ...base, ...x, anexos: [...(a0.anexos || []), ...novos] }), false));
+      await cadastrarNovosAc(x);
+      await audit('edição', 'acerto entre sócios', a0.id, resumoAc(x), { credorId: x.credorId });
       toast('Lançamento atualizado.');
     }
   });
@@ -2823,46 +2871,43 @@ ACT.acEditar = el => {
 };
 ACT.acApagar = async el => {
   if (!needWrite()) return;
-  const a = S.acertos.find(x => x.id === el.dataset.id); if (!a) return;
-  const ok = await confirmBox('Apagar lançamento', `Apagar o lançamento de <b>${esc(quemAc(a))}</b> (${brl(a.valor)} em ${fd(a.data)}, ${esc(a.destino || '')})? Ele sai do cálculo e fica no histórico como cancelado.`, 'Apagar', true);
+  const a0 = S.acertos.find(x => x.id === el.dataset.id); if (!a0) return;
+  const a = normAc(a0);
+  const ok = await confirmBox('Apagar lançamento', `Apagar <b>${esc(a.descricao || 'lançamento')}</b> (${esc(a.pagou || '—')} → ${esc(a.recebeu || '—')}, ${brl(a.valor)} em ${fd(a.data)})? Ele sai do cálculo e fica no histórico como cancelado.`, 'Apagar', true);
   if (!ok) return;
   try { await upd('acertos', a.id, { cancelado: true, canceladoEm: nowIso(), canceladoPor: S.meId || null }); await audit('cancelamento', 'acerto entre sócios', a.id, resumoAc(a), { credorId: a.credorId }); toast('Lançamento apagado.'); }
   catch (e) { toast(errMsg(e), true); }
 };
 ACT.acVer = el => {
-  const a = S.acertos.find(x => x.id === el.dataset.id); if (!a) return;
-  const s = sinalAc(a);
+  const a0 = S.acertos.find(x => x.id === el.dataset.id); if (!a0) return;
+  const a = normAc(a0), ef = efeitoAc(a);
   openModal({
-    title: a.destino || 'Lançamento', noFoot: true,
-    body: `<div class="flex"><span class="pill ${s > 0 ? 'ok' : 'crit'}">${MOV_AC[a.mov] ? MOV_AC[a.mov][0] : ''}</span><span class="muted">${s > 0 ? 'a empresa passa a dever a ele' : 'abate do que a empresa deve a ele'}</span></div>
-    <dl class="kv"><dt>Data</dt><dd class="num">${fd(a.data)}</dd><dt>Valor</dt><dd class="num"><b>${brl(a.valor)}</b></dd><dt>Quem</dt><dd>${esc(quemAc(a))}</dd><dt>Destino</dt><dd>${esc(a.destino || '—')}</dd>${a.descricao ? `<dt>Descrição</dt><dd>${esc(a.descricao)}</dd>` : ''}<dt>Empresa</dt><dd>${esc(credNome(X.cred[a.credorId]))}</dd>${a.obs ? `<dt>Observações</dt><dd style="white-space:pre-wrap">${esc(a.obs)}</dd>` : ''}<dt>Lançado</dt><dd>${fdt(a.criadoEm)} ${porQuem(a)}</dd></dl>
+    title: a.descricao || 'Lançamento', noFoot: true,
+    body: `<div class="flex" style="flex-wrap:wrap">${Object.entries(ef).map(([k, v]) => `<span class="pill ${v > 0 ? 'ok' : 'crit'}">${v > 0 ? `a favor do ${socioNome(k)}` : `contra o ${socioNome(k)}`}</span>`).join('')}</div>
+    <dl class="kv"><dt>Data</dt><dd class="num">${fd(a.data)}</dd><dt>Valor</dt><dd class="num"><b>${brl(a.valor)}</b></dd><dt>Quem pagou</dt><dd>${fmtLado(a.pagou, a.ladoPag)}</dd><dt>Quem recebeu</dt><dd>${fmtLado(a.recebeu, a.ladoRec)}</dd>${a.destino ? `<dt>Destino</dt><dd>${esc(a.destino)}</dd>` : ''}<dt>Empresa</dt><dd>${esc(credNome(X.cred[a.credorId]))}</dd>${a.obs ? `<dt>Observações</dt><dd style="white-space:pre-wrap">${esc(a.obs)}</dd>` : ''}<dt>Lançado</dt><dd>${fdt(a.criadoEm)} ${porQuem(a)}</dd></dl>
     ${a.anexos && a.anexos.length ? `<div><div class="eyebrow" style="margin-bottom:6px">Comprovantes</div>${fileList(a.anexos)}</div>` : ''}
     ${S.canWrite ? `<div class="flex" style="justify-content:flex-end;border-top:1px solid var(--line);padding-top:14px"><button type="button" class="btn danger" data-act="acApagar" data-id="${a.id}">Apagar</button><button type="button" class="btn pri" data-act="acEditar" data-id="${a.id}">Editar</button></div>` : ''}`
   });
 };
-/* cadastro de nomes (cada um ligado a um sócio) e destinos */
-ACT.acCadastros = el => {
-  const reabrir = el && el.dataset && el.dataset.reabrir;
+/* cadastro de nomes por lado e destinos */
+ACT.acCadastros = () => {
   if (!needWrite()) return;
   const ps = pessoasAc();
   openModal({
     title: 'Nomes e destinos', ok: 'Salvar',
-    body: `<p class="muted" style="margin:0;font-size:13px">Um por linha. Cada nome entra na conta de um dos sócios: o que essa pessoa pagar ou receber conta como se fosse do sócio.</p>
+    body: `<p class="muted" style="margin:0;font-size:13px">Um nome por linha. O que sai de um nome da conta do Marcelo ou do Fábio conta a favor dele; o que entra conta contra. Empresa e terceiros não mudam o acerto. Nomes novos digitados num lançamento entram automaticamente como terceiros.</p>
     <div class="form">
-      ${SOCIOS.map(([k, n]) => `<div class="f"><label for="cad-${k}">Nomes na conta do ${n}</label><textarea id="cad-${k}" name="p_${k}" rows="4">${esc(ps.filter(p => p.socio === k).map(p => p.nome).join('\n'))}</textarea></div>`).join('')}
-      <div class="f full"><label for="cad-dest">Destinos</label><textarea id="cad-dest" name="destinos" rows="6">${esc(destinosAc().join('\n'))}</textarea><span class="hint">Ex.: Maracanã, Salários, Mega Sena, Acordos.</span></div>
+      ${LADOS.map(([k, n]) => `<div class="f ${k === 'terceiro' ? 'full' : ''}"><label for="cad-${k}">${n}</label><textarea id="cad-${k}" name="l_${k}" rows="${k === 'terceiro' ? 6 : 3}">${esc(ps.filter(p => p.lado === k).map(p => p.nome).join('\n'))}</textarea></div>`).join('')}
+      <div class="f full"><label for="cad-dest">Destinos</label><textarea id="cad-dest" name="destinos" rows="5">${esc(destinosAc().join('\n'))}</textarea><span class="hint">Ex.: Maracanã, Salários, Mega Sena, Acordos.</span></div>
     </div>`,
     onSubmit: async f => {
       const linhas = n => [...new Set(String(f.elements[n].value).split('\n').map(s => s.trim()).filter(Boolean))];
-      const pessoas = SOCIOS.flatMap(([k]) => linhas('p_' + k).map(nome => ({ nome, socio: k })));
+      const pessoas = LADOS.flatMap(([k]) => linhas('l_' + k).map(nome => ({ nome, lado: k })));
       const nomes = pessoas.map(p => p.nome.toLowerCase());
-      if (nomes.length !== new Set(nomes).size) { toast('O mesmo nome está na conta dos dois sócios.', true); return false; }
-      for (const [k, n] of SOCIOS) if (!pessoas.some(p => p.socio === k)) { toast(`Deixe pelo menos um nome na conta do ${n}.`, true); return false; }
-      const destinos = linhas('destinos');
-      if (!destinos.length) { toast('Cadastre pelo menos um destino.', true); return false; }
-      await withRetry(() => db.doc('config/acertos').set({ pessoas, destinos, atualizadoEm: nowIso(), atualizadoPor: S.meId || null }));
-      toast('Cadastros salvos.');
-      if (reabrir) setTimeout(() => ACT.acNovo({ dataset: {} }), 60);
+      if (nomes.length !== new Set(nomes).size) { toast('Há um nome repetido em dois grupos.', true); return false; }
+      for (const [k, n] of SOCIOS) if (!pessoas.some(p => p.lado === k)) { toast(`Deixe pelo menos um nome na conta do ${n}.`, true); return false; }
+      await withRetry(() => db.doc('config/acertos').set({ pessoas, destinos: linhas('destinos'), atualizadoEm: nowIso(), atualizadoPor: S.meId || null }));
+      toast('Cadastros salvos. Lançamentos já feitos mantêm o grupo da época; edite-os se precisar.');
     }
   });
 };
@@ -2870,19 +2915,42 @@ ACT.acExport = el => {
   const emp = empAc(); if (!emp) return;
   const R = posAcertos(emp.id);
   const f = S.p.af || {};
-  const its = R.itens.filter(a => (!f.socio || a.socio === f.socio) && (!f.dest || a.destino === f.dest)).sort((a, b) => a.data < b.data ? -1 : a.data > b.data ? 1 : 0);
+  const its = filtraAc(R.itens, f).sort((a, b) => a.data < b.data ? -1 : a.data > b.data ? 1 : 0);
   if (!its.length) { toast('Nada para exportar.', true); return; }
-  const cols = ['Data', 'Quem', 'Sócio', 'Movimento', 'Destino', 'Descrição', 'Pagou', 'Recebeu'];
-  const rows = its.map(a => [{ t: 'd', v: a.data }, a.quem || socioNome(a.socio), socioNome(a.socio), sinalAc(a) > 0 ? 'Pagou' : 'Recebeu', a.destino || '', a.descricao || '', { t: 'm', v: sinalAc(a) > 0 ? a.valor : null }, { t: 'm', v: sinalAc(a) < 0 ? a.valor : null }]);
-  const cr = its.filter(a => sinalAc(a) > 0).reduce((s, a) => s + a.valor, 0), dbt = its.filter(a => sinalAc(a) < 0).reduce((s, a) => s + a.valor, 0);
-  const foot = ['Total', '', '', '', '', '', { t: 'm', v: cr }, { t: 'm', v: dbt }];
+  const cols = ['Data', 'Quem pagou', 'Quem recebeu', 'Descrição', 'Destino', 'Valor', 'Efeito no acerto'];
+  const efTxt = a => Object.entries(efeitoAc(a)).map(([k, v]) => `${v > 0 ? 'a favor' : 'contra'} ${socioNome(k)}`).join('; ');
+  const rows = its.map(a => [{ t: 'd', v: a.data }, a.pagou || '—', a.recebeu || '—', a.descricao || '', a.destino || '', { t: 'm', v: a.valor }, efTxt(a)]);
   const res = R.credor ? `Resultado: a empresa deve ${brl(R.valor)} ao ${socioNome(R.credor)}.` : 'Resultado: contas acertadas.';
-  const filtro = [f.socio ? 'só ' + socioNome(f.socio) : '', f.dest ? 'destino ' + f.dest : ''].filter(Boolean).join(', ');
+  const filtro = [f.socio ? 'só ' + socioNome(f.socio) : '', f.dest ? 'destino ' + f.dest : '', f.q ? 'busca "' + f.q + '"' : ''].filter(Boolean).join(', ');
   const nota = `${res} ${SOCIOS.map(([k, n]) => `${n}: pagou ${brl(R.P[k].cred)}, recebeu ${brl(R.P[k].deb)}, saldo ${brl(R.P[k].saldo)}`).join(' · ')}.${filtro ? ' Lista filtrada (' + filtro + '); o resultado considera todos os lançamentos.' : ''}`;
   const titulo = 'Acertos entre sócios', sub = `${credNome(emp)} · posição em ${fd(X.t)} · ${res}`;
-  if (el.dataset.k === 'pdf') runExport(() => exportPdf(titulo, sub, cols, rows, foot, nota));
-  else runExport(() => exportXlsx(titulo, sub, cols, rows, foot.slice(0)));
+  if (el.dataset.k === 'pdf') runExport(() => exportPdf(titulo, sub, cols, rows, null, nota));
+  else runExport(() => exportXlsx(titulo, sub, cols, rows, null));
 };
+
+/* quadro separado no dashboard com o resultado dos acertos */
+function quadroAcertosDash() {
+  const emp = empresasAc().length ? empAc() : null;
+  if (!emp) return '';
+  const R = posAcertos(emp.id);
+  if (!R.itens.length) return '';
+  return `<section class="sheet ac-dash" data-act="go" data-v="acertos" role="button" tabindex="0">
+    <div class="ac-dash-top"><span class="eyebrow">Acertos entre sócios · ${esc(credNome(emp))}</span><span class="muted" style="font-size:12px">${R.itens.length} lançamento${R.itens.length > 1 ? 's' : ''} ›</span></div>
+    ${R.credor ? `<div class="ac-big">A empresa deve <b class="num">${brl(R.valor)}</b> ao ${esc(socioNome(R.credor))}</div>` : `<div class="ac-big">Contas acertadas</div>`}
+    <div class="muted" style="font-size:13px">${SOCIOS.map(([k, n]) => `${n}: pagou ${brl(R.P[k].cred)} · recebeu ${brl(R.P[k].deb)}`).join('<br>')}</div>
+  </section>`;
+}
+{
+  const basePainel = VIEWS.painel;
+  VIEWS.painel = () => {
+    const html = basePainel(), q = quadroAcertosDash();
+    if (!q) return html;
+    const m = 'Nova dívida</button></div></div>';
+    const i = html.indexOf(m);
+    return i >= 0 ? html.slice(0, i + m.length) + q + html.slice(i + m.length) : q + html;
+  };
+  VIEWS.painelPF = VIEWS.painel; VIEWS.painelPJ = VIEWS.painel;
+}
 
 /* ================= CONEXÃO SUPABASE (substitui o banco do Claude) ================= */
 const CFG_OK = !/COLE_AQUI/.test(SUPABASE_URL + SUPABASE_KEY);
