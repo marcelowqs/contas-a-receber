@@ -25,6 +25,21 @@
 .nn-lados{display:flex;flex-wrap:wrap;gap:6px} .nn-lados .chip{cursor:pointer;font-size:12px;padding:4px 10px}
 .ac-recs .chip{font-size:15px;padding:9px 22px;font-weight:600}
 .ac-recs .chip.off{opacity:.35;pointer-events:none;text-decoration:line-through}
+.only-mob{display:none}
+@media (max-width:860px){.only-mob{display:grid!important}.only-desk{display:none!important}}
+.dash-cards{gap:10px;margin-bottom:6px}
+.dcard{all:unset;box-sizing:border-box;display:grid;gap:4px;width:100%;padding:14px 16px;border-radius:12px;color:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.dcard.cc{background:var(--ok-soft);color:var(--ink);border:2px solid var(--ok)} .dcard.cc .dcard-t{color:var(--ok)} .dcard.cc b{color:var(--ok)}
+.dcard.pj{background:var(--pj)} .dcard.pf{background:var(--pf)}
+.dcard.on{border-bottom-left-radius:0;border-bottom-right-radius:0}
+.dcard-t{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.dcard-chev{font-size:16px;line-height:1}
+.dcard-v{font-size:18px;font-weight:600;line-height:1.25} .dcard-v b{font-size:22px}
+.dcard-s{font-size:12.5px;opacity:.9}
+.dcard-det{border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;padding:10px;margin-top:-10px;background:var(--surface)}
+.dcard-det .dcol-h{display:none}
+:root[data-theme="dark"] .dcard.pj,:root[data-theme="dark"] .dcard.pf{color:#0f1312}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dcard.pj,:root:not([data-theme="light"]) .dcard.pf{color:#0f1312}}
 </style>
 <title>Gestão de Contas a Receber</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1165,7 +1180,7 @@ function colunaDash(TIPO) {
 VIEWS.painel = () => `
   <div class="ph"><div><div class="eyebrow">Dashboard</div><h1>Contas a receber</h1><div class="sub">Pessoa física e pessoa jurídica, sem somar. Posição em ${fd(X.t)}.</div></div>
     <div class="acts"><button class="btn sm" data-act="atualizar">${IC.refresh} Atualizar</button><button class="btn sm" data-act="go" data-v="recebimentos">Registrar recebimento</button><button class="btn sm pri" data-act="go" data-v="nova">${IC.nova} Nova dívida</button></div></div>
-  ${!S.dividas.length ? onboarding() : `<div class="dash2">${colunaDash('PF')}${colunaDash('PJ')}</div>`}`;
+  ${!S.dividas.length ? onboarding() : `<div class="dash2 only-desk">${colunaDash('PF')}${colunaDash('PJ')}</div>`}`;
 
 // telas separadas desativadas: qualquer link antigo abre o dashboard único
 VIEWS.painelPF = VIEWS.painel;
@@ -3025,6 +3040,35 @@ ACT.acExport = el => {
 };
 
 /* quadro separado no dashboard com o resultado dos acertos */
+/* celular: 3 quadros no topo (C/C MF, PJ, PF); tocar abre as informações logo abaixo */
+function resumoTipoDash(TIPO) {
+  const ab = S.dividas.filter(d => !d.cancelada && (credOf(d).tipo === 'PF') === (TIPO === 'PF') && ativa(d));
+  const saldo = ab.reduce((s, d) => s + X.C[d.id].saldo, 0), venc = ab.reduce((s, d) => s + X.C[d.id].vencido, 0);
+  const nVenc = ab.filter(d => X.C[d.id].situacao === 'vencida').length;
+  return { saldo, venc, nVenc, n: ab.length };
+}
+function quadrosMobDash() {
+  const aberto = S.dashAberto || '';
+  const emp = empresasAc().length ? empAc() : null;
+  let cc = '';
+  if (emp) {
+    const R = posAcertos(emp.id);
+    cc = `<button type="button" class="dcard cc" data-act="go" data-v="acertos">
+      <span class="dcard-t">CONTA CORRENTE MF<span class="dcard-chev">›</span></span>
+      ${R.credor ? `<span class="dcard-v">A empresa deve <b class="num">${brl(R.valor)}</b> ao ${esc(socioNome(R.credor))}</span>` : `<span class="dcard-v">${R.itens.length ? 'Contas acertadas' : 'Nenhum lançamento ainda'}</span>`}
+      <span class="dcard-s">${SOCIOS.map(([k, n]) => `${n}: pagou ${brl(R.P[k].cred)} · recebeu ${brl(R.P[k].deb)}`).join('<br>')}</span></button>`;
+  }
+  const card = TIPO => {
+    const r = resumoTipoDash(TIPO), on = aberto === TIPO, cl = TIPO.toLowerCase();
+    return `<button type="button" class="dcard ${cl} ${on ? 'on' : ''}" data-act="dashAbrir" data-t="${TIPO}" aria-expanded="${on}">
+      <span class="dcard-t">Contas a receber · ${TIPO === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}<span class="dcard-chev">${on ? '▴' : '▾'}</span></span>
+      <span class="dcard-v"><b class="num">${brl(r.saldo)}</b></span>
+      <span class="dcard-s">${r.venc ? `vencido ${brl(r.venc)} · ${r.nVenc} em atraso` : 'nada em atraso'} · ${r.n} dívida${r.n !== 1 ? 's' : ''}</span></button>
+      ${on ? `<div class="dcard-det">${colunaDash(TIPO)}</div>` : ''}`;
+  };
+  return `<div class="dash-cards only-mob">${cc}${S.dividas.length ? card('PJ') + card('PF') : ''}</div>`;
+}
+ACT.dashAbrir = el => { const t = el.dataset.t; S.dashAberto = S.dashAberto === t ? '' : t; render(); if (S.dashAberto) setTimeout(() => { const c = document.querySelector(`.dcard[data-t="${t}"]`); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30); };
 function quadroAcertosDash() {
   const emp = empresasAc().length ? empAc() : null;
   if (!emp) return '';
@@ -3040,8 +3084,7 @@ function quadroAcertosDash() {
   const basePainel = VIEWS.painel;
   VIEWS.painel = () => {
     const html = basePainel(), q = quadroAcertosDash();
-    if (!q) return html;
-    return q + html;
+    return quadrosMobDash() + (q ? `<div class="only-desk">${q}</div>` : '') + html;
   };
   VIEWS.painelPF = VIEWS.painel; VIEWS.painelPJ = VIEWS.painel;
 }
