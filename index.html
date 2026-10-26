@@ -14,6 +14,11 @@
 @media (max-width:560px){.ac-socios{grid-template-columns:1fr}.ac-big{font-size:19px}}
 .ac-dash{padding:16px 18px;display:grid;gap:8px;cursor:pointer;border:2px solid var(--ok)!important;background:var(--ok-soft)}
 .ac-dash:hover{filter:brightness(.98)} .ac-dash-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.combo{position:relative}
+.combo-list{margin-top:4px;max-height:220px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px}
+.combo-op{all:unset;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;padding:9px 10px;border-radius:6px;cursor:pointer;font-size:14px}
+.combo-op:hover,.combo-op:focus-visible{background:var(--sunk)} .combo-op small{color:var(--muted);font-size:11px;white-space:nowrap}
+.combo-novo{color:var(--accent);font-weight:600} .combo-h{padding:8px 10px;font-size:12px;color:var(--muted)}
 </style>
 <title>Gestão de Contas a Receber</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2784,9 +2789,8 @@ function formAc(a = {}) {
   const tagLado = l => ({ marcelo: 'conta do Marcelo', fabio: 'conta do Fábio', empresa: 'empresa', terceiro: 'terceiro' })[l] || '';
   return `<div class="form">
     ${emps.length > 1 ? `<div class="f full"><label for="ac-emp">Empresa</label><select id="ac-emp" name="credorId">${emps.map(c => `<option value="${c.id}" ${emp === c.id ? 'selected' : ''}>${esc(credNome(c))}</option>`).join('')}</select></div>` : `<input type="hidden" name="credorId" value="${emp}">`}
-    <datalist id="ac-nomes">${pessoas.map(p => `<option value="${esc(p.nome)}">${tagLado(p.lado)}</option>`).join('')}</datalist>
-    <div class="f"><label for="ac-pag">Quem pagou <span class="req">*</span></label><input type="text" id="ac-pag" name="pagou" list="ac-nomes" value="${esc(a.pagou || '')}" placeholder="Ex.: Fábio, Tony, MF Plai" autocomplete="off"><span class="hint" id="ac-lpag"></span></div>
-    <div class="f"><label for="ac-rec">Quem recebeu <span class="req">*</span></label><input type="text" id="ac-rec" name="recebeu" list="ac-nomes" value="${esc(a.recebeu || '')}" placeholder="Ex.: Marcelo, fornecedor" autocomplete="off"><span class="hint" id="ac-lrec"></span></div>
+    <div class="f"><label for="ac-pag">Quem pagou <span class="req">*</span></label><div class="combo"><input type="text" id="ac-pag" name="pagou" value="${esc(a.pagou || '')}" placeholder="Buscar no cadastro…" autocomplete="off" role="combobox" aria-autocomplete="list"><div class="combo-list" hidden></div></div><span class="hint" id="ac-lpag"></span></div>
+    <div class="f"><label for="ac-rec">Quem recebeu <span class="req">*</span></label><div class="combo"><input type="text" id="ac-rec" name="recebeu" value="${esc(a.recebeu || '')}" placeholder="Buscar no cadastro…" autocomplete="off" role="combobox" aria-autocomplete="list"><div class="combo-list" hidden></div></div><span class="hint" id="ac-lrec"></span></div>
     <div class="f full"><label for="ac-desc">Descrição <span class="req">*</span></label><input type="text" id="ac-desc" name="descricao" value="${esc(a.descricao)}" placeholder="Ex.: Passagem Tete"></div>
     <div class="f"><label for="ac-val">Valor (R$) <span class="req">*</span></label><input type="text" class="money-in" inputmode="decimal" id="ac-val" name="valor" value="${toInput(a.valor)}" placeholder="0,00"></div>
     <div class="f"><label for="ac-data">Data <span class="req">*</span></label><input type="date" id="ac-data" name="data" value="${a.data || X.t}"></div>
@@ -2800,8 +2804,9 @@ function ligarFormAc(form) {
   const upd_ = () => {
     const pag = fv(form, 'pagou'), rec = fv(form, 'recebeu'), v = parseBRL(fv(form, 'valor'));
     const lp = ladoDe(pag), lr = ladoDe(rec);
-    const nomeL = (n, l) => !n ? '' : ({ marcelo: 'conta do Marcelo', fabio: 'conta do Fábio', empresa: 'empresa', terceiro: 'terceiro (nome novo é cadastrado como terceiro)' })[l];
-    form.querySelector('#ac-lpag').textContent = nomeL(pag, lp); form.querySelector('#ac-lrec').textContent = nomeL(rec, lr);
+    const nomeL = (n, l) => !n ? '' : ({ marcelo: 'conta do Marcelo', fabio: 'conta do Fábio', empresa: 'empresa', terceiro: 'terceiro' })[l];
+    const nomeL2 = (n, l) => !n ? '' : cadastradoAc(n) ? nomeL(n, l) : '⚠ nome não cadastrado: escolha da lista ou cadastre';
+    form.querySelector('#ac-lpag').textContent = nomeL2(pag, lp); form.querySelector('#ac-lrec').textContent = nomeL2(rec, lr);
     const ef = efeitoAc({ ladoPag: pag ? lp : '', ladoRec: rec ? lr : '', valor: v > 0 ? v : 1 });
     const box = form.querySelector('#ac-efeito');
     const ks = Object.keys(ef);
@@ -2810,6 +2815,48 @@ function ligarFormAc(form) {
         : '<b>Efeito:</b> ' + ks.map(k => ef[k] > 0 ? `a empresa passa a dever ${v > 0 ? brl(ef[k]) : 'o valor'} ao ${socioNome(k)}` : `abate ${v > 0 ? brl(-ef[k]) : 'o valor'} do que a empresa deve ao ${socioNome(k)}`).join('; ') + '.';
   };
   form.addEventListener('input', upd_); form.addEventListener('change', upd_); upd_();
+  form.querySelectorAll('.combo').forEach(c => comboAc(c, upd_));
+}
+/* busca no cadastro de nomes (quem pagou / quem recebeu) */
+const semAc = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const cadastradoAc = n => pessoasAc().some(p => semAc(p.nome) === semAc(n));
+const LADO_CURTO = { marcelo: 'Conta do Marcelo', fabio: 'Conta do Fábio', empresa: 'Empresa', terceiro: 'Terceiro' };
+function comboAc(box, onPick) {
+  const inp = box.querySelector('input'), list = box.querySelector('.combo-list');
+  let novoLado = false;
+  const fechar = () => { list.hidden = true; novoLado = false; };
+  const pick = nome => { inp.value = nome; fechar(); inp.dispatchEvent(new Event('input', { bubbles: true })); onPick && onPick(); };
+  const desenhar = () => {
+    const q = semAc(inp.value);
+    if (novoLado) {
+      list.innerHTML = `<div class="combo-h">Cadastrar “${esc(inp.value.trim())}” em:</div>${LADOS.map(([k]) => `<button type="button" class="combo-op" data-lado="${k}">${LADO_CURTO[k]}</button>`).join('')}<button type="button" class="combo-op muted" data-voltar>Cancelar</button>`;
+      list.hidden = false; return;
+    }
+    const ps = pessoasAc().filter(p => !q || semAc(p.nome).includes(q)).sort((a, b) => (isSocio(b.lado) - isSocio(a.lado)) || a.nome.localeCompare(b.nome, 'pt-BR'));
+    const exato = ps.some(p => semAc(p.nome) === q);
+    list.innerHTML = ps.slice(0, 40).map(p => `<button type="button" class="combo-op" data-nome="${esc(p.nome)}"><span>${esc(p.nome)}</span><small>${LADO_CURTO[p.lado] || ''}</small></button>`).join('')
+      + (!ps.length ? `<div class="combo-h">Nenhum nome cadastrado com “${esc(inp.value.trim())}”</div>` : '')
+      + (q && !exato ? `<button type="button" class="combo-op combo-novo" data-novo>＋ Cadastrar “${esc(inp.value.trim())}”</button>` : '');
+    list.hidden = false;
+  };
+  inp.addEventListener('focus', desenhar);
+  inp.addEventListener('input', e => { if (e.isTrusted) { novoLado = false; desenhar(); } });
+  inp.addEventListener('blur', () => setTimeout(() => { if (!box.contains(document.activeElement)) fechar(); }, 150));
+  inp.addEventListener('keydown', e => { if (e.key === 'Escape' && !list.hidden) { e.stopPropagation(); fechar(); } if (e.key === 'Enter' && !list.hidden) { e.preventDefault(); const b = list.querySelector('[data-nome]'); if (b) pick(b.dataset.nome); } });
+  list.addEventListener('mousedown', e => e.preventDefault());
+  list.addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.nome) return pick(b.dataset.nome);
+    if (b.hasAttribute('data-novo')) { novoLado = true; return desenhar(); }
+    if (b.hasAttribute('data-voltar')) { novoLado = false; return desenhar(); }
+    if (b.dataset.lado) {
+      const nome = inp.value.trim(); if (!nome || !needWrite()) return;
+      if (cadastradoAc(nome)) return pick(pessoasAc().find(p => semAc(p.nome) === semAc(nome)).nome);
+      const pessoas = [...pessoasAc(), { nome, lado: b.dataset.lado }];
+      try { await withRetry(() => db.doc('config/acertos').set({ ...cfgAc(), pessoas, destinos: destinosAc(), atualizadoEm: nowIso(), atualizadoPor: S.meId || null })); S.cfgAc = { ...cfgAc(), pessoas }; toast(`${nome} cadastrado (${LADO_CURTO[b.dataset.lado]}).`); pick(nome); }
+      catch (er) { toast(errMsg(er), true); }
+    }
+  });
 }
 function lerFormAc(f) {
   const x = { credorId: fv(f, 'credorId'), pagou: fv(f, 'pagou'), recebeu: fv(f, 'recebeu'), descricao: fv(f, 'descricao'), valor: parseBRL(fv(f, 'valor')), data: fv(f, 'data'), destino: fv(f, 'destino'), obs: fv(f, 'obs') };
@@ -2818,6 +2865,7 @@ function lerFormAc(f) {
   x.ladoPag = ladoDe(x.pagou); x.ladoRec = ladoDe(x.recebeu);
   if (!x.pagou) { toast('Informe quem pagou.', true); return null; }
   if (!x.recebeu) { toast('Informe quem recebeu.', true); return null; }
+  for (const n of [x.pagou, x.recebeu]) if (!cadastradoAc(n)) { toast(`"${n}" não está cadastrado. Escolha da lista ou toque em Cadastrar.`, true); return null; }
   if (x.pagou.toLowerCase() === x.recebeu.toLowerCase()) { toast('Quem pagou e quem recebeu não podem ser o mesmo nome.', true); return null; }
   if (!x.descricao) { toast('Informe a descrição.', true); return null; }
   if (!(x.valor > 0)) { toast('Informe o valor.', true); return null; }
