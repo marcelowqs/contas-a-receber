@@ -12,7 +12,7 @@
 .ac-socios>div{display:grid;gap:2px;padding:10px 12px;border:1px solid var(--line);border-radius:8px}
 .rowpg .pg-sub .pill{font-size:11px;padding:1px 7px} .ac-socios .ok{color:var(--ok)} .ac-socios .crit{color:var(--crit)} .rowpg-main .v.ok{color:var(--ok)} .rowpg-main .v.crit{color:var(--crit)}
 @media (max-width:560px){.ac-socios{grid-template-columns:1fr}.ac-big{font-size:19px}}
-.ac-dash{padding:16px 18px;display:grid;gap:8px;cursor:pointer;border:2px solid var(--ok)!important;background:var(--ok-soft)}
+.ac-dash{margin-bottom:4px;padding:16px 18px;display:grid;gap:8px;cursor:pointer;border:2px solid var(--ok)!important;background:var(--ok-soft)}
 .ac-dash:hover{filter:brightness(.98)} .ac-dash-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .combo{position:relative}
 .combo-list{margin-top:4px;max-height:220px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px}
@@ -59,6 +59,7 @@ a{color:var(--accent)}
 .brand{padding:4px 10px 18px;display:flex;flex-direction:column;gap:2px}
 .brand b{font-weight:800;font-size:17px;letter-spacing:-.01em;line-height:1.2}
 .brand span{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.nav-btn[data-v=acertos]{color:var(--ok)!important;font-weight:700}
 .nav-btn{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--muted);font-weight:500;text-align:left}
 .nav-btn svg{width:18px;height:18px;flex:none}
 .nav-btn:hover{background:var(--sunk);color:var(--ink)}
@@ -77,10 +78,11 @@ a{color:var(--accent)}
   html,body{height:100%;overflow:hidden}
   .app{height:100%;display:flex;flex-direction:column;min-height:0}
   .main{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:24px;padding-top:16px}
-  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:relative;flex:none;z-index:30;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
-  .tabbar button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);padding:4px 0;cursor:pointer}
+  .tabbar{display:grid;grid-template-columns:repeat(6,1fr);position:relative;flex:none;z-index:30;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+  .tabbar button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;white-space:nowrap;color:var(--muted);padding:4px 0;cursor:pointer}
   .tabbar button svg{width:22px;height:22px}
   .tabbar button.on{color:var(--accent);font-weight:700}
+  .tabbar [data-v=acertos]{color:var(--ok);font-weight:700}
   .tabbar .plus span.ic{background:var(--accent);color:var(--accent-ink);border-radius:12px;width:44px;height:30px;display:grid;place-items:center}
 }
 
@@ -577,7 +579,7 @@ const IC = {
   copy: I('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>')
 };
 const NAV = [
-  ['painel', 'Dashboard'], ['nova', 'Cadastrar dívida'], ['agenda', 'Vencimentos e cobranças'], ['pagar', 'Contas a pagar'], ['acertos', 'Acertos entre sócios'], ['relatorios', 'Relatórios'], ['config', 'Configurações'], ['cadDev', 'Devedores']
+  ['acertos', 'CONTA CORRENTE MF'], ['painel', 'Dashboard'], ['nova', 'Cadastrar dívida'], ['agenda', 'Vencimentos e cobranças'], ['pagar', 'Contas a pagar'], ['relatorios', 'Relatórios'], ['config', 'Configurações'], ['cadDev', 'Devedores']
 ];
 
 /* ================= DOMÍNIO ================= */
@@ -765,16 +767,16 @@ function renderShell() {
   $('#side').innerHTML = `<div class="brand"><span>Livro de recebíveis</span><b>Gestão de Contas a Receber</b></div>
     ${NAV.map(([k, l]) => `<button class="nav-btn ${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}<span>${l}</span>${k === 'agenda' && venc ? `<span class="ct">${venc}</span>` : ''}</button>`).join('')}
     <div class="foot">${S.canWrite ? '' : '<div class="pill warn" style="margin-bottom:8px">Somente leitura</div>'}Valores em R$ · ${fd(X.t)}<div class="flex" style="margin-top:8px"><button class="btn sm" data-act="atualizar">Atualizar</button><button class="btn sm" data-act="sair">Sair</button></div></div>`;
-  const tb = [['painel', 'Painel'], ['nova', 'Cadastrar'], ['agenda', 'Agenda'], ['pagar', 'A pagar'], ['mais', 'Mais']];
+  const tb = [['painel', 'Painel'], ['acertos', 'C/C MF'], ['nova', 'Cadastrar'], ['agenda', 'Agenda'], ['pagar', 'A pagar'], ['mais', 'Mais']];
   $('#tabbar').innerHTML = tb.map(([k, l]) => k === 'nova'
     ? `<button class="plus ${navOn(k) ? 'on' : ''}" data-act="go" data-v="nova"><span class="ic">${IC.nova}</span>${l}</button>`
-    : k === 'mais' ? `<button class="${['juridico', 'relatorios', 'config', 'cadDev', 'acertos'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
+    : k === 'mais' ? `<button class="${['juridico', 'relatorios', 'config', 'cadDev'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
       : `<button class="${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('');
 }
 const navOn = k => S.view === k || (k === 'agenda' && ['vencimentos', 'cobrancas'].includes(S.view)) || (k === 'painel' && ['painelPF', 'painelPJ'].includes(S.view));
 ACT.maisMenu = () => openModal({
   title: 'Menu', noFoot: true,
-  body: `<div class="sheetmenu">${NAV.filter(n => !['painel', 'nova', 'agenda', 'pagar'].includes(n[0])).map(([k, l]) => `<button type="button" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('')}<button type="button" data-act="atualizar">${IC.refresh}Atualizar</button></div>`
+  body: `<div class="sheetmenu">${NAV.filter(n => !['painel', 'acertos', 'nova', 'agenda', 'pagar'].includes(n[0])).map(([k, l]) => `<button type="button" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('')}<button type="button" data-act="atualizar">${IC.refresh}Atualizar</button></div>`
 });
 
 function carteiraChips() {
@@ -2737,7 +2739,7 @@ const filtraAc = (itens, f) => {
 
 VIEWS.acertos = () => {
   const emp = empAc();
-  if (!emp) return `<div class="ph"><div><h1>Acertos entre sócios</h1></div></div><div class="notice">Cadastre primeiro a empresa em Configurações → Empresas.</div>`;
+  if (!emp) return `<div class="ph"><div><h1>CONTA CORRENTE MF</h1></div></div><div class="notice">Cadastre primeiro a empresa em Configurações → Empresas.</div>`;
   const R = posAcertos(emp.id);
   const f = S.p.af || (S.p.af = { socio: '', dest: '', q: '' });
   const lista = filtraAc(R.itens, f).sort((a, b) => a.data < b.data ? 1 : a.data > b.data ? -1 : (a.criadoEm || '') < (b.criadoEm || '') ? 1 : -1);
@@ -2745,7 +2747,7 @@ VIEWS.acertos = () => {
   const emps = empresasAc();
   const saldoTxt = s => s > 0 ? `a empresa deve ${brl(s)}` : s < 0 ? `deve ${brl(-s)} à empresa` : 'sem saldo';
   const destUsados = [...new Set(R.itens.map(a => a.destino).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  return `<div class="ph"><div><div class="eyebrow">Sócios · ${esc(credNome(emp))}</div><h1>Acertos entre sócios</h1><div class="sub">Quem pagou, quem recebeu, descrição e valor, compensado entre Marcelo e Fábio. Separado do controle pessoal.</div></div>
+  return `<div class="ph"><div><div class="eyebrow">Sócios · ${esc(credNome(emp))}</div><h1>CONTA CORRENTE MF</h1><div class="sub">Quem pagou, quem recebeu, descrição e valor, compensado entre Marcelo e Fábio. Separado do controle pessoal.</div></div>
     <div class="acts">${R.itens.length ? `<button class="btn" data-act="acExport" data-k="pdf">${IC.pdf} PDF</button><button class="btn" data-act="acExport" data-k="xls">${IC.xls} Excel</button>` : ''}${S.canWrite ? `<button class="btn" data-act="acCadastros">${IC.edit} Nomes e destinos</button><button class="btn pri" data-act="acNovo">${IC.nova} Novo lançamento</button>` : ''}</div></div>
   ${emps.length > 1 ? `<div class="carteiras">${emps.map(c => `<button class="chip pj ${c.id === emp.id ? 'on' : ''}" data-act="acEmp" data-c="${c.id}">${esc(credNome(c))}</button>`).join('')}</div>` : ''}
   <section class="sheet ac-res">
@@ -2971,7 +2973,7 @@ ACT.acExport = el => {
   const res = R.credor ? `Resultado: a empresa deve ${brl(R.valor)} ao ${socioNome(R.credor)}.` : 'Resultado: contas acertadas.';
   const filtro = [f.socio ? 'só ' + socioNome(f.socio) : '', f.dest ? 'destino ' + f.dest : '', f.q ? 'busca "' + f.q + '"' : ''].filter(Boolean).join(', ');
   const nota = `${res} ${SOCIOS.map(([k, n]) => `${n}: pagou ${brl(R.P[k].cred)}, recebeu ${brl(R.P[k].deb)}, saldo ${brl(R.P[k].saldo)}`).join(' · ')}.${filtro ? ' Lista filtrada (' + filtro + '); o resultado considera todos os lançamentos.' : ''}`;
-  const titulo = 'Acertos entre sócios', sub = `${credNome(emp)} · posição em ${fd(X.t)} · ${res}`;
+  const titulo = 'CONTA CORRENTE MF', sub = `${credNome(emp)} · posição em ${fd(X.t)} · ${res}`;
   if (el.dataset.k === 'pdf') runExport(() => exportPdf(titulo, sub, cols, rows, null, nota));
   else runExport(() => exportXlsx(titulo, sub, cols, rows, null));
 };
@@ -2983,7 +2985,7 @@ function quadroAcertosDash() {
   const R = posAcertos(emp.id);
   if (!R.itens.length) return '';
   return `<section class="sheet ac-dash" data-act="go" data-v="acertos" role="button" tabindex="0">
-    <div class="ac-dash-top"><span class="eyebrow">Acertos entre sócios · ${esc(credNome(emp))}</span><span class="muted" style="font-size:12px">${R.itens.length} lançamento${R.itens.length > 1 ? 's' : ''} ›</span></div>
+    <div class="ac-dash-top"><span class="eyebrow" style="color:var(--ok);font-weight:700">CONTA CORRENTE MF</span><span class="muted" style="font-size:12px">${R.itens.length} lançamento${R.itens.length > 1 ? 's' : ''} ›</span></div>
     ${R.credor ? `<div class="ac-big">A empresa deve <b class="num">${brl(R.valor)}</b> ao ${esc(socioNome(R.credor))}</div>` : `<div class="ac-big">Contas acertadas</div>`}
     <div class="muted" style="font-size:13px">${SOCIOS.map(([k, n]) => `${n}: pagou ${brl(R.P[k].cred)} · recebeu ${brl(R.P[k].deb)}`).join('<br>')}</div>
   </section>`;
@@ -2993,9 +2995,7 @@ function quadroAcertosDash() {
   VIEWS.painel = () => {
     const html = basePainel(), q = quadroAcertosDash();
     if (!q) return html;
-    const m = 'Nova dívida</button></div></div>';
-    const i = html.indexOf(m);
-    return i >= 0 ? html.slice(0, i + m.length) + q + html.slice(i + m.length) : q + html;
+    return q + html;
   };
   VIEWS.painelPF = VIEWS.painel; VIEWS.painelPJ = VIEWS.painel;
 }
