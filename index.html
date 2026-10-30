@@ -50,11 +50,25 @@
 .ei-cols{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 .ei-sel{grid-template-columns:minmax(0,1fr) auto!important;gap:8px;cursor:default} .ei-sel:hover{background:none} .ei-sel select{width:auto;max-width:150px}
 @media (max-width:560px){.ei-cols{grid-template-columns:1fr!important}}
-.eco-cfg-l{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:6px;margin-bottom:6px}
+.eco-cfg-l{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) auto;gap:6px;margin-bottom:6px}
+@media (max-width:560px){.eco-cfg-l{grid-template-columns:1fr 1fr auto}.eco-cfg-l [name=cnpj]{grid-column:1/3;grid-row:2}}
 .eco-gest{padding:8px 14px;border-top:1px solid var(--line);display:grid;gap:4px} .eco-gl{display:flex;justify-content:space-between;gap:8px;font-size:14px}
 .dcard.eco{background:var(--ink);color:var(--bg)} .dcard.eco b{color:inherit} .dcard.eco .eco-atr{color:#FDBA74;opacity:1;font-weight:600}
 .dash-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;align-items:stretch;margin-bottom:4px}
 .dash-top .ac-dash{margin:0} .dcard.desk{border-radius:var(--r);padding:16px 18px}
+.viz-vars,:root{--s0:#8a8f98;--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100}
+@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500}}
+:root[data-theme="dark"]{--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500}
+.eco-tabs{overflow-x:auto;white-space:nowrap;flex-wrap:nowrap}
+.vz{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:grid;gap:8px}
+.vz figcaption{font-weight:600;font-size:14px} .vz svg{width:100%;height:auto;display:block}
+.vz-grid{stroke:var(--line);stroke-width:1} .vz-ax{fill:var(--muted);font-size:11px;font-family:var(--f-num,inherit)}
+.vz-mark{transition:opacity .15s} .vz svg:hover .vz-mark{opacity:.75} .vz-mark:hover{opacity:1!important}
+.vz-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)} .vz-lg{display:inline-flex;align-items:center;gap:6px} .vz-lg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.vz-h{display:grid;gap:10px} .vz-hr{display:grid;grid-template-columns:80px minmax(0,1fr) auto;gap:10px;align-items:center;font-size:13px}
+.vz-hk{font-weight:600} .vz-hb{height:14px;background:var(--sunk);border-radius:4px;overflow:hidden} .vz-hb i{display:block;height:100%;border-radius:0 4px 4px 0}
+.vz-hv{white-space:nowrap} .vz-hv small{color:var(--muted);margin-left:4px}
+#vz-tip{position:fixed;z-index:100;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:6px 9px;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.2);max-width:260px}
 </style>
 <title>Gestão de Contas a Receber</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3500,7 +3514,7 @@ function mapearEco(P, file) {
 ACT.ecoConfig = () => {
   if (!needWrite()) return;
   const cfg = cfgEco();
-  const linha = (e = '', g = '') => `<div class="eco-cfg-l"><input type="text" name="emp" value="${esc(e)}" placeholder="Empresa"><input type="text" name="gest" value="${esc(g)}" placeholder="Gestor (ex.: MF)"><button type="button" class="btn ghost sm" data-rm aria-label="Remover">${IC.x}</button></div>`;
+  const linha = (e = '', g = '') => `<div class="eco-cfg-l"><input type="text" name="emp" value="${esc(e)}" placeholder="Empresa"><input type="text" name="gest" value="${esc(g)}" placeholder="Gestor (ex.: MF)"><input type="text" name="cnpj" inputmode="numeric" value="${esc((((cfg.dadosEmp || {})[e]) || {}).cnpj || '')}" placeholder="CNPJ"><button type="button" class="btn ghost sm" data-rm aria-label="Remover">${IC.x}</button></div>`;
   const form = openModal({
     title: 'Empresas e taxa', ok: 'Salvar',
     body: `<div class="form">
@@ -3514,13 +3528,14 @@ ACT.ecoConfig = () => {
     </div>`,
     onSubmit: async f => {
       const empresas = [], gestores = {};
-      f.querySelectorAll('.eco-cfg-l').forEach(l => { const e = l.querySelector('[name=emp]').value.trim(), g = l.querySelector('[name=gest]').value.trim(); if (e && !empresas.includes(e)) { empresas.push(e); if (g) gestores[e] = g; } });
+      const dadosEmp = { ...(cfg.dadosEmp || {}) };
+      f.querySelectorAll('.eco-cfg-l').forEach(l => { const e = l.querySelector('[name=emp]').value.trim(), g = l.querySelector('[name=gest]').value.trim(), cj = l.querySelector('[name=cnpj]').value.trim(); if (e && !empresas.includes(e)) { empresas.push(e); if (g) gestores[e] = g; dadosEmp[e] = { ...(dadosEmp[e] || {}), cnpj: cj ? fmtDoc(cj) : '' }; } });
       const taxa = parsePct(fv(f, 'taxa')), duracao = parseInt(fv(f, 'duracao')), dias = parseInt(fv(f, 'dias'));
       if (!empresas.length) { toast('Cadastre pelo menos uma empresa.', true); return false; }
       if (isNaN(taxa)) { toast('Informe a taxa em % (ex.: 15).', true); return false; }
       if (!(duracao >= 1 && duracao <= 31)) { toast('A duração do ciclo deve ser de 1 a 31 dias.', true); return false; }
       if (!(dias >= 0 && dias <= 60)) { toast('O prazo de pagamento deve ser de 0 a 60 dias.', true); return false; }
-      const novo = { ...(S.cfgEco || {}), empresas, gestores, taxa, duracao, dias }; delete novo.gestor;
+      const novo = { ...(S.cfgEco || {}), empresas, gestores, dadosEmp, taxa, duracao, dias }; delete novo.gestor;
       await withRetry(() => db.doc('config/ecommerce').set({ ...novo, atualizadoEm: nowIso(), atualizadoPor: S.meId || null }));
       S.cfgEco = novo;
       toast('Cadastro salvo.');
@@ -3545,6 +3560,128 @@ ACT.ecoExport = el => {
   if (el.dataset.k === 'pdf') runExport(() => exportPdf(titulo, sub, cols, rows, foot));
   else runExport(() => exportXlsx(titulo, sub, cols, rows, foot));
 };
+
+/* ================= E-COMMERCE · ABAS DE ANÁLISE ================= */
+/* Abas: Ciclos (lançamento e recebimento) · Por mês · Por período · Por empresa (CNPJ) · Por gestor.
+   Mês = mês do fim do período de vendas do ciclo. Valores em centavos. */
+const ECO_ABAS = [['ciclos', 'Ciclos'], ['mes', 'Por mês'], ['periodo', 'Por período'], ['empresa', 'Por empresa'], ['gestor', 'Por gestor']];
+const corEmpEco = e => { const i = cfgEco().empresas.indexOf(e); return `var(--s${i >= 0 && i < 4 ? i + 1 : 0})`; };
+const dadosEmpEco = e => (cfgEco().dadosEmp || {})[e] || {};
+function linhasEco(ano) {
+  const out = [];
+  for (const c of ciclosEco()) {
+    if (ano && c.fim.slice(0, 4) !== ano) continue;
+    for (const it of c.itens || []) {
+      const liq = liqEco(it.venda, c.taxa);
+      out.push({ c, empresa: it.empresa, gestor: gestorEco(it.empresa) || 'Sem gestor', venda: it.venda, taxaV: it.venda - liq, liq, rec: it.recebido ? it.recebido.valor : 0, recebido: !!it.recebido, mes: c.fim.slice(0, 7) });
+    }
+  }
+  return out;
+}
+const somaEco = (arr, k) => arr.reduce((s, x) => s + x[k], 0);
+const brlCurto = c => { const v = (c || 0) / 100; return v >= 1e6 ? 'R$ ' + (v / 1e6).toFixed(1).replace('.', ',') + ' mi' : v >= 1e3 ? 'R$ ' + Math.round(v / 1e3) + ' mil' : 'R$ ' + Math.round(v); };
+const mesCurto = ym => MESES[+ym.slice(5, 7) - 1].slice(0, 3) + '/' + ym.slice(2, 4);
+
+/* gráfico de barras empilhadas (SVG): grupos [{rotulo, partes:{chave:valor}}], chaves fixas com cor própria */
+function barrasEmpEco(grupos, chaves, corDe, titulo) {
+  if (!grupos.length) return '';
+  const vw = window.innerWidth || 640, W = Math.max(330, Math.min(1000, vw - (vw > 860 ? 330 : 64))), H = W < 500 ? 210 : 230, L = 58, R = 6, T = 10, B = 30, iw = W - L - R, ih = H - T - B;
+  const max = Math.max(1, ...grupos.map(g => chaves.reduce((s, k) => s + (g.partes[k] || 0), 0)));
+  const passo = [1, 2, 2.5, 5, 10].map(m => m * Math.pow(10, Math.floor(Math.log10(max / 4)))).find(st => max / st <= 4) || max / 4;
+  const topo = Math.ceil(max / passo) * passo;
+  const y = v => T + ih - v / topo * ih;
+  const bw = Math.min(56, iw / grupos.length * 0.62), gap = iw / grupos.length;
+  let g = '';
+  for (let v = 0; v <= topo + 1; v += passo) g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="vz-grid"/><text x="${L - 6}" y="${y(v) + 4}" class="vz-ax" text-anchor="end">${brlCurto(v)}</text>`;
+  grupos.forEach((gr, i) => {
+    const x = L + gap * i + (gap - bw) / 2; let acc = 0;
+    const presentes = chaves.filter(k => gr.partes[k] > 0);
+    const tot = chaves.reduce((s, k) => s + (gr.partes[k] || 0), 0);
+    const dica = gr.dica || gr.rotulo;
+    g += `<rect x="${L + gap * i}" y="${T}" width="${gap}" height="${ih}" fill="transparent" class="vz-hit" data-tip="${esc(dica)} · total ${brl(tot)}"/>`;
+    presentes.forEach((k, j) => {
+      const v = gr.partes[k], y0 = y(acc), y1 = y(acc + v), h = Math.max(0, y0 - y1 - (j ? 2 : 0));
+      const ultimo = j === presentes.length - 1, r = Math.min(4, h, bw / 2);
+      const d = ultimo ? `M${x},${y0 - (j ? 2 : 0)}V${y1 + r}Q${x},${y1} ${x + r},${y1}H${x + bw - r}Q${x + bw},${y1} ${x + bw},${y1 + r}V${y0 - (j ? 2 : 0)}Z` : `M${x},${y0 - (j ? 2 : 0)}V${y1}H${x + bw}V${y0 - (j ? 2 : 0)}Z`;
+      g += `<path d="${d}" style="fill:${corDe(k)}" class="vz-mark" data-tip="${esc(dica)} · ${esc(k)}: ${brl(v)} (${tot ? Math.round(v / tot * 100) : 0}%) · total ${brl(tot)}"/>`;
+      acc += v;
+    });
+    const cada = Math.ceil(42 / gap);
+    if (i % cada === 0) g += `<text x="${x + bw / 2}" y="${H - B + 16}" class="vz-ax" text-anchor="middle">${esc(gr.rotulo)}</text>`;
+  });
+  const leg = chaves.filter(k => grupos.some(gr => gr.partes[k] > 0)).map(k => `<span class="vz-lg"><i style="background:${corDe(k)}"></i>${esc(k)}</span>`).join('');
+  return `<figure class="vz"><figcaption>${esc(titulo)}</figcaption>${chaves.length > 1 ? `<div class="vz-leg">${leg}</div>` : ''}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(titulo)}">${g}</svg></figure>`;
+}
+/* barras horizontais com rótulo direto */
+function barrasHorEco(itens, titulo) {
+  if (!itens.length) return '';
+  const max = Math.max(1, ...itens.map(x => x.v)), tot = itens.reduce((s, x) => s + x.v, 0);
+  return `<figure class="vz"><figcaption>${esc(titulo)}</figcaption><div class="vz-h">${itens.map(x => `<div class="vz-hr" data-tip="${esc(x.k)}: ${brl(x.v)} (${tot ? Math.round(x.v / tot * 100) : 0}%)"><span class="vz-hk">${esc(x.k)}</span><span class="vz-hb"><i style="width:${Math.max(1.5, x.v / max * 100)}%;background:${x.cor}"></i></span><span class="vz-hv num">${brl(x.v)} <small>${tot ? Math.round(x.v / tot * 100) : 0}%</small></span></div>`).join('')}</div></figure>`;
+}
+/* tooltip único para os gráficos */
+document.addEventListener('pointerover', e => {
+  const el = e.target.closest && e.target.closest('[data-tip]'); const tip = document.getElementById('vz-tip');
+  if (!el || !el.closest('.vz')) { if (tip) tip.hidden = true; return; }
+  const t = tip || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'vz-tip' });
+  t.textContent = el.dataset.tip; t.hidden = false;
+  const r = el.getBoundingClientRect(); t.style.left = Math.min(window.innerWidth - t.offsetWidth - 8, Math.max(8, r.left + r.width / 2 - t.offsetWidth / 2)) + 'px'; t.style.top = Math.max(8, r.top - t.offsetHeight - 8) + 'px';
+});
+document.addEventListener('scroll', () => { const t = document.getElementById('vz-tip'); if (t) t.hidden = true; }, true);
+
+function tabelaEco(cols, rows, foot) {
+  return `<div class="tw"><table><thead><tr>${cols.map((c, i) => `<th class="${i && /venda|taxa|receber|recebido|diferen|%|líquido/i.test(c) ? 'r' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td class="${typeof c === 'object' && c && c.m ? 'm' : ''}">${typeof c === 'object' && c ? c.h : esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>${foot ? `<tfoot><tr>${foot.map(c => `<td class="${typeof c === 'object' && c && c.m ? 'm' : ''}">${typeof c === 'object' && c ? c.h : esc(c)}</td>`).join('')}</tr></tfoot>` : ''}</table></div>`;
+}
+const mC = v => ({ m: 1, h: v == null ? '—' : brl(v) });
+function analiseEco(aba) {
+  const anos = [...new Set(ciclosEco().map(c => c.fim.slice(0, 4)))].sort().reverse();
+  const ano = anos.includes(S.p.ecoAno) ? S.p.ecoAno : '';
+  const L = linhasEco(ano);
+  const emps = [...new Set([...cfgEco().empresas, ...L.map(x => x.empresa)])];
+  const filtro = anos.length > 1 ? `<div class="carteiras">${[['', 'Todos os anos'], ...anos.map(a => [a, a])].map(([k, l]) => `<button class="chip ${ano === k ? 'on' : ''}" data-act="ecoAno" data-a="${k}">${l}</button>`).join('')}</div>` : '';
+  if (!L.length) return filtro + `<section class="sheet"><div class="empty"><b>Sem vendas lançadas</b>Lance ou importe um ciclo para ver as análises.</div></section>`;
+  const kp = (l, v, h, cls = '') => `<div class="kpi"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
+  const nCic = new Set(L.map(x => x.c.id)).size;
+  const kpis = `<div class="kpis">${kp('Venda total', brl(somaEco(L, 'venda')), `${nCic} ciclo${nCic > 1 ? 's' : ''}${ano ? ' em ' + ano : ''}`)}${kp('Taxa Sellia', brl(somaEco(L, 'taxaV')), 'descontado')}${kp('Líquido a receber', brl(somaEco(L, 'liq')), 'venda − taxa')}${kp('Recebido', brl(somaEco(L, 'rec')), `${L.filter(x => x.recebido).length} de ${L.length} repasses`, 'ok')}</div>`;
+  let corpo = '';
+  if (aba === 'mes') {
+    const meses = [...new Set(L.map(x => x.mes))].sort();
+    const grupos = meses.map(m => ({ rotulo: mesCurto(m), partes: Object.fromEntries(emps.map(e => [e, somaEco(L.filter(x => x.mes === m && x.empresa === e), 'venda')])) }));
+    corpo = barrasEmpEco(grupos, emps, corEmpEco, 'Venda por mês, por empresa')
+      + `<section class="sheet"><header><h2>Venda por mês</h2><span class="meta">mês do fim de cada ciclo</span></header>${tabelaEco(['Mês', 'Ciclos', 'Venda', 'Taxa 15%', 'Líquido', 'Recebido'], meses.slice().reverse().map(m => { const a = L.filter(x => x.mes === m); return [mesNome(m), String(new Set(a.map(x => x.c.id)).size), mC(somaEco(a, 'venda')), mC(somaEco(a, 'taxaV')), mC(somaEco(a, 'liq')), mC(somaEco(a, 'rec'))]; }), ['Total', String(nCic), mC(somaEco(L, 'venda')), mC(somaEco(L, 'taxaV')), mC(somaEco(L, 'liq')), mC(somaEco(L, 'rec'))])}</section>`
+      + `<section class="sheet"><header><h2>Venda por empresa em cada mês</h2></header>${tabelaEco(['Mês', ...emps.map(e => e + ' venda'), 'Total venda'], meses.slice().reverse().map(m => { const a = L.filter(x => x.mes === m); return [mesNome(m), ...emps.map(e => mC(somaEco(a.filter(x => x.empresa === e), 'venda') || null)), mC(somaEco(a, 'venda'))]; }))}</section>`;
+  } else if (aba === 'periodo') {
+    const cs = [...new Set(L.map(x => x.c))].sort((a, b) => a.ini < b.ini ? -1 : 1);
+    const grupos = cs.map(c => ({ rotulo: ddmm(c.ini), dica: `${ddmm(c.ini)} a ${ddmm(c.fim)}`, partes: Object.fromEntries(emps.map(e => [e, somaEco(L.filter(x => x.c === c && x.empresa === e), 'venda')])) }));
+    corpo = barrasEmpEco(grupos, emps, corEmpEco, 'Venda por ciclo de 10 dias, por empresa')
+      + `<section class="sheet"><header><h2>Histórico de ciclos</h2></header>${tabelaEco(['Período', 'Pagamento', 'Venda', 'Taxa', 'Líquido', 'Recebido', 'Diferença', 'Situação'], cs.slice().reverse().map(c => { const a = L.filter(x => x.c === c), T = totCicloEco(c), dif = a.filter(x => x.recebido).reduce((s, x) => s + x.rec - x.liq, 0); return [`${fd(c.ini)} a ${fd(c.fim)}`, fd(c.pagamento), mC(somaEco(a, 'venda')), mC(somaEco(a, 'taxaV')), mC(somaEco(a, 'liq')), mC(somaEco(a, 'rec')), { m: 1, h: dif ? `<span class="crit">${dif > 0 ? '+' : '−'}${brl(Math.abs(dif))}</span>` : '—' }, { h: pillEco(T.st) }]; }))}</section>`;
+  } else if (aba === 'empresa') {
+    const tot = somaEco(L, 'venda');
+    corpo = barrasHorEco(emps.map(e => ({ k: e, v: somaEco(L.filter(x => x.empresa === e), 'venda'), cor: corEmpEco(e) })).filter(x => x.v > 0).sort((a, b) => b.v - a.v), 'Participação de cada empresa na venda')
+      + `<section class="sheet"><header><h2>Venda por empresa (CNPJ)</h2></header>${tabelaEco(['Empresa', 'Razão social', 'CNPJ', 'Seller', 'Gestor', 'Ciclos', 'Venda', 'Taxa', 'Líquido', 'Recebido', '% venda'], emps.map(e => { const a = L.filter(x => x.empresa === e), d = dadosEmpEco(e), v = somaEco(a, 'venda'); return [{ h: `<b>${esc(e)}</b>` }, d.razao || '—', d.cnpj || '—', d.seller || '—', gestorEco(e) || '—', String(a.length), mC(v), mC(somaEco(a, 'taxaV')), mC(somaEco(a, 'liq')), mC(somaEco(a, 'rec')), { m: 1, h: tot ? Math.round(v / tot * 1000) / 10 + '%' : '—' }]; }), ['Total', '', '', '', '', String(L.length), mC(tot), mC(somaEco(L, 'taxaV')), mC(somaEco(L, 'liq')), mC(somaEco(L, 'rec')), { m: 1, h: '100%' }])}</section>`;
+  } else if (aba === 'gestor') {
+    const gs = [...new Set(L.map(x => x.gestor))].sort((a, b) => a === 'MF' ? -1 : b === 'MF' ? 1 : a.localeCompare(b));
+    const corG = k => `var(--s${gs.indexOf(k) + 1 <= 4 ? gs.indexOf(k) + 1 : 0})`;
+    const meses = [...new Set(L.map(x => x.mes))].sort();
+    corpo = barrasHorEco(gs.map(k => ({ k, v: somaEco(L.filter(x => x.gestor === k), 'liq'), cor: corG(k) })), 'Líquido a receber por gestor')
+      + barrasEmpEco(meses.map(m => ({ rotulo: mesCurto(m), partes: Object.fromEntries(gs.map(k => [k, somaEco(L.filter(x => x.mes === m && x.gestor === k), 'liq')])) })), gs, corG, 'Líquido por mês, por gestor')
+      + `<section class="sheet"><header><h2>Por gestor</h2></header>${tabelaEco(['Gestor', 'Empresas', 'Venda', 'Taxa', 'Líquido', 'Recebido', 'A receber'], gs.map(k => { const a = L.filter(x => x.gestor === k); return [{ h: `<b>${esc(k)}</b>` }, [...new Set(a.map(x => x.empresa))].join(', '), mC(somaEco(a, 'venda')), mC(somaEco(a, 'taxaV')), mC(somaEco(a, 'liq')), mC(somaEco(a, 'rec')), mC(a.filter(x => !x.recebido).reduce((s, x) => s + x.liq, 0))]; }))}</section>`;
+  }
+  return filtro + kpis + corpo;
+}
+{
+  const baseEco = VIEWS.ecommerce;
+  VIEWS.ecommerce = () => {
+    const aba = ECO_ABAS.some(a => a[0] === S.p.ecoTab) ? S.p.ecoTab : 'ciclos';
+    const html = baseEco();
+    const tabs = `<div class="tabs eco-tabs">${ECO_ABAS.map(([k, l]) => `<button class="${aba === k ? 'on' : ''}" data-act="ecoTab" data-t="${k}">${l}</button>`).join('')}</div>`;
+    const i = html.indexOf('<div class="kpis">');
+    if (i < 0) return html;
+    const j = i;
+    return html.slice(0, j) + tabs + (aba === 'ciclos' ? html.slice(j) : analiseEco(aba));
+  };
+}
+ACT.ecoTab = el => { S.p.ecoTab = el.dataset.t; render(); };
+ACT.ecoAno = el => { S.p.ecoAno = el.dataset.a; render(); };
 
 /* ================= CONEXÃO SUPABASE (substitui o banco do Claude) ================= */
 const CFG_OK = !/COLE_AQUI/.test(SUPABASE_URL + SUPABASE_KEY);
