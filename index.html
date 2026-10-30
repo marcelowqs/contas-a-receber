@@ -47,6 +47,9 @@
 .eco-linha.alerta{border-color:var(--crit);background:var(--crit-soft)}
 .eco-nome{display:flex;justify-content:space-between;align-items:baseline;gap:8px} .eco-liq{font-size:13px;color:var(--ok)}
 .eco-ins{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ei-cols{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.ei-sel{grid-template-columns:minmax(0,1fr) auto!important;gap:8px;cursor:default} .ei-sel:hover{background:none} .ei-sel select{width:auto;max-width:150px}
+@media (max-width:560px){.ei-cols{grid-template-columns:1fr!important}}
 </style>
 <title>Gestão de Contas a Receber</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3135,7 +3138,7 @@ VIEWS.ecommerce = () => {
   const kp = (l, v, h, cls = '') => `<div class="kpi"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
   const semEmp = !cfg.empresas.length;
   return `<div class="ph"><div><div class="eyebrow">Flamengo · Sellia</div><h1>E-commerce</h1><div class="sub">Repasses a cada ciclo: venda do período menos a taxa da Sellia (${pctTxt(cfg.taxa)}), por empresa, e a confirmação do que entrou na conta.</div></div>
-    <div class="acts">${cs.length ? `<button class="btn" data-act="ecoExport" data-k="pdf">${IC.pdf} PDF</button><button class="btn" data-act="ecoExport" data-k="xls">${IC.xls} Excel</button>` : ''}${S.canWrite ? `<button class="btn" data-act="ecoConfig">${IC.edit} Empresas e taxa</button><button class="btn pri" data-act="ecoNovo">${IC.nova} Novo ciclo</button>` : ''}</div></div>
+    <div class="acts">${cs.length ? `<button class="btn" data-act="ecoExport" data-k="pdf">${IC.pdf} PDF</button><button class="btn" data-act="ecoExport" data-k="xls">${IC.xls} Excel</button>` : ''}${S.canWrite ? `<button class="btn" data-act="ecoConfig">${IC.edit} Empresas e taxa</button><button class="btn" data-act="ecoNovo">${IC.nova} Novo ciclo</button><button class="btn pri" data-act="ecoImportar">${IC.xls} Importar planilha</button>` : ''}</div></div>
   ${semEmp ? `<div class="notice">Comece cadastrando as empresas que recebem os repasses da Sellia e a taxa.${S.canWrite ? ' <button class="btn sm pri" data-act="ecoConfig">Cadastrar empresas</button>' : ''}</div>` : ''}
   <div class="kpis">
     ${kp('A receber', brl(pend), 'ciclos ainda não pagos')}
@@ -3143,7 +3146,7 @@ VIEWS.ecommerce = () => {
     ${kp('Recebido no mês', brl(recMes), MESES[+t.slice(5, 7) - 1], recMes ? 'ok' : '')}
     ${kp('Diferenças', (difAc > 0 ? '+' : difAc < 0 ? '−' : '') + brl(Math.abs(difAc)), 'recebido − esperado', difAc < 0 ? 'crit' : '')}
   </div>
-  ${cs.length ? cs.map(cicloEcoHtml).join('') : `<section class="sheet"><div class="empty"><b>Nenhum ciclo lançado</b>Ao receber a planilha de vendas da Sellia, lance o ciclo com a venda de cada empresa.${S.canWrite && !semEmp ? '<button class="btn pri" data-act="ecoNovo">Novo ciclo</button>' : ''}</div></section>`}`;
+  ${cs.length ? cs.map(cicloEcoHtml).join('') : `<section class="sheet"><div class="empty"><b>Nenhum ciclo lançado</b>Ao receber a planilha de vendas da Sellia, lance o ciclo com a venda de cada empresa.${S.canWrite && !semEmp ? '<div class="flex" style="justify-content:center"><button class="btn pri" data-act="ecoImportar">Importar planilha</button><button class="btn" data-act="ecoNovo">Lançar manualmente</button></div>' : ''}</div></section>`}`;
 };
 function cicloEcoHtml(c) {
   const T = totCicloEco(c);
@@ -3229,12 +3232,13 @@ function lerFormEco(f, antigo) {
   return x;
 }
 const resumoEco = c => `Vendas ${fd(c.ini)} a ${fd(c.fim)} · ${c.itens.length} empresa(s) · venda ${brl(c.itens.reduce((s, i) => s + i.venda, 0))} − ${pctTxt(c.taxa)} · pagamento ${fd(c.pagamento)}`;
-ACT.ecoNovo = () => {
+ACT.ecoNovo = () => abrirNovoEco();
+function abrirNovoEco(pre, arquivo, A) {
   if (!needWrite()) return;
   if (!cfgEco().empresas.length) { toast('Cadastre primeiro as empresas.', true); ACT.ecoConfig(); return; }
   const cred = ecoCred(); if (!cred) { toast('Cadastre a empresa do grupo em Configurações → Empresas.', true); return; }
   const form = openModal({
-    title: 'Novo ciclo de e-commerce', ok: 'Salvar ciclo', body: formEco(proxCicloEco()),
+    title: arquivo ? 'Conferir e salvar ciclo' : 'Novo ciclo de e-commerce', ok: 'Salvar ciclo', body: (arquivo ? `<div class="notice info" style="font-size:13px">Preenchido pela planilha <b>${esc(arquivo.name)}</b>${A && A.dMin ? ` (vendas de ${fd(A.dMin)} a ${fd(A.dMax)})` : ''}. Confira as datas e os valores antes de salvar; a planilha fica anexada ao ciclo.</div>` : '') + formEco(pre || proxCicloEco()),
     onSubmit: async f => {
       const x = lerFormEco(f); if (!x) return false;
       if (x._sobrepoe && !(await confirmBox('Período repetido', `Já existe o ciclo de ${fd(x._sobrepoe.ini)} a ${fd(x._sobrepoe.fim)}, que cobre parte deste período. Salvar mesmo assim?`, 'Salvar'))) return false;
@@ -3246,8 +3250,9 @@ ACT.ecoNovo = () => {
       toast('Ciclo salvo.');
     }
   });
+  if (arquivo) { try { const dt = new DataTransfer(); dt.items.add(arquivo); form.elements.files.files = dt.files; } catch (e) { console.warn('anexo da planilha', e); } }
   ligarFormEco(form);
-};
+}
 ACT.ecoEditar = el => {
   if (!needWrite()) return;
   const c = S.ecommerce.find(x => x.id === el.dataset.id); if (!c) return;
@@ -3326,6 +3331,140 @@ ACT.ecoDesfazer = async el => {
   catch (e) { toast(errMsg(e), true); }
 };
 
+/* importação da planilha de vendas da Sellia: reconhece as colunas, agrupa por seller e liga cada seller a uma empresa */
+const normCab = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const CAMPOS_ECO = [
+  ['seller', 'Seller / empresa', true, ['seller name', 'seller', 'nome do seller', 'loja', 'vendedor', 'nome fantasia', 'razao social', 'empresa', 'lojista']],
+  ['cnpj', 'CNPJ', false, ['cnpj', 'cnpj seller', 'documento', 'cpf cnpj']],
+  ['valor', 'Valor da venda', true, ['valor total', 'valor da venda', 'total da venda', 'valor venda', 'valor bruto', 'total', 'valor', 'gmv', 'receita', 'preco total', 'subtotal']],
+  ['data', 'Data da venda', false, ['data do pedido', 'data da venda', 'data pedido', 'data venda', 'data de criacao', 'data', 'criado em', 'dt pedido']],
+  ['status', 'Status do pedido', false, ['status do pedido', 'status pedido', 'status', 'situacao']]
+];
+const STATUS_FORA = /cancel|devolv|estorn|reembols|recusad|chargeback/i;
+function adivinharColEco(cabs, campo, salvo) {
+  if (salvo && cabs.includes(salvo)) return salvo;
+  const ns = cabs.map(normCab);
+  for (const alvo of campo[3]) { const i = ns.indexOf(alvo); if (i >= 0) return cabs[i]; }
+  for (const alvo of campo[3]) { const i = ns.findIndex(n => n.includes(alvo)); if (i >= 0) return cabs[i]; }
+  return '';
+}
+function valorCelEco(v) {
+  if (v == null || v === '') return NaN;
+  if (typeof v === 'number') return Math.round(v * 100);
+  return parseBRL(String(v));
+}
+function dataCelEco(v) {
+  if (v == null || v === '') return '';
+  if (v instanceof Date && !isNaN(v)) return new Date(v.getTime() - v.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  if (typeof v === 'number' && v > 20000 && v < 80000) return new Date(Date.UTC(1899, 11, 30) + v * 86400000).toISOString().slice(0, 10);
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); if (m) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; }
+  return '';
+}
+async function lerPlanilhaEco(file) {
+  await loadScript(LIBS.xlsx);
+  const buf = await file.arrayBuffer();
+  let wb;
+  if (/\.(csv|txt)$/i.test(file.name) || /csv|text\/plain/.test(file.type)) {
+    // CSV: tudo como texto (evita 05/10 virar 10 de maio) e acentos em UTF-8 ou Windows-1252
+    let txt = new TextDecoder('utf-8').decode(buf);
+    if (txt.includes('\uFFFD')) txt = new TextDecoder('windows-1252').decode(buf);
+    const l1 = txt.split(/\r?\n/).slice(0, 10).join('\n');
+    const FS = (l1.match(/;/g) || []).length > (l1.match(/,/g) || []).length ? ';' : (l1.match(/\t/g) || []).length > (l1.match(/,/g) || []).length ? '\t' : ',';
+    wb = XLSX.read(txt.replace(/^\uFEFF/, ''), { type: 'string', raw: true, FS });
+  } else wb = XLSX.read(buf, { type: 'array', cellDates: true });
+  let melhor = null;
+  for (const nome of wb.SheetNames) {
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, raw: true, defval: '' });
+    // linha de cabeçalho: a primeira, entre as 20 iniciais, com mais textos preenchidos
+    let hi = -1, best = 0;
+    for (let i = 0; i < Math.min(20, aoa.length); i++) { const n = aoa[i].filter(c => typeof c === 'string' && c.trim() && isNaN(Number(c))).length; if (n > best) { best = n; hi = i; } }
+    if (hi < 0) continue;
+    const cabs = aoa[hi].map((c, i) => String(c).trim() || `Coluna ${i + 1}`);
+    const linhas = aoa.slice(hi + 1).filter(r => r.some(c => c !== '' && c != null)).map(r => Object.fromEntries(cabs.map((c, i) => [c, r[i]])));
+    if (!melhor || linhas.length > melhor.linhas.length) melhor = { aba: nome, cabs, linhas };
+  }
+  if (!melhor || !melhor.linhas.length) throw new Error('Não encontrei linhas de venda nessa planilha.');
+  return melhor;
+}
+function agruparEco(P, map) {
+  const g = {}; let fora = 0, semValor = 0, dMin = '', dMax = '';
+  for (const r of P.linhas) {
+    if (map.status && STATUS_FORA.test(String(r[map.status] || ''))) { fora++; continue; }
+    const v = valorCelEco(r[map.valor]); if (isNaN(v)) { semValor++; continue; }
+    const nome = String(r[map.seller] ?? '').trim() || '(sem seller)';
+    const cnpj = map.cnpj ? digits(r[map.cnpj]) : '';
+    const chave = cnpj || normCab(nome);
+    const x = (g[chave] ||= { chave, nome, cnpj, total: 0, n: 0 }); x.total += v; x.n++;
+    if (map.data) { const d = dataCelEco(r[map.data]); if (d) { if (!dMin || d < dMin) dMin = d; if (!dMax || d > dMax) dMax = d; } }
+  }
+  return { grupos: Object.values(g).sort((a, b) => b.total - a.total), fora, semValor, dMin, dMax };
+}
+function adivinharEmpresaEco(gr) {
+  const cfg = cfgEco(), al = cfg.aliases || {};
+  if (al[gr.chave]) return al[gr.chave];
+  if (gr.cnpj && al[gr.cnpj]) return al[gr.cnpj];
+  const n = normCab(gr.nome).replace(/\s/g, '');
+  return cfg.empresas.find(e => { const k = normCab(e).replace(/\s/g, ''); return k && (n.includes(k) || k.includes(n)); }) || '';
+}
+ACT.ecoImportar = () => {
+  if (!needWrite()) return;
+  if (!cfgEco().empresas.length) { toast('Cadastre primeiro as empresas.', true); ACT.ecoConfig(); return; }
+  openModal({
+    title: 'Importar planilha da Sellia', ok: 'Ler planilha',
+    body: `<p class="muted" style="margin:0;font-size:13px">Envie a planilha de vendas como a Sellia mandou (Excel ou CSV). O app soma as vendas de cada seller e preenche o ciclo para você conferir antes de salvar.</p>
+      <div class="f full"><label for="ei-file">Planilha</label><input type="file" id="ei-file" name="planilha" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"></div>`,
+    onSubmit: async f => {
+      const file = f.elements.planilha.files[0];
+      if (!file) { toast('Escolha a planilha.', true); return false; }
+      let P;
+      try { P = await lerPlanilhaEco(file); } catch (e) { console.error(e); toast(e.message && /linhas/.test(e.message) ? e.message : 'Não consegui ler esse arquivo. Envie em Excel (.xlsx) ou CSV.', true); return false; }
+      setTimeout(() => mapearEco(P, file), 0);
+    }
+  });
+};
+function mapearEco(P, file) {
+  const cfg = cfgEco(), salvo = cfg.colunas || {};
+  const map = Object.fromEntries(CAMPOS_ECO.map(c => [c[0], adivinharColEco(P.cabs, c, salvo[c[0]])]));
+  const escolha = {};
+  const corpo = () => {
+    const A = agruparEco(P, map);
+    for (const gr of A.grupos) if (!(gr.chave in escolha)) escolha[gr.chave] = adivinharEmpresaEco(gr);
+    const sel = (k, obrig) => `<select data-col="${k}"><option value="">${obrig ? 'Escolha a coluna…' : '— não usar —'}</option>${P.cabs.map(c => `<option ${map[k] === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>`;
+    const porEmp = {}; for (const gr of A.grupos) { const e = escolha[gr.chave]; if (e) porEmp[e] = (porEmp[e] || 0) + gr.total; }
+    return `<div class="muted" style="font-size:12px">${esc(file.name)} · aba “${esc(P.aba)}” · ${P.linhas.length} linha${P.linhas.length !== 1 ? 's' : ''}</div>
+      <div class="eyebrow">1. Colunas da planilha</div>
+      <div class="form ei-cols">${CAMPOS_ECO.map(c => `<div class="f"><label>${c[1]}${c[2] ? ' <span class="req">*</span>' : ''}</label>${sel(c[0], c[2])}</div>`).join('')}</div>
+      ${!map.seller || !map.valor ? '<div class="notice crit" style="font-size:13px">Escolha a coluna do seller e a do valor da venda.</div>' : `
+      <div class="muted" style="font-size:12px">${[A.dMin ? `Vendas de <b>${fd(A.dMin)}</b> a <b>${fd(A.dMax)}</b>` : '', A.fora ? `${A.fora} pedido${A.fora > 1 ? 's' : ''} cancelado${A.fora > 1 ? 's' : ''}/devolvido${A.fora > 1 ? 's' : ''} fora da soma` : '', A.semValor ? `${A.semValor} linha${A.semValor > 1 ? 's' : ''} sem valor ignorada${A.semValor > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ')}</div>
+      <div class="eyebrow">2. De qual empresa é cada seller</div>
+      <div class="list ei-sellers">${A.grupos.map(gr => `<div class="row compact ei-sel"><span class="pg-txt"><span class="pg-nome">${esc(gr.nome)}</span><span class="pg-sub">${gr.cnpj ? esc(fmtDoc(gr.cnpj)) + ' · ' : ''}${gr.n} pedido${gr.n > 1 ? 's' : ''} · <b class="num">${brl(gr.total)}</b></span></span>
+        <select data-seller="${esc(gr.chave)}"><option value="">Ignorar</option>${cfg.empresas.map(e => `<option ${escolha[gr.chave] === e ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select></div>`).join('')}</div>
+      <div class="notice info" style="font-size:13px">${Object.keys(porEmp).length ? Object.entries(porEmp).map(([e, v]) => `<b>${esc(e)}</b> ${brl(v)}`).join(' · ') : 'Nenhum seller ligado a uma empresa ainda.'}</div>`}`;
+  };
+  const form = openModal({ title: 'Conferir planilha', ok: 'Continuar', body: corpo(), onSubmit: async () => {
+    if (!map.seller || !map.valor) { toast('Escolha a coluna do seller e a do valor.', true); return false; }
+    const A = agruparEco(P, map);
+    const vendas = {};
+    for (const gr of A.grupos) { const e = escolha[gr.chave]; if (e) vendas[e] = (vendas[e] || 0) + gr.total; }
+    if (!Object.keys(vendas).length) { toast('Ligue pelo menos um seller a uma empresa.', true); return false; }
+    // aprende: guarda as colunas e a ligação seller → empresa para a próxima planilha
+    const aliases = { ...(cfg.aliases || {}) };
+    for (const gr of A.grupos) { if (escolha[gr.chave]) aliases[gr.chave] = escolha[gr.chave]; else delete aliases[gr.chave]; }
+    try { await withRetry(() => db.doc('config/ecommerce').set({ ...(S.cfgEco || {}), ...cfgEco(), colunas: { ...map }, aliases, atualizadoEm: nowIso(), atualizadoPor: S.meId || null })); S.cfgEco = { ...cfgEco(), colunas: { ...map }, aliases }; } catch (e) { console.warn('config e-commerce', e); }
+    const base = proxCicloEco();
+    const ini = A.dMin || base.ini, fim = A.dMax || base.fim;
+    const pre = { ini, fim, pagamento: Eng.addDays(fim, cfgEco().dias), taxa: cfgEco().taxa, itens: Object.entries(vendas).map(([empresa, venda]) => ({ empresa, venda })) };
+    setTimeout(() => abrirNovoEco(pre, file, A), 0);
+  } });
+  const redesenhar = () => { const mb = form.querySelector('.mb'); const y = mb.scrollTop; mb.innerHTML = corpo(); mb.scrollTop = y; };
+  form.addEventListener('change', e => {
+    const c = e.target.dataset.col, sk = e.target.dataset.seller;
+    if (c !== undefined) { map[c] = e.target.value; redesenhar(); }
+    else if (sk !== undefined) { escolha[sk] = e.target.value; redesenhar(); }
+  });
+}
 /* cadastro: empresas, taxa padrão, prazo e duração do ciclo */
 ACT.ecoConfig = () => {
   if (!needWrite()) return;
@@ -3345,8 +3484,8 @@ ACT.ecoConfig = () => {
       if (isNaN(taxa)) { toast('Informe a taxa em % (ex.: 15).', true); return false; }
       if (!(duracao >= 1 && duracao <= 31)) { toast('A duração do ciclo deve ser de 1 a 31 dias.', true); return false; }
       if (!(dias >= 0 && dias <= 60)) { toast('O prazo de pagamento deve ser de 0 a 60 dias.', true); return false; }
-      await withRetry(() => db.doc('config/ecommerce').set({ empresas, taxa, duracao, dias, atualizadoEm: nowIso(), atualizadoPor: S.meId || null }));
-      S.cfgEco = { empresas, taxa, duracao, dias };
+      await withRetry(() => db.doc('config/ecommerce').set({ ...(S.cfgEco || {}), empresas, taxa, duracao, dias, atualizadoEm: nowIso(), atualizadoPor: S.meId || null }));
+      S.cfgEco = { ...(S.cfgEco || {}), empresas, taxa, duracao, dias };
       toast('Cadastro salvo.');
     }
   });
