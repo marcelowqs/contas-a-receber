@@ -50,6 +50,8 @@
 .ei-cols{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 .ei-sel{grid-template-columns:minmax(0,1fr) auto!important;gap:8px;cursor:default} .ei-sel:hover{background:none} .ei-sel select{width:auto;max-width:150px}
 @media (max-width:560px){.ei-cols{grid-template-columns:1fr!important}}
+.eco-cfg-l{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:6px;margin-bottom:6px}
+.eco-gest{padding:8px 14px;border-top:1px solid var(--line);display:grid;gap:4px} .eco-gl{display:flex;justify-content:space-between;gap:8px;font-size:14px}
 </style>
 <title>Gestão de Contas a Receber</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3105,7 +3107,8 @@ function quadroAcertosDash() {
 /* Cada ciclo (documento da coleção 'ecommerce'): período de venda, data prevista de pagamento, taxa da Sellia (%)
    e, por empresa, a venda informada pela Sellia, a venda pelo nosso controle (conferência, opcional) e o recebimento
    confirmado na conta corrente da empresa. A receber = venda − taxa. */
-const ECO_PADRAO = { empresas: [], taxa: 15, dias: 2, duracao: 10 };
+const ECO_PADRAO = { empresas: [], taxa: 15, dias: 2, duracao: 10, gestores: {} };
+const gestorEco = e => (cfgEco().gestores || {})[e] || '';
 const cfgEco = () => ({ ...ECO_PADRAO, ...(S.cfgEco || {}) });
 const ecoCred = () => { const pj = S.credores.filter(c => c.tipo === 'PJ' && c.ativo !== false); return pj.find(c => /plai/i.test(c.nome || c.razao || '')) || pj[0] || null; };
 const pctTxt = p => String(+(+p).toFixed(2)).replace('.', ',') + '%';
@@ -3155,7 +3158,7 @@ function cicloEcoHtml(c) {
       const s = stItemEco(c, it), conf = it.nossaVenda != null && Math.abs(it.nossaVenda - it.venda) >= 1;
       return `<div class="row compact rowpg ${s.st === 'atraso' ? 'stripe-crit' : s.st === 'ok' ? 'stripe-ok' : s.st === 'dif' ? 'stripe-warn' : 'stripe-acc'}">
         <button type="button" class="rowpg-main" data-act="ecoItem" data-id="${c.id}" data-i="${i}">
-          <span class="pg-txt"><span class="pg-nome">${esc(it.empresa)}</span>
+          <span class="pg-txt"><span class="pg-nome">${esc(it.empresa)}${gestorEco(it.empresa) ? ` <span class="tag">${esc(gestorEco(it.empresa))}</span>` : ''}</span>
             <span class="pg-sub">venda <span class="num">${brl(it.venda)}</span> − ${pctTxt(c.taxa)}${s.st !== 'aguarda' ? ' ' + pillEco(s.st) : ''}</span>
             ${it.recebido ? `<span class="pg-sub">recebido <span class="num ${s.st === 'ok' ? 'ok' : 'crit'}">${brl(it.recebido.valor)}</span> em ${fd(it.recebido.data)}${s.st === 'dif' ? ` · diferença <span class="num crit">${s.dif > 0 ? '+' : '−'}${brl(Math.abs(s.dif))}</span>` : ''}</span>` : ''}
             ${conf ? `<span class="pg-sub crit">⚠ nosso controle: ${brl(it.nossaVenda)} (${it.nossaVenda > it.venda ? 'Sellia informou ' + brl(it.nossaVenda - it.venda) + ' a menos' : 'Sellia informou ' + brl(it.venda - it.nossaVenda) + ' a mais'})</span>` : ''}</span>
@@ -3164,6 +3167,7 @@ function cicloEcoHtml(c) {
       </div>`;
     }).join('')}
       <div class="row compact eco-tot"><span class="t">Total · venda ${brl(T.venda)}${T.rec ? ` · recebido ${brl(T.rec)}` : ''}</span><span class="v num">${brl(T.esp)}</span></div>
+      ${(() => { const g = {}; for (const it of c.itens || []) { const k = gestorEco(it.empresa) || 'Sem gestor'; g[k] = (g[k] || 0) + liqEco(it.venda, c.taxa); } const ks = Object.keys(g); return ks.length > 1 || (ks[0] && ks[0] !== 'Sem gestor') ? `<div class="eco-gest"><div class="eyebrow">A receber por gestor</div>${ks.map(k => `<div class="eco-gl"><span>${esc(k)}</span><b class="num">${brl(g[k])}</b></div>`).join('')}</div>` : ''; })()}
     </div>
     <div class="flex eco-acts">${c.anexos && c.anexos.length ? fileList(c.anexos) : ''}${c.obs ? `<span class="muted" style="font-size:12px">${esc(c.obs)}</span>` : ''}${S.canWrite ? `<span class="right flex"><button class="btn ghost sm" data-act="ecoEditar" data-id="${c.id}">${IC.edit} Editar</button><button class="btn ghost sm" style="color:var(--crit)" data-act="ecoApagar" data-id="${c.id}">${IC.trash}</button></span>` : ''}</div>
   </section>`;
@@ -3336,8 +3340,8 @@ const normCab = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').to
 const CAMPOS_ECO = [
   ['seller', 'Seller / empresa', true, ['seller name', 'seller', 'nome do seller', 'loja', 'vendedor', 'nome fantasia', 'razao social', 'empresa', 'lojista']],
   ['cnpj', 'CNPJ', false, ['cnpj', 'cnpj seller', 'documento', 'cpf cnpj']],
-  ['valor', 'Valor da venda', true, ['valor total', 'valor da venda', 'total da venda', 'valor venda', 'valor bruto', 'total', 'valor', 'gmv', 'receita', 'preco total', 'subtotal']],
-  ['data', 'Data da venda', false, ['data do pedido', 'data da venda', 'data pedido', 'data venda', 'data de criacao', 'data', 'criado em', 'dt pedido']],
+  ['valor', 'Valor da venda', true, ['valor repassado', 'valor pedido', 'valor total', 'valor da venda', 'total da venda', 'valor venda', 'valor bruto', 'total', 'valor', 'gmv', 'receita', 'preco total', 'subtotal']],
+  ['data', 'Data da venda', false, ['data compra', 'data do pedido', 'data da venda', 'data pedido', 'data venda', 'data de criacao', 'data', 'criado em', 'dt pedido']],
   ['status', 'Status do pedido', false, ['status do pedido', 'status pedido', 'status', 'situacao']]
 ];
 const STATUS_FORA = /cancel|devolv|estorn|reembols|recusad|chargeback/i;
@@ -3383,7 +3387,9 @@ async function lerPlanilhaEco(file) {
     if (hi < 0) continue;
     const cabs = aoa[hi].map((c, i) => String(c).trim() || `Coluna ${i + 1}`);
     const linhas = aoa.slice(hi + 1).filter(r => r.some(c => c !== '' && c != null)).map(r => Object.fromEntries(cabs.map((c, i) => [c, r[i]])));
-    if (!melhor || linhas.length > melhor.linhas.length) melhor = { aba: nome, cabs, linhas };
+    // preferência: aba de detalhe do repasse da Sellia ("Resumo_repasse"); senão, a de mais linhas
+    const pri = /resumo.?repasse/i.test(nome) ? 2 : 0;
+    if (!melhor || pri > melhor.pri || (pri === melhor.pri && linhas.length > melhor.linhas.length)) melhor = { aba: nome, cabs, linhas, pri };
   }
   if (!melhor || !melhor.linhas.length) throw new Error('Não encontrei linhas de venda nessa planilha.');
   return melhor;
@@ -3397,7 +3403,7 @@ function agruparEco(P, map) {
     const cnpj = map.cnpj ? digits(r[map.cnpj]) : '';
     const chave = cnpj || normCab(nome);
     const x = (g[chave] ||= { chave, nome, cnpj, total: 0, n: 0 }); x.total += v; x.n++;
-    if (map.data) { const d = dataCelEco(r[map.data]); if (d) { if (!dMin || d < dMin) dMin = d; if (!dMax || d > dMax) dMax = d; } }
+    if (map.data) { const d = dataCelEco(r[map.data]); if (d && d >= '2000-01-01') { if (!dMin || d < dMin) dMin = d; if (!dMax || d > dMax) dMax = d; } }
   }
   return { grupos: Object.values(g).sort((a, b) => b.total - a.total), fora, semValor, dMin, dMax };
 }
@@ -3469,38 +3475,47 @@ function mapearEco(P, file) {
 ACT.ecoConfig = () => {
   if (!needWrite()) return;
   const cfg = cfgEco();
-  openModal({
+  const linha = (e = '', g = '') => `<div class="eco-cfg-l"><input type="text" name="emp" value="${esc(e)}" placeholder="Empresa"><input type="text" name="gest" value="${esc(g)}" placeholder="Gestor (ex.: MF)"><button type="button" class="btn ghost sm" data-rm aria-label="Remover">${IC.x}</button></div>`;
+  const form = openModal({
     title: 'Empresas e taxa', ok: 'Salvar',
     body: `<div class="form">
-      <div class="f full"><label for="eco-emp">Empresas que recebem os repasses <span class="req">*</span></label><textarea id="eco-emp" name="empresas" rows="5" placeholder="Uma por linha">${esc(cfg.empresas.join('\n'))}</textarea><span class="hint">Uma por linha. Empresas já usadas em ciclos continuam aparecendo neles.</span></div>
+      <div class="f full"><label>Empresas que recebem os repasses e gestor de cada uma <span class="req">*</span></label>
+        <div id="eco-cfg-ls">${(cfg.empresas.length ? cfg.empresas : ['']).map(e => linha(e, gestorEco(e))).join('')}</div>
+        <button type="button" class="btn sm" id="eco-cfg-add" style="justify-self:start">${IC.nova} Adicionar empresa</button>
+        <span class="hint">Empresas já usadas em ciclos continuam aparecendo neles.</span></div>
       <div class="f"><label for="eco-taxa">Taxa da Sellia (%)</label><input type="text" inputmode="decimal" id="eco-taxa" name="taxa" value="${String(cfg.taxa).replace('.', ',')}"><span class="hint">Padrão dos novos ciclos. Dá para mudar em cada ciclo.</span></div>
       <div class="f"><label for="eco-dur">Duração do ciclo (dias)</label><input type="number" min="1" max="31" id="eco-dur" name="duracao" value="${cfg.duracao}"></div>
       <div class="f"><label for="eco-dias">Pagamento quantos dias após o fim</label><input type="number" min="0" max="60" id="eco-dias" name="dias" value="${cfg.dias}"></div>
     </div>`,
     onSubmit: async f => {
-      const empresas = [...new Set(String(f.elements.empresas.value).split('\n').map(s => s.trim()).filter(Boolean))];
+      const empresas = [], gestores = {};
+      f.querySelectorAll('.eco-cfg-l').forEach(l => { const e = l.querySelector('[name=emp]').value.trim(), g = l.querySelector('[name=gest]').value.trim(); if (e && !empresas.includes(e)) { empresas.push(e); if (g) gestores[e] = g; } });
       const taxa = parsePct(fv(f, 'taxa')), duracao = parseInt(fv(f, 'duracao')), dias = parseInt(fv(f, 'dias'));
       if (!empresas.length) { toast('Cadastre pelo menos uma empresa.', true); return false; }
       if (isNaN(taxa)) { toast('Informe a taxa em % (ex.: 15).', true); return false; }
       if (!(duracao >= 1 && duracao <= 31)) { toast('A duração do ciclo deve ser de 1 a 31 dias.', true); return false; }
       if (!(dias >= 0 && dias <= 60)) { toast('O prazo de pagamento deve ser de 0 a 60 dias.', true); return false; }
-      await withRetry(() => db.doc('config/ecommerce').set({ ...(S.cfgEco || {}), empresas, taxa, duracao, dias, atualizadoEm: nowIso(), atualizadoPor: S.meId || null }));
-      S.cfgEco = { ...(S.cfgEco || {}), empresas, taxa, duracao, dias };
+      const novo = { ...(S.cfgEco || {}), empresas, gestores, taxa, duracao, dias }; delete novo.gestor;
+      await withRetry(() => db.doc('config/ecommerce').set({ ...novo, atualizadoEm: nowIso(), atualizadoPor: S.meId || null }));
+      S.cfgEco = novo;
       toast('Cadastro salvo.');
     }
   });
+  const ls = form.querySelector('#eco-cfg-ls');
+  form.querySelector('#eco-cfg-add').addEventListener('click', () => { ls.insertAdjacentHTML('beforeend', linha()); ls.lastElementChild.querySelector('input').focus(); });
+  ls.addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (b) { b.closest('.eco-cfg-l').remove(); if (!ls.children.length) ls.insertAdjacentHTML('beforeend', linha()); } });
 };
 ACT.ecoExport = el => {
   const cs = ciclosEco().slice().reverse();
-  const cols = ['Vendas de', 'até', 'Pagamento', 'Empresa', 'Venda Sellia', 'Nosso controle', 'Taxa', 'A receber', 'Recebido', 'Data crédito', 'Diferença', 'Situação'];
+  const cols = ['Vendas de', 'até', 'Pagamento', 'Empresa', 'Gestor', 'Venda Sellia', 'Nosso controle', 'Taxa', 'A receber', 'Recebido', 'Data crédito', 'Diferença', 'Situação'];
   const rows = [];
   let tv = 0, te = 0, tr = 0;
   for (const c of cs) for (const it of c.itens || []) {
     const s = stItemEco(c, it); tv += it.venda; te += s.esp; if (it.recebido) tr += it.recebido.valor;
-    rows.push([{ t: 'd', v: c.ini }, { t: 'd', v: c.fim }, { t: 'd', v: c.pagamento }, it.empresa, { t: 'm', v: it.venda }, { t: 'm', v: it.nossaVenda ?? null }, pctTxt(c.taxa), { t: 'm', v: s.esp }, { t: 'm', v: it.recebido ? it.recebido.valor : null }, it.recebido ? { t: 'd', v: it.recebido.data } : '', { t: 'm', v: it.recebido ? s.dif : null }, ST_ECO[s.st][0]]);
+    rows.push([{ t: 'd', v: c.ini }, { t: 'd', v: c.fim }, { t: 'd', v: c.pagamento }, it.empresa, gestorEco(it.empresa), { t: 'm', v: it.venda }, { t: 'm', v: it.nossaVenda ?? null }, pctTxt(c.taxa), { t: 'm', v: s.esp }, { t: 'm', v: it.recebido ? it.recebido.valor : null }, it.recebido ? { t: 'd', v: it.recebido.data } : '', { t: 'm', v: it.recebido ? s.dif : null }, ST_ECO[s.st][0]]);
   }
   if (!rows.length) { toast('Nada para exportar.', true); return; }
-  const foot = ['Total', '', '', '', { t: 'm', v: tv }, '', '', { t: 'm', v: te }, { t: 'm', v: tr }, '', '', ''];
+  const foot = ['Total', '', '', '', '', { t: 'm', v: tv }, '', '', { t: 'm', v: te }, { t: 'm', v: tr }, '', '', ''];
   const titulo = 'E-commerce Flamengo · Sellia', sub = `Repasses por ciclo · posição em ${fd(X.t)} · a receber ${brl(te - tr)}`;
   if (el.dataset.k === 'pdf') runExport(() => exportPdf(titulo, sub, cols, rows, foot));
   else runExport(() => exportXlsx(titulo, sub, cols, rows, foot));
