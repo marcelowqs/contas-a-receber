@@ -40,6 +40,13 @@
 .dcard-det .dcol-h{display:none}
 :root[data-theme="dark"] .dcard.pj,:root[data-theme="dark"] .dcard.pf{color:#0f1312}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dcard.pj,:root:not([data-theme="light"]) .dcard.pf{color:#0f1312}}
+.eco-ciclo .pill{margin-left:4px}
+.eco-tot{background:var(--sunk);font-weight:600;cursor:default} .eco-tot:hover{background:var(--sunk)}
+.eco-acts{padding:8px 14px;flex-wrap:wrap;gap:8px;border-top:1px solid var(--line)} .eco-acts .right{margin-left:auto}
+.eco-linha{border:1px solid var(--line);border-radius:8px;padding:10px;display:grid;gap:6px}
+.eco-linha.alerta{border-color:var(--crit);background:var(--crit-soft)}
+.eco-nome{display:flex;justify-content:space-between;align-items:baseline;gap:8px} .eco-liq{font-size:13px;color:var(--ok)}
+.eco-ins{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 </style>
 <title>Gestão de Contas a Receber</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -522,13 +529,13 @@ const Eng = (() => {
 'use strict';
 /* ================= ESTADO ================= */
 const S = {
-  contas_pagar: [], acertos: [], cfgAc: {},
+  contas_pagar: [], acertos: [], cfgAc: {}, ecommerce: [], cfgEco: {},
   credores: [], devedores: [], dividas: [], pagamentos: [], ajustes: [], contatos: [], auditoria: [], config: {},
   loaded: {}, view: 'painel', p: {}, cart: 'all', canWrite: true, meId: null, offline: false,
   dirty: false, pending: false, names: {}
 };
 let db = null, U = null, AS = null, DL = null, X = null;
-const COLS = ['credores', 'devedores', 'dividas', 'pagamentos', 'ajustes', 'contatos', 'contas_pagar', 'acertos', 'auditoria'];
+const COLS = ['credores', 'devedores', 'dividas', 'pagamentos', 'ajustes', 'contatos', 'contas_pagar', 'acertos', 'ecommerce', 'auditoria'];
 
 /* ================= UTILITÁRIOS ================= */
 const $ = s => document.querySelector(s);
@@ -573,6 +580,7 @@ const I = (p, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="curre
 const IC = {
   agenda: I('<rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M8 14h2M14 14h2M8 17.5h2"/>'),
   acertos: I('<path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="m17 20 4-4-4-4"/><path d="M21 16H7"/>'),
+  ecommerce: I('<path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.4a1.5 1.5 0 0 0 1.5-1.1L21 8H6.2"/><circle cx="9.5" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/>'),
   pagar: I('<rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19M15 15h3"/><path d="M7 15l2-2M7 15l2 2"/>'),
   painelPF: I('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>', 'style="color:var(--pf)"'),
   painelPJ: I('<path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 10h1M14 10h1M9 14h1M14 14h1M10 21v-3h4v3"/>', 'style="color:var(--pj)"'),
@@ -600,7 +608,7 @@ const IC = {
   copy: I('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>')
 };
 const NAV = [
-  ['acertos', 'CONTA CORRENTE MF'], ['painel', 'Dashboard'], ['nova', 'Cadastrar dívida'], ['agenda', 'Vencimentos e cobranças'], ['pagar', 'Contas a pagar'], ['relatorios', 'Relatórios'], ['config', 'Configurações'], ['cadDev', 'Devedores']
+  ['acertos', 'CONTA CORRENTE MF'], ['painel', 'Dashboard'], ['nova', 'Cadastrar dívida'], ['agenda', 'Vencimentos e cobranças'], ['pagar', 'Contas a pagar'], ['ecommerce', 'E-commerce'], ['relatorios', 'Relatórios'], ['config', 'Configurações'], ['cadDev', 'Devedores']
 ];
 
 /* ================= DOMÍNIO ================= */
@@ -791,7 +799,7 @@ function renderShell() {
   const tb = [['painel', 'Painel'], ['acertos', 'C/C MF'], ['nova', 'Cadastrar'], ['agenda', 'Agenda'], ['pagar', 'A pagar'], ['mais', 'Mais']];
   $('#tabbar').innerHTML = tb.map(([k, l]) => k === 'nova'
     ? `<button class="plus ${navOn(k) ? 'on' : ''}" data-act="go" data-v="nova"><span class="ic">${IC.nova}</span>${l}</button>`
-    : k === 'mais' ? `<button class="${['juridico', 'relatorios', 'config', 'cadDev'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
+    : k === 'mais' ? `<button class="${['juridico', 'relatorios', 'config', 'cadDev', 'ecommerce'].includes(S.view) ? 'on' : ''}" data-act="maisMenu">${IC.mais}${l}</button>`
       : `<button class="${navOn(k) ? 'on' : ''}" data-act="go" data-v="${k}">${IC[k]}${l}</button>`).join('');
 }
 const navOn = k => S.view === k || (k === 'agenda' && ['vencimentos', 'cobrancas'].includes(S.view)) || (k === 'painel' && ['painelPF', 'painelPJ'].includes(S.view));
@@ -2301,6 +2309,7 @@ async function boot() {
   }
   db.doc('config/geral').onSnapshot(s => { S.config = s.exists ? s.data() : {}; requestRender(); }, () => { });
   db.doc('config/acertos').onSnapshot(s => { S.cfgAc = s.exists ? s.data() : {}; requestRender(); }, () => { });
+  db.doc('config/ecommerce').onSnapshot(s => { S.cfgEco = s.exists ? s.data() : {}; requestRender(); }, () => { });
 }
 const _render = render;
 render = function () {
@@ -3088,6 +3097,275 @@ function quadroAcertosDash() {
   };
   VIEWS.painelPF = VIEWS.painel; VIEWS.painelPJ = VIEWS.painel;
 }
+
+/* ================= E-COMMERCE FLAMENGO · SELLIA ================= */
+/* Cada ciclo (documento da coleção 'ecommerce'): período de venda, data prevista de pagamento, taxa da Sellia (%)
+   e, por empresa, a venda informada pela Sellia, a venda pelo nosso controle (conferência, opcional) e o recebimento
+   confirmado na conta corrente da empresa. A receber = venda − taxa. */
+const ECO_PADRAO = { empresas: [], taxa: 15, dias: 2, duracao: 10 };
+const cfgEco = () => ({ ...ECO_PADRAO, ...(S.cfgEco || {}) });
+const ecoCred = () => { const pj = S.credores.filter(c => c.tipo === 'PJ' && c.ativo !== false); return pj.find(c => /plai/i.test(c.nome || c.razao || '')) || pj[0] || null; };
+const pctTxt = p => String(+(+p).toFixed(2)).replace('.', ',') + '%';
+const parsePct = s => { const n = Number(String(s ?? '').replace('%', '').replace(',', '.').trim()); return isFinite(n) && n >= 0 && n < 100 ? n : NaN; };
+const liqEco = (venda, taxa) => Math.round((venda || 0) * (100 - (taxa || 0)) / 100);
+function stItemEco(c, it, t = X.t) {
+  const esp = liqEco(it.venda, c.taxa);
+  if (it.recebido) { const dif = it.recebido.valor - esp; return { esp, dif, st: Math.abs(dif) < 1 ? 'ok' : 'dif' }; }
+  return { esp, dif: 0, st: c.pagamento < t ? 'atraso' : 'aguarda' };
+}
+const ST_ECO = { aguarda: ['Aguardando', 'acc'], atraso: ['Atrasado', 'crit'], ok: ['Recebido', 'ok'], dif: ['Recebido com diferença', 'warn'] };
+const pillEco = st => `<span class="pill ${ST_ECO[st][1]}">${ST_ECO[st][0]}</span>`;
+function totCicloEco(c) {
+  let venda = 0, esp = 0, rec = 0, pend = 0, atraso = false, dif = false;
+  for (const it of c.itens || []) { const s = stItemEco(c, it); venda += it.venda || 0; esp += s.esp; if (it.recebido) rec += it.recebido.valor; else pend += s.esp; if (s.st === 'atraso') atraso = true; if (s.st === 'dif') dif = true; }
+  const st = pend ? (atraso ? 'atraso' : 'aguarda') : dif ? 'dif' : 'ok';
+  return { venda, esp, rec, pend, st };
+}
+const ciclosEco = () => S.ecommerce.filter(c => !c.cancelado).sort((a, b) => a.ini < b.ini ? 1 : a.ini > b.ini ? -1 : 0);
+
+VIEWS.ecommerce = () => {
+  const cfg = cfgEco(), t = X.t, cs = ciclosEco();
+  const [m0, m1] = monthBounds(t);
+  let pend = 0, atr = 0, recMes = 0, difAc = 0, nAtr = 0;
+  for (const c of cs) for (const it of c.itens || []) {
+    const s = stItemEco(c, it);
+    if (!it.recebido) { pend += s.esp; if (s.st === 'atraso') { atr += s.esp; nAtr++; } }
+    else { if (it.recebido.data >= m0 && it.recebido.data <= m1) recMes += it.recebido.valor; difAc += s.dif; }
+  }
+  const kp = (l, v, h, cls = '') => `<div class="kpi"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${h ? `<div class="h">${h}</div>` : ''}</div>`;
+  const semEmp = !cfg.empresas.length;
+  return `<div class="ph"><div><div class="eyebrow">Flamengo · Sellia</div><h1>E-commerce</h1><div class="sub">Repasses a cada ciclo: venda do período menos a taxa da Sellia (${pctTxt(cfg.taxa)}), por empresa, e a confirmação do que entrou na conta.</div></div>
+    <div class="acts">${cs.length ? `<button class="btn" data-act="ecoExport" data-k="pdf">${IC.pdf} PDF</button><button class="btn" data-act="ecoExport" data-k="xls">${IC.xls} Excel</button>` : ''}${S.canWrite ? `<button class="btn" data-act="ecoConfig">${IC.edit} Empresas e taxa</button><button class="btn pri" data-act="ecoNovo">${IC.nova} Novo ciclo</button>` : ''}</div></div>
+  ${semEmp ? `<div class="notice">Comece cadastrando as empresas que recebem os repasses da Sellia e a taxa.${S.canWrite ? ' <button class="btn sm pri" data-act="ecoConfig">Cadastrar empresas</button>' : ''}</div>` : ''}
+  <div class="kpis">
+    ${kp('A receber', brl(pend), 'ciclos ainda não pagos')}
+    ${kp('Atrasado', brl(atr), nAtr ? `${nAtr} repasse${nAtr > 1 ? 's' : ''} vencido${nAtr > 1 ? 's' : ''}` : 'Nada em atraso', atr ? 'crit' : '')}
+    ${kp('Recebido no mês', brl(recMes), MESES[+t.slice(5, 7) - 1], recMes ? 'ok' : '')}
+    ${kp('Diferenças', (difAc > 0 ? '+' : difAc < 0 ? '−' : '') + brl(Math.abs(difAc)), 'recebido − esperado', difAc < 0 ? 'crit' : '')}
+  </div>
+  ${cs.length ? cs.map(cicloEcoHtml).join('') : `<section class="sheet"><div class="empty"><b>Nenhum ciclo lançado</b>Ao receber a planilha de vendas da Sellia, lance o ciclo com a venda de cada empresa.${S.canWrite && !semEmp ? '<button class="btn pri" data-act="ecoNovo">Novo ciclo</button>' : ''}</div></section>`}`;
+};
+function cicloEcoHtml(c) {
+  const T = totCicloEco(c);
+  return `<section class="sheet eco-ciclo"><header><h2>Vendas de ${ddmm(c.ini)} a ${ddmm(c.fim)}</h2><span class="meta">pagamento ${fd(c.pagamento)} · taxa ${pctTxt(c.taxa)} ${pillEco(T.st)}</span></header>
+    <div class="list">${(c.itens || []).map((it, i) => {
+      const s = stItemEco(c, it), conf = it.nossaVenda != null && Math.abs(it.nossaVenda - it.venda) >= 1;
+      return `<div class="row compact rowpg ${s.st === 'atraso' ? 'stripe-crit' : s.st === 'ok' ? 'stripe-ok' : s.st === 'dif' ? 'stripe-warn' : 'stripe-acc'}">
+        <button type="button" class="rowpg-main" data-act="ecoItem" data-id="${c.id}" data-i="${i}">
+          <span class="pg-txt"><span class="pg-nome">${esc(it.empresa)}</span>
+            <span class="pg-sub">venda <span class="num">${brl(it.venda)}</span> − ${pctTxt(c.taxa)}${s.st !== 'aguarda' ? ' ' + pillEco(s.st) : ''}</span>
+            ${it.recebido ? `<span class="pg-sub">recebido <span class="num ${s.st === 'ok' ? 'ok' : 'crit'}">${brl(it.recebido.valor)}</span> em ${fd(it.recebido.data)}${s.st === 'dif' ? ` · diferença <span class="num crit">${s.dif > 0 ? '+' : '−'}${brl(Math.abs(s.dif))}</span>` : ''}</span>` : ''}
+            ${conf ? `<span class="pg-sub crit">⚠ nosso controle: ${brl(it.nossaVenda)} (${it.nossaVenda > it.venda ? 'Sellia informou ' + brl(it.nossaVenda - it.venda) + ' a menos' : 'Sellia informou ' + brl(it.venda - it.nossaVenda) + ' a mais'})</span>` : ''}</span>
+          <span class="v num">${brl(s.esp)}</span></button>
+        ${S.canWrite && !it.recebido ? `<span class="rowpg-acts"><button type="button" class="btn ghost sm ok-btn" data-act="ecoReceber" data-id="${c.id}" data-i="${i}" aria-label="Confirmar recebimento" title="Confirmar recebimento">${IC.check}</button></span>` : ''}
+      </div>`;
+    }).join('')}
+      <div class="row compact eco-tot"><span class="t">Total · venda ${brl(T.venda)}${T.rec ? ` · recebido ${brl(T.rec)}` : ''}</span><span class="v num">${brl(T.esp)}</span></div>
+    </div>
+    <div class="flex eco-acts">${c.anexos && c.anexos.length ? fileList(c.anexos) : ''}${c.obs ? `<span class="muted" style="font-size:12px">${esc(c.obs)}</span>` : ''}${S.canWrite ? `<span class="right flex"><button class="btn ghost sm" data-act="ecoEditar" data-id="${c.id}">${IC.edit} Editar</button><button class="btn ghost sm" style="color:var(--crit)" data-act="ecoApagar" data-id="${c.id}">${IC.trash}</button></span>` : ''}</div>
+  </section>`;
+}
+
+/* novo / editar ciclo */
+function proxCicloEco() {
+  const cfg = cfgEco(), ult = ciclosEco()[0];
+  const ini = ult ? Eng.addDays(ult.fim, 1) : Eng.addDays(X.t, -cfg.duracao);
+  const fim = Eng.addDays(ini, cfg.duracao - 1);
+  return { ini, fim, pagamento: Eng.addDays(fim, cfg.dias), taxa: cfg.taxa };
+}
+function formEco(c) {
+  const cfg = cfgEco();
+  const nomes = [...new Set([...cfg.empresas, ...(c.itens || []).map(x => x.empresa)])];
+  const it = n => (c.itens || []).find(x => x.empresa === n) || {};
+  return `<div class="form">
+    <div class="f"><label for="ec-ini">Vendas de <span class="req">*</span></label><input type="date" id="ec-ini" name="ini" value="${c.ini}"></div>
+    <div class="f"><label for="ec-fim">até <span class="req">*</span></label><input type="date" id="ec-fim" name="fim" value="${c.fim}"></div>
+    <div class="f"><label for="ec-pag">Pagamento previsto <span class="req">*</span></label><input type="date" id="ec-pag" name="pagamento" value="${c.pagamento}"><span class="hint">${cfg.dias} dia${cfg.dias !== 1 ? 's' : ''} após o fim do período</span></div>
+    <div class="f"><label for="ec-taxa">Taxa Sellia (%) <span class="req">*</span></label><input type="text" inputmode="decimal" id="ec-taxa" name="taxa" value="${String(c.taxa).replace('.', ',')}"></div>
+    <div class="f full"><div class="eyebrow" style="margin:4px 0 2px">Venda de cada empresa no período</div><span class="hint">Deixe em branco a empresa que não vendeu. "Nosso controle" é opcional, para conferir o que a Sellia informou.</span></div>
+    ${nomes.map((n, i) => `<div class="eco-linha full" data-empresa="${esc(n)}">
+      <div class="eco-nome"><b>${esc(n)}</b><span class="num eco-liq" id="ec-liq-${i}"></span></div>
+      <div class="eco-ins"><div class="f"><label for="ec-v-${i}">Venda Sellia (R$)</label><input type="text" class="money-in" inputmode="decimal" id="ec-v-${i}" name="v_${i}" value="${toInput(it(n).venda)}" placeholder="0,00"></div>
+      <div class="f"><label for="ec-n-${i}">Nosso controle (R$)</label><input type="text" class="money-in" inputmode="decimal" id="ec-n-${i}" name="n_${i}" value="${toInput(it(n).nossaVenda)}" placeholder="opcional"></div></div>
+    </div>`).join('')}
+    <div class="notice info full" id="ec-total" style="font-size:13px"></div>
+    <div class="f full"><label for="ec-obs">Observações</label><textarea id="ec-obs" name="obs">${esc(c.obs)}</textarea></div>
+    ${fileInput('ec-files', 'Planilha de vendas da Sellia')}
+  </div>`;
+}
+function ligarFormEco(form) {
+  const cfg = cfgEco(); let pagMexido = false;
+  form.elements.pagamento.addEventListener('input', () => { pagMexido = true; });
+  const upd_ = e => {
+    if (e && e.target && e.target.name === 'fim' && !pagMexido && fv(form, 'fim')) form.elements.pagamento.value = Eng.addDays(fv(form, 'fim'), cfg.dias);
+    const taxa = parsePct(fv(form, 'taxa')); let tv = 0, tl = 0, n = 0, alertas = 0;
+    form.querySelectorAll('.eco-linha').forEach((l, i) => {
+      const v = parseBRL(fv(form, 'v_' + i)), nv = parseBRL(fv(form, 'n_' + i));
+      const el = form.querySelector('#ec-liq-' + i);
+      if (v > 0 && !isNaN(taxa)) { const lq = liqEco(v, taxa); tv += v; tl += lq; n++; el.innerHTML = `a receber <b>${brl(lq)}</b>`; } else el.textContent = '';
+      const alerta = v > 0 && nv > 0 && Math.abs(nv - v) >= 1; l.classList.toggle('alerta', alerta); if (alerta) alertas++;
+    });
+    form.querySelector('#ec-total').innerHTML = isNaN(taxa) ? 'Informe a taxa (ex.: 15).' : n ? `<b>${n} empresa${n > 1 ? 's' : ''}</b> · venda ${brl(tv)} − ${pctTxt(taxa)} (${brl(tv - tl)}) = <b>a receber ${brl(tl)}</b>${alertas ? `<br><span class="crit">⚠ ${alertas} empresa${alertas > 1 ? 's' : ''} com venda diferente do nosso controle.</span>` : ''}` : 'Informe a venda de pelo menos uma empresa.';
+  };
+  form.addEventListener('input', upd_); upd_();
+}
+function lerFormEco(f, antigo) {
+  const x = { ini: fv(f, 'ini'), fim: fv(f, 'fim'), pagamento: fv(f, 'pagamento'), taxa: parsePct(fv(f, 'taxa')), obs: fv(f, 'obs') };
+  if (!x.ini || !x.fim) { toast('Informe o período de vendas.', true); return null; }
+  if (x.fim < x.ini) { toast('O fim do período é antes do início.', true); return null; }
+  if (!x.pagamento) { toast('Informe a data prevista do pagamento.', true); return null; }
+  if (isNaN(x.taxa)) { toast('Informe a taxa em % (ex.: 15).', true); return null; }
+  const itens = [];
+  f.querySelectorAll('.eco-linha').forEach((l, i) => {
+    const empresa = l.dataset.empresa, v = parseBRL(fv(f, 'v_' + i)), nv = parseBRL(fv(f, 'n_' + i));
+    if (!(v > 0)) return;
+    const velho = antigo && (antigo.itens || []).find(y => y.empresa === empresa);
+    itens.push(clean({ empresa, venda: v, nossaVenda: nv > 0 ? nv : undefined, recebido: velho && velho.recebido ? velho.recebido : undefined }));
+  });
+  if (!itens.length) { toast('Informe a venda de pelo menos uma empresa.', true); return null; }
+  if (antigo) { const perdidos = (antigo.itens || []).filter(y => y.recebido && !itens.some(z => z.empresa === y.empresa)); if (perdidos.length) { toast(`${perdidos.map(p => p.empresa).join(', ')} já tem recebimento confirmado: desfaça o recebimento antes de tirar a venda.`, true); return null; } }
+  const sob = ciclosEco().find(c => c.id !== (antigo && antigo.id) && c.ini <= x.fim && c.fim >= x.ini);
+  x.itens = itens; x._sobrepoe = sob;
+  return x;
+}
+const resumoEco = c => `Vendas ${fd(c.ini)} a ${fd(c.fim)} · ${c.itens.length} empresa(s) · venda ${brl(c.itens.reduce((s, i) => s + i.venda, 0))} − ${pctTxt(c.taxa)} · pagamento ${fd(c.pagamento)}`;
+ACT.ecoNovo = () => {
+  if (!needWrite()) return;
+  if (!cfgEco().empresas.length) { toast('Cadastre primeiro as empresas.', true); ACT.ecoConfig(); return; }
+  const cred = ecoCred(); if (!cred) { toast('Cadastre a empresa do grupo em Configurações → Empresas.', true); return; }
+  const form = openModal({
+    title: 'Novo ciclo de e-commerce', ok: 'Salvar ciclo', body: formEco(proxCicloEco()),
+    onSubmit: async f => {
+      const x = lerFormEco(f); if (!x) return false;
+      if (x._sobrepoe && !(await confirmBox('Período repetido', `Já existe o ciclo de ${fd(x._sobrepoe.ini)} a ${fd(x._sobrepoe.fim)}, que cobre parte deste período. Salvar mesmo assim?`, 'Salvar'))) return false;
+      delete x._sobrepoe;
+      const anexos = await uploadFiles(f.elements.files.files, cred.id);
+      const id = newId('ecommerce');
+      await put('ecommerce', id, stamp({ ...x, credorId: cred.id, anexos, cancelado: false }, true));
+      await audit('criação', 'ciclo e-commerce', id, resumoEco(x), { credorId: cred.id });
+      toast('Ciclo salvo.');
+    }
+  });
+  ligarFormEco(form);
+};
+ACT.ecoEditar = el => {
+  if (!needWrite()) return;
+  const c = S.ecommerce.find(x => x.id === el.dataset.id); if (!c) return;
+  const form = openModal({
+    title: 'Editar ciclo', ok: 'Salvar', body: formEco(c),
+    onSubmit: async f => {
+      const x = lerFormEco(f, c); if (!x) return false;
+      if (x._sobrepoe && !(await confirmBox('Período repetido', `Já existe o ciclo de ${fd(x._sobrepoe.ini)} a ${fd(x._sobrepoe.fim)}, que cobre parte deste período. Salvar mesmo assim?`, 'Salvar'))) return false;
+      delete x._sobrepoe;
+      const novos = await uploadFiles(f.elements.files.files, c.credorId);
+      await put('ecommerce', c.id, stamp(clean({ ...c, ...x, anexos: [...(c.anexos || []), ...novos] }), false));
+      await audit('edição', 'ciclo e-commerce', c.id, resumoEco(x), { credorId: c.credorId });
+      toast('Ciclo atualizado.');
+    }
+  });
+  ligarFormEco(form);
+};
+ACT.ecoApagar = async el => {
+  if (!needWrite()) return;
+  const c = S.ecommerce.find(x => x.id === el.dataset.id); if (!c) return;
+  const ok = await confirmBox('Apagar ciclo', `Apagar o ciclo de vendas de ${fd(c.ini)} a ${fd(c.fim)}? Ele sai dos totais e fica no histórico como cancelado.`, 'Apagar', true);
+  if (!ok) return;
+  try { await upd('ecommerce', c.id, { cancelado: true, canceladoEm: nowIso(), canceladoPor: S.meId || null }); await audit('cancelamento', 'ciclo e-commerce', c.id, resumoEco(c), { credorId: c.credorId }); toast('Ciclo apagado.'); }
+  catch (e) { toast(errMsg(e), true); }
+};
+
+/* recebimento na conta corrente da empresa */
+ACT.ecoReceber = el => {
+  if (!needWrite()) return;
+  const c = S.ecommerce.find(x => x.id === el.dataset.id); const i = +el.dataset.i; const it = c && c.itens[i]; if (!it) return;
+  const esp = liqEco(it.venda, c.taxa);
+  const form = openModal({
+    title: 'Confirmar recebimento', ok: 'Confirmar',
+    body: `<div class="notice info" style="font-size:13px"><b>${esc(it.empresa)}</b> · vendas de ${ddmm(c.ini)} a ${ddmm(c.fim)}<br>venda ${brl(it.venda)} − ${pctTxt(c.taxa)} = <b>esperado ${brl(esp)}</b></div>
+    <div class="form">
+      <div class="f"><label for="er-val">Valor que entrou na conta (R$)</label><input type="text" class="money-in" inputmode="decimal" id="er-val" name="valor" value="${toInput(esp)}"></div>
+      <div class="f"><label for="er-data">Data do crédito</label><input type="date" id="er-data" name="data" value="${X.t}"></div>
+      <div class="full" id="er-dif"></div>
+      <div class="f full"><label for="er-obs">Observações</label><textarea id="er-obs" name="obs"></textarea></div>
+      ${fileInput('er-files', 'Comprovante / extrato')}
+    </div>`,
+    onSubmit: async f => {
+      const v = parseBRL(fv(f, 'valor')), data = fv(f, 'data');
+      if (!(v >= 0) || isNaN(v)) { toast('Informe o valor recebido.', true); return false; }
+      if (!data) { toast('Informe a data.', true); return false; }
+      const anexos = await uploadFiles(f.elements.files.files, c.credorId);
+      const itens = c.itens.map((x, k) => k === i ? { ...x, recebido: { valor: v, data, obs: fv(f, 'obs'), anexos, em: nowIso(), por: S.meId || null } } : x);
+      await upd('ecommerce', c.id, { itens, atualizadoEm: nowIso() });
+      await audit('recebimento', 'ciclo e-commerce', c.id, `${it.empresa}: recebido ${brl(v)} em ${fd(data)} (esperado ${brl(esp)}) · vendas ${fd(c.ini)} a ${fd(c.fim)}`, { credorId: c.credorId });
+      toast(Math.abs(v - esp) < 1 ? 'Recebimento confirmado.' : `Recebimento confirmado com diferença de ${brl(Math.abs(v - esp))}.`);
+    }
+  });
+  const upd_ = () => { const v = parseBRL(fv(form, 'valor')), d = v - esp; form.querySelector('#er-dif').innerHTML = isNaN(v) || Math.abs(d) < 1 ? '' : `<div class="notice ${d < 0 ? 'crit' : 'warn'}" style="font-size:13px">Diferença de <b>${d > 0 ? '+' : '−'}${brl(Math.abs(d))}</b> em relação ao esperado.</div>`; };
+  form.addEventListener('input', upd_); upd_();
+};
+ACT.ecoItem = el => {
+  const c = S.ecommerce.find(x => x.id === el.dataset.id); const i = +el.dataset.i; const it = c && c.itens[i]; if (!it) return;
+  const s = stItemEco(c, it), r = it.recebido;
+  openModal({
+    title: it.empresa, noFoot: true,
+    body: `<div class="flex">${pillEco(s.st)}<span class="muted">vendas de ${fd(c.ini)} a ${fd(c.fim)}</span></div>
+    <dl class="kv"><dt>Venda (Sellia)</dt><dd class="num">${brl(it.venda)}</dd>${it.nossaVenda != null ? `<dt>Nosso controle</dt><dd class="num ${Math.abs(it.nossaVenda - it.venda) >= 1 ? 'crit' : ''}">${brl(it.nossaVenda)}${Math.abs(it.nossaVenda - it.venda) >= 1 ? ` · diferença ${brl(Math.abs(it.nossaVenda - it.venda))}` : ' · confere'}</dd>` : ''}
+      <dt>Taxa Sellia</dt><dd class="num">${pctTxt(c.taxa)} · ${brl(it.venda - s.esp)}</dd><dt>A receber</dt><dd class="num"><b>${brl(s.esp)}</b></dd><dt>Pagamento previsto</dt><dd class="num">${fd(c.pagamento)}</dd>
+      ${r ? `<dt>Recebido</dt><dd class="num ${s.st === 'ok' ? 'ok' : 'crit'}"><b>${brl(r.valor)}</b> em ${fd(r.data)}${s.st === 'dif' ? ` · diferença ${s.dif > 0 ? '+' : '−'}${brl(Math.abs(s.dif))}` : ''}</dd>${r.obs ? `<dt>Observações</dt><dd style="white-space:pre-wrap">${esc(r.obs)}</dd>` : ''}<dt>Confirmado</dt><dd>${fdt(r.em)} ${r.por ? `<span class="autor">por ${esc(nomeUser(r.por))}</span>` : ''}</dd>` : ''}</dl>
+    ${r && r.anexos && r.anexos.length ? `<div><div class="eyebrow" style="margin-bottom:6px">Comprovantes</div>${fileList(r.anexos)}</div>` : ''}
+    ${S.canWrite ? `<div class="flex" style="justify-content:flex-end;border-top:1px solid var(--line);padding-top:14px">${r ? `<button type="button" class="btn danger" data-act="ecoDesfazer" data-id="${c.id}" data-i="${i}">Desfazer recebimento</button>` : `<button type="button" class="btn pri" data-act="ecoReceber" data-id="${c.id}" data-i="${i}">Confirmar recebimento</button>`}</div>` : ''}`
+  });
+};
+ACT.ecoDesfazer = async el => {
+  if (!needWrite()) return;
+  const c = S.ecommerce.find(x => x.id === el.dataset.id); const i = +el.dataset.i; const it = c && c.itens[i]; if (!it || !it.recebido) return;
+  const j = await confirmBox('Desfazer recebimento', `Desfazer o recebimento de <b class="num">${brl(it.recebido.valor)}</b> de ${esc(it.empresa)}? O repasse volta para "a receber".`, 'Desfazer', true, justField('Motivo'));
+  if (!j) return;
+  const itens = c.itens.map((x, k) => { if (k !== i) return x; const y = { ...x }; delete y.recebido; return y; });
+  try { await put('ecommerce', c.id, stamp(clean({ ...c, itens }), false)); await audit('estorno', 'ciclo e-commerce', c.id, `${it.empresa}: recebimento de ${brl(it.recebido.valor)} desfeito (${j}) · vendas ${fd(c.ini)} a ${fd(c.fim)}`, { credorId: c.credorId }); toast('Recebimento desfeito.'); }
+  catch (e) { toast(errMsg(e), true); }
+};
+
+/* cadastro: empresas, taxa padrão, prazo e duração do ciclo */
+ACT.ecoConfig = () => {
+  if (!needWrite()) return;
+  const cfg = cfgEco();
+  openModal({
+    title: 'Empresas e taxa', ok: 'Salvar',
+    body: `<div class="form">
+      <div class="f full"><label for="eco-emp">Empresas que recebem os repasses <span class="req">*</span></label><textarea id="eco-emp" name="empresas" rows="5" placeholder="Uma por linha">${esc(cfg.empresas.join('\n'))}</textarea><span class="hint">Uma por linha. Empresas já usadas em ciclos continuam aparecendo neles.</span></div>
+      <div class="f"><label for="eco-taxa">Taxa da Sellia (%)</label><input type="text" inputmode="decimal" id="eco-taxa" name="taxa" value="${String(cfg.taxa).replace('.', ',')}"><span class="hint">Padrão dos novos ciclos. Dá para mudar em cada ciclo.</span></div>
+      <div class="f"><label for="eco-dur">Duração do ciclo (dias)</label><input type="number" min="1" max="31" id="eco-dur" name="duracao" value="${cfg.duracao}"></div>
+      <div class="f"><label for="eco-dias">Pagamento quantos dias após o fim</label><input type="number" min="0" max="60" id="eco-dias" name="dias" value="${cfg.dias}"></div>
+    </div>`,
+    onSubmit: async f => {
+      const empresas = [...new Set(String(f.elements.empresas.value).split('\n').map(s => s.trim()).filter(Boolean))];
+      const taxa = parsePct(fv(f, 'taxa')), duracao = parseInt(fv(f, 'duracao')), dias = parseInt(fv(f, 'dias'));
+      if (!empresas.length) { toast('Cadastre pelo menos uma empresa.', true); return false; }
+      if (isNaN(taxa)) { toast('Informe a taxa em % (ex.: 15).', true); return false; }
+      if (!(duracao >= 1 && duracao <= 31)) { toast('A duração do ciclo deve ser de 1 a 31 dias.', true); return false; }
+      if (!(dias >= 0 && dias <= 60)) { toast('O prazo de pagamento deve ser de 0 a 60 dias.', true); return false; }
+      await withRetry(() => db.doc('config/ecommerce').set({ empresas, taxa, duracao, dias, atualizadoEm: nowIso(), atualizadoPor: S.meId || null }));
+      S.cfgEco = { empresas, taxa, duracao, dias };
+      toast('Cadastro salvo.');
+    }
+  });
+};
+ACT.ecoExport = el => {
+  const cs = ciclosEco().slice().reverse();
+  const cols = ['Vendas de', 'até', 'Pagamento', 'Empresa', 'Venda Sellia', 'Nosso controle', 'Taxa', 'A receber', 'Recebido', 'Data crédito', 'Diferença', 'Situação'];
+  const rows = [];
+  let tv = 0, te = 0, tr = 0;
+  for (const c of cs) for (const it of c.itens || []) {
+    const s = stItemEco(c, it); tv += it.venda; te += s.esp; if (it.recebido) tr += it.recebido.valor;
+    rows.push([{ t: 'd', v: c.ini }, { t: 'd', v: c.fim }, { t: 'd', v: c.pagamento }, it.empresa, { t: 'm', v: it.venda }, { t: 'm', v: it.nossaVenda ?? null }, pctTxt(c.taxa), { t: 'm', v: s.esp }, { t: 'm', v: it.recebido ? it.recebido.valor : null }, it.recebido ? { t: 'd', v: it.recebido.data } : '', { t: 'm', v: it.recebido ? s.dif : null }, ST_ECO[s.st][0]]);
+  }
+  if (!rows.length) { toast('Nada para exportar.', true); return; }
+  const foot = ['Total', '', '', '', { t: 'm', v: tv }, '', '', { t: 'm', v: te }, { t: 'm', v: tr }, '', '', ''];
+  const titulo = 'E-commerce Flamengo · Sellia', sub = `Repasses por ciclo · posição em ${fd(X.t)} · a receber ${brl(te - tr)}`;
+  if (el.dataset.k === 'pdf') runExport(() => exportPdf(titulo, sub, cols, rows, foot));
+  else runExport(() => exportXlsx(titulo, sub, cols, rows, foot));
+};
 
 /* ================= CONEXÃO SUPABASE (substitui o banco do Claude) ================= */
 const CFG_OK = !/COLE_AQUI/.test(SUPABASE_URL + SUPABASE_KEY);
