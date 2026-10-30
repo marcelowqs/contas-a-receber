@@ -52,6 +52,9 @@
 @media (max-width:560px){.ei-cols{grid-template-columns:1fr!important}}
 .eco-cfg-l{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:6px;margin-bottom:6px}
 .eco-gest{padding:8px 14px;border-top:1px solid var(--line);display:grid;gap:4px} .eco-gl{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.dcard.eco{background:var(--ink);color:var(--bg)} .dcard.eco b{color:inherit} .dcard.eco .eco-atr{color:#FDBA74;opacity:1;font-weight:600}
+.dash-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;align-items:stretch;margin-bottom:4px}
+.dash-top .ac-dash{margin:0} .dcard.desk{border-radius:var(--r);padding:16px 18px}
 </style>
 <title>Gestão de Contas a Receber</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3054,6 +3057,27 @@ ACT.acExport = el => {
 };
 
 /* quadro separado no dashboard com o resultado dos acertos */
+/* quadro do e-commerce no dashboard */
+function resumoEcoDash() {
+  const cs = typeof ciclosEco === 'function' ? ciclosEco() : [];
+  if (!cs.length) return null;
+  let pend = 0, atr = 0; const [m0, m1] = monthBounds(X.t); let recMes = 0;
+  for (const c of cs) for (const it of c.itens || []) { const s_ = stItemEco(c, it); if (!it.recebido) { pend += s_.esp; if (s_.st === 'atraso') atr += s_.esp; } else if (it.recebido.data >= m0 && it.recebido.data <= m1) recMes += it.recebido.valor; }
+  const u = cs[0], T = totCicloEco(u), g = {};
+  for (const it of u.itens || []) { const k = gestorEco(it.empresa) || 'Sem gestor'; g[k] = (g[k] || 0) + liqEco(it.venda, u.taxa); }
+  return { pend, atr, recMes, u, T, g };
+}
+function cardEcoDash(desk) {
+  const R = resumoEcoDash(); if (!R) return '';
+  const { pend, atr, u, T, g } = R;
+  return `<button type="button" class="dcard eco ${desk ? 'desk' : ''}" data-act="go" data-v="ecommerce">
+    <span class="dcard-t">E-commerce · Sellia<span class="dcard-chev">›</span></span>
+    <span class="dcard-v">${pend ? `A receber <b class="num">${brl(pend)}</b>` : 'Tudo recebido'}</span>
+    ${atr ? `<span class="dcard-s eco-atr">⚠ ${brl(atr)} atrasado</span>` : ''}
+    <span class="dcard-s">Último ciclo ${ddmm(u.ini)} a ${ddmm(u.fim)} · venda ${brl(T.venda)} · ${T.pend ? `a receber ${brl(T.esp)}` : `recebido ${brl(T.rec)}`}</span>
+    <span class="dcard-s">${Object.entries(g).map(([k, v]) => `${esc(k)} ${brl(v)}`).join(' · ')}</span>
+  </button>`;
+}
 /* celular: 3 quadros no topo (C/C MF, PJ, PF); tocar abre as informações logo abaixo */
 function resumoTipoDash(TIPO) {
   const ab = S.dividas.filter(d => !d.cancelada && (credOf(d).tipo === 'PF') === (TIPO === 'PF') && ativa(d));
@@ -3080,7 +3104,7 @@ function quadrosMobDash() {
       <span class="dcard-s">${r.venc ? `vencido ${brl(r.venc)} · ${r.nVenc} em atraso` : 'nada em atraso'} · ${r.n} dívida${r.n !== 1 ? 's' : ''}</span></button>
       ${on ? `<div class="dcard-det">${colunaDash(TIPO)}</div>` : ''}`;
   };
-  return `<div class="dash-cards only-mob">${cc}${S.dividas.length ? card('PJ') + card('PF') : ''}</div>`;
+  return `<div class="dash-cards only-mob">${cc}${S.dividas.length ? card('PJ') + card('PF') : ''}${cardEcoDash()}</div>`;
 }
 ACT.dashAbrir = el => { const t = el.dataset.t; S.dashAberto = S.dashAberto === t ? '' : t; render(); if (S.dashAberto) setTimeout(() => { const c = document.querySelector(`.dcard[data-t="${t}"]`); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30); };
 function quadroAcertosDash() {
@@ -3098,7 +3122,8 @@ function quadroAcertosDash() {
   const basePainel = VIEWS.painel;
   VIEWS.painel = () => {
     const html = basePainel(), q = quadroAcertosDash();
-    return quadrosMobDash() + (q ? `<div class="only-desk">${q}</div>` : '') + html;
+    const e = cardEcoDash(true);
+    return quadrosMobDash() + (q || e ? `<div class="only-desk dash-top">${q}${e}</div>` : '') + html;
   };
   VIEWS.painelPF = VIEWS.painel; VIEWS.painelPJ = VIEWS.painel;
 }
